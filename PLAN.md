@@ -111,7 +111,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T03
 - **Acceptance criteria:** Ports match DESIGN §5.1–5.2; Phase 0 freeze complete for interfaces.
 - **How to verify:** Typecheck; no concrete Obsidian/Node imports in `core/`.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥A** (after T03; sequential with T03 inside ∥A)
 
 ### M1-T05 — Model-output schemas (zod) + subset check
