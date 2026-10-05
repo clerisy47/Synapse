@@ -1,29 +1,33 @@
 # DESIGN.md: Synapse (working name)
 
-Status: draft v1 · Date: 2026-10-02 · Inputs: `SPEC.md` (draft v1), `research.md` (Phase 0)
-Scope: design only. No implementation exists yet.
+Status: draft v1.1 · Date: 2026-10-05 · Inputs: `SPEC.md` (draft v1.1), `research.md` (Phase 0)
+Scope: design only for unfinished modules. Scaffold may exist.
 
 **How to read this document.** §1–3 give the shape of the system. §4–5 are the contracts (data, interfaces, errors). §6 walks the runtime flows. §7 is the repo layout. §8 covers trust/auth, errors, logging and config. §9 is the build and test plan for independent work. §10 holds the ADRs. §11 lists what is out of scope. **§12 is the register of ambiguous or infeasible items in SPEC.md.** §13 maps the open on-device gates to the switches this design provides for them.
 
-**Evidence tags** (carried over from `research.md`): **[V]** verified by running something · **[S]** read from a primary source · **[B]** community source · **[D]** derived from stated assumptions · **[U]** unverified. Two tags are new here: **[design]** is a decision made in this document without external evidence, and **(provisional)** marks a number that must be confirmed by Gate A (the on-device bake-off, §13) before it is committed.
+**Evidence tags** (carried over from `research.md`): **[V]** verified by running something · **[S]** read from a primary source · **[B]** community source · **[D]** derived from stated assumptions · **[U]** unverified. Two tags are new here: **[design]** is a decision made in this document without external evidence, and **(provisional)** marks a number that must be confirmed by Gate A (the **Phase B** on-device bake-off, §13) before it is committed for local models.
 
 **Naming.** "Synapse" is a working name only. The manifest ID `synapse` is already taken [V, research R7]. The ID, display name, view-type IDs and the user-facing exclusion frontmatter key all derive from one file (`src/constants.ts`), so the rename is a one-file change plus `manifest.json`. See F-07.
+
+**Provider phasing (SPEC §0).** Phase A builds and ships features against **OpenRouter free models**. Phase B (local Ollama + Gate A) starts **only after** Must+Should feature-complete. Do not stall the plan on local VRAM or Ollama ops.
 
 ---
 
 ## 1. Summary
 
-Synapse is a desktop-only Obsidian plugin. A small local model, served by the user's own Ollama, answers questions about the vault, flags possible contradictions, and resurfaces old notes. It finds evidence with bounded keyword, title, link, tag and frontmatter tools, and every output cites an exact passage.
+Synapse is a desktop-only Obsidian plugin. An LLM answers questions about the vault, flags possible contradictions, and resurfaces old notes. It finds evidence with bounded keyword, title, link, tag and frontmatter tools, and every output cites an exact passage.
+
+**Phase A default provider:** OpenRouter Chat Completions with free models (`:free` / `openrouter/free`). Selected excerpts leave the machine — disclosed in UI/README. **Phase B provider:** user-installed Ollama on loopback; Gate A then picks recommended local models.
 
 The design is **ports-and-adapters with a pure TypeScript core.** Only two directories (`adapters/obsidian`, `adapters/node`) may import `obsidian`, `electron` or Node built-ins. Everything else is plain TypeScript tested with fakes, which is what lets modules be built and tested in parallel (§9).
 
 Five principles drive the rest:
 
-1. **Testable without Obsidian or Ollama.** Features depend on port *interfaces* (`ModelPort`, `CorpusReader`, `Transport`, …) and a fake exists for each.
+1. **Testable without Obsidian or a live provider.** Features depend on port *interfaces* (`ModelPort`, `CorpusReader`, `Transport`, …) and a fake exists for each.
 2. **The model proposes; the plugin disposes.** Model output is limited to enums, search terms, booleans and **ledger IDs** (`E1`, `E2`, …). The model never supplies a file path, a regex, or a quote. Quotes are filled in by the plugin from the source, so they are verbatim by construction.
 3. **Exclusion and write-protection are structural.** Excluded notes are never indexed, so no tool can return them. Only one class can write files, and it is confined to the plugin folder.
-4. **One production request shape.** Every Ollama call, including the health check, is built by one function with one set of runner options.
-5. **Hardware-dependent numbers are configuration, not architecture.** Budgets, model choice and pipeline strategy are switches (§13) so the Gate A results change a config value, not a module boundary.
+4. **One production request builder per provider.** Health checks use the same request shape as production calls for that provider (`buildChatRequest` / OpenRouter equivalent).
+5. **Hardware-dependent numbers are configuration, not architecture.** Budgets, model choice and pipeline strategy are switches (§13). Phase B Gate A changes config values, not module boundaries.
 
 ### 1.1 Where this design departs from SPEC.md
 
@@ -31,8 +35,9 @@ Each departure follows `research.md`; the reasoning is in the ADRs (§10) and th
 
 | SPEC item | This design | Why |
 |---|---|---|
-| OQ-1 transport (`fetch` vs `requestUrl`) | `Transport` interface; Node `http`/`https` (guarded dynamic import) primary, `requestUrl` for health checks and a degraded mode, **no `fetch`** | `requestUrl` can't stream or cancel; `fetch` triggers an unsuppressible lint warning [V/S] |
-| AC-M1.5 "pause" | **Abort the in-flight call and restart from the last completed step** | Ollama has no pause, only a queue [S] |
+| OQ-1 transport (`fetch` vs `requestUrl`) | `Transport` interface; Node `http`/`https` (guarded dynamic import) primary, `requestUrl` for some health paths, **no `fetch`** | Same as before; Phase A uses HTTPS to OpenRouter via Node transport |
+| AC-M1.5 "pause" | **Abort the in-flight call and restart from the last completed step** | Providers expose cancel via abortable HTTP, not pause |
+| SPEC §0 / former "no cloud" | **Phase A OpenRouter free models; Phase B Ollama after feature-complete** (ADR-21) | Explicit product decision 2026-10-05: unblock build on free cloud models first [V] |
 | AC-M2.x free-running hop loop | **≈3-call pipeline** (plan → deterministic search → select → read → answer) with hop cap *and* wall-clock budget | Free-running loop meets 45 s in 1 of 9 speed scenarios [D] |
 | AC-M5.1 `compare` returns verbatim `quotes` | Returns `excerpt_ids`; plugin fills in text. One code path, **two tasks** (`contradiction`, `relevance`) | 2–3× cheaper to decode; verbatim by construction [D]; `agree/disagree/unrelated` can't express "related" (F-19) |
 | AC-M4.2 / M4.3 scanned-PDF average rule | **Per-page** text-layer detection; per-PDF cache shards | Rule is wrong on 3 of 6 PDF shapes [V] |
@@ -102,7 +107,7 @@ Two further bans, checked by lint and by `scripts/check-*.mjs` (§9.4):
 
 ### 2.3 Runtime topology
 
-One Obsidian process, one plugin instance, **one model lane**. Ollama is an external process on loopback and runs requests one at a time (`OLLAMA_NUM_PARALLEL=1` [S]), so it serializes anything we or another client send. The plugin's own `JobQueue` is the single in-process gate (OQ-13: one queue per plugin instance in v1; behavior across pop-out windows is [U], see F-32).
+One Obsidian process, one plugin instance, **one model lane**. The active provider (Phase A: OpenRouter; Phase B: Ollama) is reached only through `Transport` + `ModelPort`. The plugin's own `JobQueue` is the single in-process gate (OQ-13: one queue per plugin instance in v1; behavior across pop-out windows is [U], see F-32).
 
 ```mermaid
 flowchart LR
@@ -115,7 +120,8 @@ flowchart LR
   F --> M
   Q -. "runs" .-> F
   M --> TR["Transport"]
-  TR --> OL[("Ollama 127.0.0.1:11434")]
+  TR --> OR[("Phase A: OpenRouter api.openrouter.ai")]
+  TR --> OL[("Phase B: Ollama 127.0.0.1:11434")]
   C --> VP["VaultPort / MetadataPort"]
   C --> PDF["pdf: PdfTextSource"]
   F --> ST["state: data.json + cache/"]
@@ -130,11 +136,11 @@ flowchart LR
 | `core` | Domain types, `Result`/`SynapseError`, **port interfaces**, `Clock`, `Logger` interface, pure helpers (length-preserving case fold, token estimator, hashing, stable stringify) | nothing | types only | cross-cutting | none needed (pure) |
 | `config` | Settings schema (zod), defaults, bounds, migration, change events, build-time constants | settings in memory | `ConfigStore` | AC-M8.2, M9 settings | in-memory store |
 | `state` | `data.json` tolerant parse, **merge**, debounced write; dismissals; touch log; resurface day marker; `cache/` store for rebuildable files; "clear all" | persisted state | `StateStore`, `DismissalStore`, `CacheStore` | AC-M6.7, M7.8, M8.5–8.7, S3 | `MemoryStorage` |
-| `policy` | `ExclusionPolicy` (folder/tag/frontmatter, **fail-closed**); `EndpointPolicy` (loopback test, acknowledgement) | rules (from config) | `decide()`, `check()` | AC-M8.1, M8.2, M8.4 | pure |
+| `policy` | `ExclusionPolicy` (folder/tag/frontmatter, **fail-closed**); `EndpointPolicy` (Phase A OpenRouter allowlist; Phase B loopback + acknowledgement) | rules (from config) | `decide()`, `check()` | AC-M8.1, M8.2, M8.4 | pure |
 | `evidence` | Paragraph-aligned excerpt segmentation; per-run **`EvidenceLedger`** (`E1…`); prompt rendering within a token budget; quote **anchor** resolution; display truncation | per-run ledger | `segment`, `EvidenceLedger`, `resolveAnchor` | AC-M3.3–3.6, M5.1, M6.4 | pure |
 | `corpus` | Content cache, folded-text index, link graph (forward + inverse), tag/title/frontmatter indexes, note-date resolver, readiness status, vault/metadata event handling. **Applies exclusion at ingest** | indexes | `CorpusReader` (read-only), `CorpusStore` (lifecycle) | AC-M2.2, M2.7, M8.4, scale | `FakeVault`, `FakeMetadata` |
 | `pdf` | Extraction via `PdfJsPort`, per-page classification, per-PDF shard cache (path+mtime+size+extractor version), background queue with yielding, status list | `cache/pdf/*` | `PdfTextSource`, `PdfIngest` | AC-M4.1–4.6 | `FakePdfJs`, fixture PDFs |
-| `llm` | `OllamaClient` (`ModelPort`), production request shape, NDJSON parsing, schema validate + retry once, error classification (`FORMAT_IGNORED` …), `HealthChecker`, pinned-model list, `Transport` interface | health state, usage stats | `ModelPort`, `HealthChecker` | AC-M1.1–1.4, 1.8 | `FakeTransport`, mock Ollama server, `ScriptedModel` |
+| `llm` | `ModelPort`: **`OpenRouterClient` (Phase A)** then `OllamaClient` (Phase B); request builders; schema validate + retry once; error classification; `HealthChecker`; pinned-model list; `Transport` | health state, usage stats | `ModelPort`, `HealthChecker` | AC-M1.1–1.4, 1.8 | `FakeTransport`, mock HTTP, `ScriptedModel` |
 | `jobs` | Single-lane **priority queue**, preemption (abort + resume from memoized steps), cancel, dedupe keys, status events, active-time accounting | queue | `JobQueue` | AC-M1.5–1.7 | `FakeClock` |
 | `tools` | The eight tools as pure functions over `CorpusReader`: arg validation, canonical call keys, result caps, PDF-aware behavior | nothing | `ToolRegistry.invoke` | AC-M2.1, 2.5, 2.7 | `FakeCorpus` |
 | `agent` | Q&A pipeline state machine; budgets (hops, reads, model calls, tokens, wall-clock); selector strategy; answer assembly and **citation check**; multi-turn memory | chat session (memory only) | `QaPipeline.run` | AC-M2.3–2.6, M3.1–3.7 | `ScriptedModel`, `FakeCorpus` |
@@ -151,7 +157,7 @@ flowchart LR
 - **`corpus` is the only gatekeeper of what the model can see.** It indexes a file only after `ExclusionPolicy` says "allowed", and it *fails closed*: a note whose metadata is not yet parsed stays out of every index until it is. Everything downstream (tools, compare, contradiction, resurface) reads through `CorpusReader`, so AC-M2.7 and AC-M8.4 hold by construction rather than by output filtering.
 - **`evidence` owns the idea of a citation.** Tools return plain `Excerpt` objects. Only the per-run `EvidenceLedger` mints IDs. A model-supplied ID that isn't in the ledger resolves to `undefined`, which is how forged or hallucinated citations are caught.
 - **`jobs` owns "one model at a time".** Features never talk to the model outside a job. Preemption (a Q&A job arriving while a background job runs) is the queue's concern. Features only need to be written as *resumable steps* (§5.4).
-- **`llm` owns Ollama.** No other module knows an endpoint path, a header, or a runner option. Callers pass a prompt kind, text and a schema.
+- **`llm` owns providers.** No other module knows an endpoint path, a header, or a runner option. Callers pass a prompt kind, text and a schema. Phase A sends `Authorization: Bearer <key>` only inside the OpenRouter client.
 - **`state` splits persisted data into two classes** (§4.3): `data.json` (settings, dismissals, touch log: merge-tolerant, no note content) and `cache/` (anything derived from note text: rebuildable, safe to delete).
 
 ---
@@ -340,11 +346,13 @@ Dismissed flags are removed from `flags.json`; the dismissal itself lives in `da
 
 | Key | Type | Default | Bounds | Effect of change |
 |---|---|---|---|---|
-| `endpoint` | URL | `http://127.0.0.1:11434` | http/https | Invalidate health; non-loopback shows a warning and needs acknowledgement |
-| `endpointAckHost` | string \| null | `null` | | Set when the user acknowledges a non-loopback host |
-| `model` | explicit tag | `""` (user chooses; never `latest` or a bare family name) | | Invalidate health |
-| `numCtx` | int | 4096 (provisional) | 2048–8192 | Invalidate health; **model reloads** on next call (R4) |
-| `keepAlive` | Ollama duration | `5m` | | Next request |
+| `endpoint` | URL | Phase A: `https://openrouter.ai/api/v1` · Phase B: `http://127.0.0.1:11434` | http/https | Invalidate health; Phase A allowlist / Phase B non-loopback warning |
+| `provider` | `openrouter` \| `ollama` | `openrouter` until Phase B lands | | Selects client implementation |
+| `apiKey` | string \| null | `null` (dev may read `OPENROUTER_API_KEY`) | never log | Required for OpenRouter; absent → AI disabled |
+| `endpointAckHost` | string \| null | `null` | | Phase B acknowledgement for non-loopback |
+| `model` | string | Phase A provisional: `qwen/qwen3.8-27b:free` (pinned `:free`; avoid bare `latest`) | | Invalidate health; health check verifies |
+| `numCtx` | int | 4096 (provisional) | 2048–8192 | Invalidate health; **local model may reload** on next call (Phase B / R4) |
+| `keepAlive` | Ollama duration | `5m` | | Phase B only; next request |
 | `transport` | `auto` \| `node` \| `requestUrl` | `auto` | | Reconnect; `requestUrl` shows a "degraded mode" notice |
 | `excludedFolders` | string[] | `[]` | | Rebuild indexes; purge caches |
 | `excludedTags` | string[] | `[]` | | Rebuild indexes; purge caches |
@@ -782,7 +790,35 @@ interface CompareRelevanceOutput {             // compare.relevance
 
 **No model output carries a path.** Plans carry search terms; selection and citation carry ledger IDs. The plugin maps IDs back to paths. This keeps a prompt-injection payload inside a note from addressing files, including excluded ones (§8.1).
 
-### 5.6 External contract: Ollama HTTP
+### 5.6 External contracts: providers
+
+#### 5.6.1 Phase A — OpenRouter (OpenAI-compatible) [V]
+
+| Endpoint | Used by | Notes |
+|---|---|---|
+| `GET https://openrouter.ai/api/v1/key` | health (auth / rate-limit facets) | Requires `Authorization: Bearer` |
+| `GET https://openrouter.ai/api/v1/models` | optional model list | Prefer authenticated |
+| `POST https://openrouter.ai/api/v1/chat/completions` | every model call | Free models: `*:free` or `openrouter/free` |
+
+Probe (2026-10-05): API key works; `qwen/qwen3.8-27b:free` returned valid JSON with `response_format: json_object`. Prefer **pinned `:free` IDs** over `openrouter/free` when schema stability matters (router may pick thinking-heavy models).
+
+```jsonc
+POST {endpoint}/chat/completions
+{
+  "model": "qwen/qwen3.8-27b:free",
+  "messages": [
+    { "role": "system", "content": "<SHARED_SYSTEM_PREFIX>" },
+    { "role": "user", "content": "<instructions>\n\n<input>" }
+  ],
+  "temperature": 0,
+  "max_tokens": 400,
+  "response_format": { "type": "json_object" }
+}
+```
+
+Headers: `Authorization: Bearer <apiKey>`; optional `HTTP-Referer` / `X-Title`. Never log the key or note body.
+
+#### 5.6.2 Phase B — Ollama HTTP (after feature-complete)
 
 | Endpoint | Used by | Fields consumed | Failure mapping |
 |---|---|---|---|
@@ -823,7 +859,7 @@ POST {endpoint}/api/chat
 | `open-resurface` | Open resurfaced notes | Reveal the resurfacing view |
 | `check-contradictions` | Check this note for contradictions | Submit a contradiction job for the active note |
 | `resurface-now` | Resurface old notes now | Submit a manual resurfacing job |
-| `run-health-check` | Run Ollama health check | `HealthChecker.full` |
+| `run-health-check` | Run model health check | `HealthChecker.full` |
 | `cancel-job` | Cancel current job | `handle.cancel()` |
 | `clear-data` | Clear all Synapse data | Confirmation modal, then `StateStore.clearAll()` (S3) |
 | `copy-diagnostics` | Copy diagnostics | Redacted bundle to clipboard (§8.3) |
@@ -1006,12 +1042,12 @@ The release artifacts are exactly `main.js`, `manifest.json` and `styles.css` (A
 
 ### 8.1 Auth: trust, access control and data egress
 
-Synapse has no accounts, sessions or credentials. The authorization questions that matter here are: **who the plugin may talk to, what the model may see, what the plugin may write, and what note content can make the plugin do.** Each has one enforcement point and one test.
+Synapse has no user accounts. Phase A stores an OpenRouter API key in plugin settings (never logged; never committed). The authorization questions that matter here are: **who the plugin may talk to, what the model may see, what the plugin may write, and what note content can make the plugin do.** Each has one enforcement point and one test.
 
 | Boundary | Control | Enforced in | Verified by |
 |---|---|---|---|
-| **Network egress** | Only `Transport` opens sockets. `EndpointPolicy` allows loopback (`127.0.0.0/8`, `::1`, `localhost`) by default. Any other host needs a visible settings warning, a first-use warning, and a per-host acknowledgement; otherwise the request is refused (`ENDPOINT_BLOCKED`) | `policy/endpoint`; both transports | AC-M8.1: integration test patches socket connect and DNS to throw for non-loopback addresses, then runs every feature against the mock Ollama. AC-M8.2: settings and first-use warning test |
-| **Credentials** | None in v1. Stock Ollama has no auth. A remote endpoint behind an authenticating proxy is unsupported; `https://` endpoints use default TLS verification (F-29) | n/a | n/a |
+| **Network egress** | Only `Transport` opens sockets. **Phase A:** `EndpointPolicy` allowlists OpenRouter API hosts; first-use warning that excerpts leave the machine. **Phase B:** loopback default; other hosts need warning + acknowledgement. Else `ENDPOINT_BLOCKED` | `policy/endpoint`; both transports | AC-M8.1 / M8.2 phase-specific integration + UI tests |
+| **Credentials** | Phase A: OpenRouter bearer token in settings / `OPENROUTER_API_KEY` for dev. Never log the key. Phase B Ollama: no auth. TLS verification on for HTTPS | `llm` clients; settings | Key missing → AI disabled (AC-M1.3); redacted diagnostics |
 | **What the model may see** | Exclusion applied at ingest, fail-closed. A link to an excluded note is unresolved. Excluded notes never enter the touch log or any cache | `policy`, `corpus` | Fixture vault with seeded excluded notes, plus a property test: over random vaults and rules, the union of everything `CorpusReader` returns never intersects the excluded set (AC-M2.7, M8.4) |
 | **What the model may ask for** | Model output is enums, terms, booleans and ledger IDs only. No paths, no regex, no quotes. The ledger holds only allowed excerpts | `llm` schemas, `evidence` | Schema-subset check; forged-ID test (`E999` → `undefined`) |
 | **What the plugin may write** | Only `StoragePort`, whose path guard rejects `..`, absolute paths and anything outside the plugin folder. Vault write APIs are banned by lint | `adapters/obsidian/storage`, lint | AC-M8.5: test spies on every vault and adapter write API and asserts all paths are inside the plugin folder |
@@ -1166,15 +1202,17 @@ Format: **chose X over Y because …** *Revisit if …*
 
 **ADR-20: The eval harness runs in Node with its own adapters.** Chose `FsVault`, `FsMetadata` and `NodePdfjs` over running the eval inside Obsidian, because Obsidian can't be driven headlessly. *Cost:* link and tag semantics can drift from Obsidian's metadata cache, so the fixture vault stays inside a documented syntax subset and the `MetadataPort` contract suite runs against both (F-33).
 
+**ADR-21: OpenRouter free models first; Ollama after feature-complete.** Chose Phase A cloud free inference over local-first development because local bake-offs were blocking progress and free OpenRouter models are sufficient to build and validate the agent loop [V, 2026-10-05 probe]. *Cost:* vault excerpts leave the machine in Phase A; privacy defaults and Gate A local bake-off move to Phase B. *Revisit if* Obsidian community review rejects cloud defaults — then ship Phase B local-default before public listing.
+
 ---
 
 ## 11. Deliberately out of scope
 
-**From SPEC §3 (unchanged):** mobile inference and mobile support; scanned or image PDFs, OCR, voice, handwriting; cloud inference or any cloud call; embeddings or a vector database; editing, rewriting or inserting into notes; multi-vault; runtimes other than Ollama; bundling a model runtime; tested non-English support; telemetry, analytics or update pings; presenting flags as errors.
+**From SPEC §3:** mobile inference and mobile support; scanned or image PDFs, OCR, voice, handwriting; embeddings or a vector database; editing, rewriting or inserting into notes; multi-vault; bundling a model runtime; runtimes beyond OpenRouter (Phase A) and Ollama (Phase B); Phase A local bake-offs / recommended local models; paid OpenRouter as default; tested non-English support; telemetry, analytics or update pings; presenting flags as errors.
 
 **Additional design-level exclusions for this release:**
 
-- Authentication to remote Ollama endpoints (tokens, headers, proxies) and any credential storage (F-29).
+- Authentication to remote **Ollama** endpoints beyond Phase A OpenRouter API keys (F-29 updated: OpenRouter key is in scope; arbitrary proxy auth is not).
 - Disk logging or crash-report upload (ADR-16).
 - Web Workers, SQLite/FTS5 indexing and any persistent search index. Both stay in SPEC "Later" behind the `CorpusReader` boundary.
 - Batched comparison (one call, many candidates), model-assisted query rewriting beyond the single plan call, and multi-hop agentic search beyond one follow-up round.
@@ -1235,7 +1273,7 @@ Format: **chose X over Y because …** *Revisit if …*
 | F-26 | Startup and memory | How the content cache is first built, what queries do while it warms, and a memory cap. Research: ~194 MB heap for text plus a lowercase copy of 118 MB, doubling for non-Latin-1 [V, D], beside a 3+ GB model on an 8 GB machine | `CorpusStatus`, partial-result flag, folded-text-only cache. `CACHE_TEXT_CAP_MB` and the eviction policy (load-on-demand for evicted docs) are set from Gate B |
 | F-27 | Persistence | Whether chat history and open flags survive a restart | Chat: memory only (privacy). Flags and today's resurfacing results: rebuildable `cache/` |
 | F-28 | Sync and size | `data.json` is rewritten often (touch log); the PDF cache is "a file" but could be tens of MB; the plugin-folder-only write rule means generic sync tools will carry the cache | Debounced writes and pruning; shard directory; README disclosure. **Edit:** "a separate rebuildable file" → "directory" |
-| F-29 | Remote endpoints | A non-loopback endpoint is allowed with a warning, but there is no way to authenticate or any TLS rule | `https` supported with default verification; no credentials in v1 (out of scope) |
+| F-29 | Remote endpoints | Was: no credentials. Now Phase A needs OpenRouter bearer auth | OpenRouter API key in settings (ADR-21); TLS on; still no arbitrary proxy-auth schemes |
 | F-30 | File types | Which files are indexed | `.md` and `.pdf` only |
 | F-31 | Defaults | S2's default (multi-turn costs ~500 tokens of a 4K context) and S3's scope | Multi-turn off by default (provisional). "Clear all data" removes dismissals, touch log, resurfacing state, flags and caches, and **keeps settings** |
 | F-32 | OQ-13 | Behavior across pop-out windows is [U] | One in-process queue, documented; Ollama's single runner serializes the rest |

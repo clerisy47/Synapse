@@ -1,7 +1,9 @@
 # PLAN.md: Synapse
 
-Status: draft v1 · Inputs: `SPEC.md` (draft v1), `DESIGN.md` (draft v1)  
+Status: draft v1.1 · Inputs: `SPEC.md` (draft v1.1), `DESIGN.md` (draft v1.1)  
 Rule: every milestone leaves a **working, installable plugin**. Milestone 1 is the thinnest end-to-end slice that builds, loads in Obsidian, and deploys as `main.js` + `manifest.json` + `styles.css`.
+
+**Provider phasing (SPEC §0 / ADR-21).** Phase A (this plan through feature-complete): **OpenRouter free models**. Phase B (new milestone after M7/M8): **local Ollama** + Gate A — do **not** schedule local bake-off work before then.
 
 **Task format.** Each task touches **1–5 files**, is one session of work, and ships with tests where the design requires them. Status values: `TODO` | `IN_PROGRESS` | `DONE` | `BLOCKED`.
 
@@ -13,14 +15,15 @@ Rule: every milestone leaves a **working, installable plugin**. Milestone 1 is t
 
 | # | Name | Leaves the app able to… | Primary SPEC |
 |---|------|-------------------------|--------------|
-| **1** | Walking skeleton | Install, load, configure endpoint/model, health-check Ollama, show status, survive without Ollama | M1 (thin), M8/M9 scaffold |
+| **1** | Walking skeleton | Install, load, configure OpenRouter key/model, health-check free models, show status, survive without a key | M1 (thin), M8/M9 scaffold |
 | **2** | Vault corpus + tools | Index notes with exclusions; invoke all eight tools against a vault | M2 tools, M8.4 |
 | **3** | Q&A chat | Ask a question in a sidebar; get cited answers + hop trace | M2 loop, M3, S2 stub |
 | **4** | PDF text layer | Search/read text-layer PDFs; list unsupported PDFs in settings | M4 |
 | **5** | Compare + contradictions | Run contradiction check; see gutter + Flags list; dismiss | M5, M6, S1 |
 | **6** | Resurfacing | Daily/manual resurface panel with reasons and dismiss/downweight | M7 |
-| **7** | Privacy & Shoulds | Network-block / no-write proofs; clear-all; multi-turn; polish | M8, S2, S3 |
-| **8** | Eval & release | Fixture vault, Gate A/B numbers, recommended models, community-ready artifacts | M9, S4, Gates |
+| **7** | Privacy & Shoulds | Allowlist egress proofs; clear-all; multi-turn; polish | M8, S2, S3 |
+| **8** | Eval & release (Phase A) | Fixture vault, Gate metrics on OpenRouter free models, community-ready artifacts | M9, S4 (cloud), Gates (Phase A) |
+| **9** | Phase B — Local Ollama | Ollama client, loopback defaults, Gate A on-device bake-off, recommended local models | SPEC §0 Phase B |
 
 ---
 
@@ -32,7 +35,7 @@ Address these before they block a vertical slice.
 |------|----------------|--------------|
 | **R1** Manifest ID `synapse` is taken (F-07) | Blocks any public build; locks folder, commands, exclusion key | M1-T01 |
 | **R2** Transport cannot cancel / stream (OQ-1, F-01, Gate B/C) | Breaks AC-M1.6 and “progress in 3 s” | M1-T08, M1-T09, M1-T18, M8-T03 |
-| **R3** No model clears eval / 8 GB floor (OQ-5, F-06, Gate A) | Hardware claim and “recommended” list are wrong | M1-T17, M8-T01, M8-T02 |
+| **R3** Free-model schema / rate limits (OQ-5, OQ-6) | Phase A quality and “recommended” list wrong if pinned model flakes | M1-T10, M1-T17 (OpenRouter); **local 8 GB bake-off deferred to M9** |
 | **R4** Structured output / `think` unreliable (OQ-6, F-08) | Every AI feature fails closed or silently | M1-T10, M1-T17 |
 | **R5** Latency budgets unmet (F-03) | Q&A/contradiction miss 45 s / 60 s targets | M1-T17, M3-T03, M8-T02 |
 | **R6** Exclusion leaks (ADR-08) | Privacy regression; AC-M2.7 / M8.4 | M2-T01, M2-T02, M7-T04 |
@@ -45,9 +48,9 @@ Address these before they block a vertical slice.
 
 ## Milestone 1 — Walking skeleton
 
-**Goal.** Thinnest slice that **runs and deploys**: TypeScript plugin builds to release artifacts, loads in Obsidian (`isDesktopOnly`), shows a settings tab and status bar, health-checks loopback Ollama with the **production request shape**, disables AI cleanly when Ollama is down, and never writes outside the plugin folder.
+**Goal.** Thinnest slice that **runs and deploys**: TypeScript plugin builds to release artifacts, loads in Obsidian (`isDesktopOnly`), shows a settings tab (OpenRouter API key + free model) and status bar, health-checks OpenRouter with the **production request shape**, disables AI cleanly when the key is missing or the API is down, and never writes outside the plugin folder.
 
-**Out of scope here.** Search tools, chat, PDFs, contradictions, resurfacing, eval scoring.
+**Out of scope here.** Search tools, chat, PDFs, contradictions, resurfacing, eval scoring, **Ollama / local models** (Phase B / Milestone 9).
 
 ### Parallel groups (M1)
 
@@ -65,7 +68,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** none
 - **Acceptance criteria:** ID is not taken on the community plugin list; `PLUGIN_ID`, view-type prefixes, and exclusion key all derive from constants; `isDesktopOnly: true`; MIT present.
 - **How to verify:** Grep shows no hard-coded old ID; open `manifest.json` and confirm fields; spot-check community plugin directory for collisions.
-- **Status:** TODO
+- **Status:** DONE
 
 ### M1-T02 — Scaffold package and build
 - **Description:** Package/tsconfig/esbuild; empty `main.ts` that loads; produce `main.js`.
@@ -73,7 +76,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T01
 - **Acceptance criteria:** `npm run build` produces `main.js`; load in a vault’s plugin folder enables with no throw.
 - **How to verify:** Local build; enable plugin in Obsidian.
-- **Status:** TODO
+- **Status:** DONE
 
 ### M1-T02b — Test runner, lint, and CI
 - **Description:** Vitest, eslint (incl. Obsidian plugin + import bans), dependency-cruiser, CI workflow.
@@ -154,12 +157,12 @@ Address these before they block a vertical slice.
 - **Status:** TODO  
 - **∥B** (after T08)
 
-### M1-T10 — Ollama client + health checker
-- **Description:** `buildChatRequest`, NDJSON parse, schema validate + one retry, `HealthChecker` using **identical** production request shape; classify `FORMAT_IGNORED`, unreachable, model missing.
-- **Files:** `src/llm/request.ts`, `src/llm/client.ts`, `src/llm/ndjson.ts`, `src/llm/health.ts`, `src/llm/validate.ts`
+### M1-T10 — OpenRouter client + health checker
+- **Description:** `OpenRouterClient` (`ModelPort`), chat completions + structured JSON, schema validate + one retry, `HealthChecker` using the **identical** production request shape; classify auth failures, rate limits, `FORMAT_IGNORED`.
+- **Files:** `src/llm/request.ts`, `src/llm/client.ts`, `src/llm/health.ts`, `src/llm/validate.ts`, `src/llm/index.ts`
 - **Dependencies:** M1-T05, M1-T09, M1-T08
-- **Acceptance criteria:** AC-M1.1–1.4 (on mock); never pulls models; never starts Ollama; thinking disabled/omitted per design.
-- **How to verify:** Unit tests with `FakeTransport` / mock Ollama; 100 constrained calls suite stub.
+- **Acceptance criteria:** AC-M1.1–1.4 (on mock); API key required; default pinned `:free` model; never auto-purchases credits; Ollama deferred to Milestone 9.
+- **How to verify:** Unit tests with `FakeTransport` / mock OpenRouter; optional live probe via `OPENROUTER_API_KEY` (never commit the key).
 - **Status:** TODO
 
 ### M1-T11 — Job queue (single lane)
@@ -172,10 +175,10 @@ Address these before they block a vertical slice.
 - **∥B**
 
 ### M1-T12 — Policy: endpoint + exclusion stubs
-- **Description:** `EndpointPolicy` (loopback allow, non-loopback ack) and `ExclusionPolicy` decide API (used later by corpus).
+- **Description:** `EndpointPolicy` (Phase A: OpenRouter allowlist + egress warning; Phase B later: loopback allow) and `ExclusionPolicy` decide API (used later by corpus).
 - **Files:** `src/policy/endpoint.ts`, `src/policy/exclusion.ts`, `src/policy/endpoint.test.ts`, `src/policy/exclusion.test.ts`, `src/policy/index.ts`
 - **Dependencies:** M1-T03, M1-T06
-- **Acceptance criteria:** Loopback allowed; non-loopback blocked until ack; folder/tag/frontmatter rules fail-closed.
+- **Acceptance criteria:** OpenRouter hosts allowed when configured; other hosts blocked; folder/tag/frontmatter rules fail-closed.
 - **How to verify:** Unit tests.
 - **Status:** TODO  
 - **∥C**
@@ -231,7 +234,7 @@ Address these before they block a vertical slice.
 - **How to verify:** Checklist all boxes; second machine or clean vault optional. Bugfixes land as separate ≤5-file tasks if needed.
 - **Status:** TODO
 
-**Milestone 1 exit:** Plugin is community-install-shaped, privacy defaults (loopback) are real, AI harness works on mock + real Ollama, and Gate A has data.
+**Milestone 1 exit:** Plugin is community-install-shaped, Phase A privacy defaults (OpenRouter allowlist + key disclosure) are real, AI harness works on mock + real OpenRouter free models. Local Gate A is **not** required for M1 exit.
 
 ---
 
@@ -796,6 +799,33 @@ Do **not** parallelize tasks that share `src/main.ts`, `styles.css`, or the same
 
 ---
 
+---
+
+## Milestone 9 — Phase B: Local Ollama (after feature-complete)
+
+**Goal.** Only after Milestones 1–8 Phase A work is done: add `OllamaClient`, loopback default, health-check, Gate A on-device bake-off, and recommended local models. Do not start this milestone early.
+
+### M9-T01 — Ollama client behind existing `ModelPort`
+- **Description:** Implement Ollama HTTP client + NDJSON; switch settings `provider: ollama`; keep OpenRouter as optional.
+- **Files:** `src/llm/ollama-client.ts`, `src/llm/request.ts`, `src/policy/endpoint.ts`, settings UI
+- **Dependencies:** Milestone 8 exit
+- **Acceptance criteria:** Health + constrained call on loopback; AI disables cleanly when Ollama is down; OpenRouter path still works.
+- **How to verify:** Mock + real Ollama smoke.
+- **Status:** TODO
+
+### M9-T02 — Gate A local bake-off
+- **Description:** Run DESIGN §13 Gate A on floor hardware; write `recommended.generated.json`.
+- **Files:** `eval/`, `recommended.generated.json`, README
+- **Dependencies:** M9-T01
+- **Acceptance criteria:** At least one local model clears Phase B bars or hardware floor is revised with evidence.
+- **How to verify:** Eval report checked in (no secrets / no vault notes).
+- **Status:** TODO
+
+---
+
 ## Out of plan (explicit)
 
-Per SPEC §3 and DESIGN §11: mobile, OCR/scanned PDF recovery, cloud APIs, embeddings/vector DB, note editing, non-Ollama runtimes, FTS5/SQLite, Web Workers, chat persistence, i18n, battery-aware scheduling — not scheduled unless a later plan revision promotes them.
+Per SPEC §3 and DESIGN §11: mobile, OCR/scanned PDF recovery, embeddings/vector DB, note editing, LM Studio / raw llama.cpp, paid OpenRouter as default, FTS5/SQLite, Web Workers, chat persistence, i18n, battery-aware scheduling — not scheduled unless a later plan revision promotes them.
+
+**Local Ollama / Gate A on-device bake-off** is scheduled only as **Milestone 9 (Phase B)** after feature-complete — not during M1–M8.
+

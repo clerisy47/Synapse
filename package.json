@@ -1,0 +1,25 @@
+{
+  "name": "vault-synapse",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Obsidian plugin: OpenRouter free-model Q&A (Phase A), then local Ollama (Phase B)",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "obsidian",
+    "obsidian-plugin"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "obsidian": "1.13.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "obsidian": "1.13.1",
+    "typescript": "^5.8.2"
+  }
+}
