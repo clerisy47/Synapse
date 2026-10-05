@@ -16,6 +16,6 @@
     "noFallthroughCasesInSwitch": true,
     "exactOptionalPropertyTypes": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "vitest.config.ts", "test/**/*.ts"],
   "exclude": ["node_modules"]
 }

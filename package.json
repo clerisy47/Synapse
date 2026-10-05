@@ -7,7 +7,12 @@
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "node esbuild.config.mjs production",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src",
+    "boundaries": "node scripts/check-boundaries.mjs",
+    "check:network": "node scripts/check-no-network.mjs",
+    "check:writes": "node scripts/check-no-writes.mjs"
   },
   "keywords": [
     "obsidian",
@@ -18,8 +23,13 @@
     "obsidian": "1.13.1"
   },
   "devDependencies": {
+    "@types/node": "^22.13.10",
+    "dependency-cruiser": "^16.10.0",
     "esbuild": "^0.25.0",
+    "eslint": "^9.22.0",
+    "eslint-plugin-obsidianmd": "^0.4.2",
     "obsidian": "1.13.1",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
   }
 }
