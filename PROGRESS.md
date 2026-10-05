@@ -2,13 +2,13 @@
 
 ## Current focus
 
-Next PLAN tasks (both unblocked): **M1-T03** · **M1-T04** · **M1-T05 (∥A after T02b)** — core types, ports, model schemas.
+Next PLAN tasks (unblocked): **M1-T04** · **M1-T05 (∥A)** — port interfaces, model-output schemas. **M1-T03** (core types, Result, errors, text helpers) done.
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M1-T02b** + **M1-T02c**: Vitest + smoke test, ESLint (obsidianmd + import bans), dependency-cruiser, `scripts/check-*`, GitHub CI workflow.
+- Completed **M1-T03**: `src/core/` (DESIGN §4.1 types, §5.3 errors, Result, `foldCase` + hash/token helpers), property test for length-preserving fold; dependency-cruiser tweak for intra-module imports and core `*.test.ts`.
 - Verified full local gate: typecheck → lint → boundaries → test → check:network → check:writes → build.
 
 ## Known issues

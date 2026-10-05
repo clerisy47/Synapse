@@ -102,7 +102,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T02b
 - **Acceptance criteria:** Types match DESIGN §4.1; `foldCase` length-preserving property test exists; no imports outside `core`.
 - **How to verify:** Unit tests; boundary lint.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥A**
 
 ### M1-T04 — Port interfaces and Clock/Logger/Observable

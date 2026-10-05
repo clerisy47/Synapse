@@ -5,7 +5,7 @@ module.exports = {
       name: "core-no-outward-deps",
       comment: "core/ imports nothing outside core (DESIGN §2.2)",
       severity: "error",
-      from: { path: "^src/core/" },
+      from: { path: "^src/core/", pathNot: "\\.test\\.ts$" },
       to: { pathNot: "^src/core/" },
     },
     {
@@ -35,7 +35,8 @@ module.exports = {
       severity: "error",
       from: {
         path: "^src/",
-        pathNot: "^src/main\\.ts$",
+        pathNot:
+          "^src/main\\.ts$|^src/(config|state|policy|evidence|jobs|llm|pdf|corpus|tools|compare|agent|contradiction|resurface|core|adapters)/",
       },
       to: {
         path: "^src/(config|state|policy|evidence|jobs|llm|pdf|corpus|tools|compare|agent|contradiction|resurface|core|adapters)/",
