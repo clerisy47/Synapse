@@ -10,11 +10,11 @@ const ROOT = path.resolve(import.meta.dirname, "..");
 const SRC = path.join(ROOT, "src");
 
 const PATTERNS = [
-  { name: "vault.modify", re: /\.modify\s*\(/ },
-  { name: "vault.create", re: /\.create\s*\(/ },
-  { name: "vault.delete", re: /\.delete\s*\(/ },
-  { name: "vault.rename", re: /\.rename\s*\(/ },
-  { name: "vault.trash", re: /\.trash\s*\(/ },
+  { name: "vault.modify", re: /\bvault\.modify\s*\(/ },
+  { name: "vault.create", re: /\bvault\.create\s*\(/ },
+  { name: "vault.delete", re: /\bvault\.delete\s*\(/ },
+  { name: "vault.rename", re: /\bvault\.rename\s*\(/ },
+  { name: "vault.trash", re: /\bvault\.trash\s*\(/ },
   { name: "processFrontMatter", re: /\bprocessFrontMatter\b/ },
   { name: "vault.adapter.write", re: /\.adapter\.write\b/ },
   { name: "vault.adapter.append", re: /\.adapter\.append\b/ },

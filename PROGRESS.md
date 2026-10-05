@@ -2,14 +2,14 @@
 
 ## Current focus
 
-Next PLAN tasks (unblocked): **M1-T04** · **M1-T05 (∥A)** — port interfaces, model-output schemas. **M1-T03** (core types, Result, errors, text helpers) done.
+Next PLAN tasks (unblocked after M1-T04): **M1-T05 (∥A)** · **M1-T06** (needs T04) · **M1-T08 (∥B)** — schemas, config store, fake ports.
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M1-T03**: `src/core/` (DESIGN §4.1 types, §5.3 errors, Result, `foldCase` + hash/token helpers), property test for length-preserving fold; dependency-cruiser tweak for intra-module imports and core `*.test.ts`.
-- Verified full local gate: typecheck → lint → boundaries → test → check:network → check:writes → build.
+- Completed **M1-T04**: freeze `Clock` / `Logger` / `Observable` + I/O ports (`VaultPort`, `MetadataPort`, `StoragePort`, `PdfJsPort`, `NavigationPort`, `ActiveNotePort`, `Transport` + `TransportError`); pure `createObservable` helper; re-exported from `src/core/index.ts`.
+- Verified local gate: typecheck → lint → boundaries → test → check:network → check:writes → build.
 
 ## Known issues
 
@@ -20,6 +20,8 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 ## Shortcuts taken
 
 - DESIGN §5.6 / §8 / §11 and PLAN M1 tasks updated in place rather than a full line-by-line pass of every Ollama mention in DESIGN §6–§13 flows.
+- M1-T04 adds a small `createObservable` + `TransportError` class beyond the DESIGN interface snippets so later stores/fakes have a usable pure primitive and `instanceof` mapping.
+- Tightened `check-no-writes.mjs` vault patterns to `\bvault\.(modify|create|…)` so `Set.delete` / similar are not false positives.
 
 ## Decisions not in DESIGN.md
 
