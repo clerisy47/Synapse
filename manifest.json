@@ -1,0 +1,9 @@
+{
+  "id": "vault-synapse",
+  "name": "Vault Synapse",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "OpenRouter free-model Q&A (Phase A), then local Ollama (Phase B): contradiction flags and note resurfacing — no embeddings, no telemetry.",
+  "author": "Utsav Acharya",
+  "isDesktopOnly": true
+}

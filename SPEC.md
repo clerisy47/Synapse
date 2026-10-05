@@ -1,8 +1,23 @@
 # SPEC: Synapse
 
-A fully local, agentic second-brain assistant for Obsidian.
+An agentic second-brain assistant for Obsidian — built first on OpenRouter free models, then validated on local Ollama after feature-complete.
 
-Status: draft v1, produced from interview (Batches 1–3). Target: community-plugin-ready release.
+Status: draft v1.1 (provider phasing), produced from interview (Batches 1–3) and revised 2026-10-05. Target: community-plugin-ready release.
+
+---
+
+## 0. Provider phases (binding)
+
+| Phase | When | Default LLM | Network |
+|-------|------|-------------|---------|
+| **A — Build** | Until Must + Should features are complete (through M7 / M8 privacy polish) | **OpenRouter free models** (`openrouter/free` or pinned `:free` IDs) | Vault excerpts used in AI jobs **leave the machine** to `openrouter.ai` |
+| **B — Local** | **Only after** Phase A feature-complete | **Ollama** on loopback; Gate A bake-off and recommended local models | Default returns to loopback; OpenRouter may remain an optional advanced setting |
+
+Rules:
+
+1. Do **not** block feature work on local model quality, VRAM floors, or Ollama ops during Phase A.
+2. Phase B starts only after the product slice is feature-complete; then run local bake-off / Gate A.
+3. No embeddings, no vector DB, no telemetry in either phase. The plugin never edits user notes.
 
 ---
 
@@ -10,19 +25,22 @@ Status: draft v1, produced from interview (Batches 1–3). Target: community-plu
 
 ### Goal
 
-Synapse is a desktop Obsidian plugin in which a small on-device LLM (served by the user's own Ollama) answers questions about a vault, flags possible contradictions between notes, and resurfaces old notes with a stated reason. It does this by searching the vault the way a coding agent searches a codebase: using bounded, tool-based search over full text, titles, links, backlinks, tags, and frontmatter. It uses **no embeddings, no vector database, and no cloud calls**. Every output cites the exact source it came from.
+Synapse is a desktop Obsidian plugin in which an LLM answers questions about a vault, flags possible contradictions between notes, and resurfaces old notes with a stated reason. It does this by searching the vault the way a coding agent searches a codebase: using bounded, tool-based search over full text, titles, links, backlinks, tags, and frontmatter. It uses **no embeddings and no vector database**. Every output cites the exact source it came from.
+
+During Phase A the model is served by **OpenRouter free models**. After feature-complete (Phase B), the same features are proven on a **local Ollama** runtime.
 
 ### Users
 
 People with large, serious personal knowledge bases (researchers, writers, engineers, lifelong note-takers) who:
 
 - have thousands of notes and PDFs and lose track of what is already in them,
-- are unwilling to upload personal or unfinished notes to a third party,
-- run Obsidian on a desktop machine, down to an 8 GB Apple Silicon Mac.
+- want cited answers over their own corpus,
+- run Obsidian on a desktop machine (Phase B targets down to an 8 GB Apple Silicon Mac for local inference),
+- accept that Phase A AI features send selected note excerpts to OpenRouter (disclosed in README and settings).
 
 ### Success definition
 
-A published, reviewed community plugin that installs cleanly, works on the hardware floor below, never modifies user notes, never sends data off the machine by default, and measurably clears the fixture-vault quality bars in section 5.
+A published, reviewed community plugin that installs cleanly, never modifies user notes, discloses network behavior honestly, clears the fixture-vault quality bars in section 5 on the Phase A provider, and — in Phase B — also clears those bars on at least one local Ollama model on the hardware floor.
 
 ---
 
@@ -32,14 +50,14 @@ A published, reviewed community plugin that installs cleanly, works on the hardw
 
 | ID | Feature | Summary |
 |----|---------|---------|
-| M1 | Model runtime and harness | Ollama client, first-run health check, grammar/JSON-schema-constrained calls, single priority job queue, cancel, status indicator, non-blocking errors. |
+| M1 | Model runtime and harness | Provider-agnostic `ModelPort`; Phase A OpenRouter free-model client + API-key settings; health check; JSON-schema-constrained calls; single priority job queue; cancel; status; non-blocking errors. Phase B adds Ollama after feature-complete. |
 | M2 | Search toolbox and bounded agent loop | Tools: `search_text`, `search_by_title`, `get_links`, `get_backlinks`, `search_by_tag`, `get_frontmatter`, `list_recent`, `read_note`. Fixed state machine (plan → search → read → evaluate → stop), hop cap, token budget, duplicate-call detection. |
 | M3 | Q&A sidebar chat | Sidebar pane; answer with clickable citations; collapsible trace of search hops; citation verification. |
 | M4 | PDF text-layer ingestion | Text extraction for text-layer PDFs with page numbers; scanned PDFs flagged "unsupported — scanned" and excluded. |
 | M5 | Shared `compare` primitive | `compare(candidate, context) → relation + one-line reason`, built once and used by M6 and M7. |
 | M6 | Contradiction / drift detection | Claim extraction, targeted search, double-pass classification, flags in gutter and sidebar Flags list, dismissal. Triggered by explicit command. |
 | M7 | Agentic resurfacing | Daily run on first vault open, rule-scored candidates, model relevance check and reason, sidebar panel, dismissal with downweighting. |
-| M8 | Privacy, exclusions, and state | Loopback-only default, no telemetry, folder/tag/frontmatter exclusions, plugin-local state only, never edits notes. |
+| M8 | Privacy, exclusions, and state | Phase A: OpenRouter-only allowlisted egress + key storage disclosure; Phase B: loopback-only default. No telemetry; folder/tag/frontmatter exclusions; plugin-local state only; never edits notes. |
 | M9 | Release readiness | Settings UI, README disclosures, MIT license, versioned release artifacts, eval harness and fixture vault. |
 
 ### Should
@@ -63,12 +81,13 @@ A published, reviewed community plugin that installs cleanly, works on the hardw
 
 - Mobile inference or mobile support (`isDesktopOnly: true`).
 - Scanned or image PDFs, OCR, voice capture, handwriting.
-- Cloud inference or any cloud API calls.
 - Embeddings or a vector database in this release.
 - Editing, rewriting, or inserting into user notes (the plugin only navigates to them).
 - Multi-vault support.
-- Runtimes other than Ollama (LM Studio, llama.cpp server, OpenAI-compatible endpoints).
 - Bundling a model runtime with the plugin.
+- Phase A: investing in local Ollama quality gates, recommended local models, or 8 GB VRAM bake-offs (deferred to Phase B).
+- Phase B scope creep: paid OpenRouter models as the default (free / `:free` only unless the user explicitly opts into paid).
+- Runtimes beyond the planned providers (OpenRouter OpenAI-compatible chat API in Phase A; Ollama in Phase B). LM Studio / raw llama.cpp are out unless promoted later.
 - Tested support for non-English notes (best-effort only).
 - Telemetry, analytics, or update pings.
 - Presenting contradiction flags as errors. They are only "worth a second look."
@@ -79,28 +98,31 @@ A published, reviewed community plugin that installs cleanly, works on the hardw
 
 **Platform and stack**
 - Desktop only: `isDesktopOnly: true` in `manifest.json`. `minAppVersion` is set and tested.
-- TypeScript on the Obsidian Plugin API. Ollama is the only supported runtime, and the user installs it themselves.
-- Every model call uses structured output (JSON-schema or grammar-constrained). Free-form model output is never parsed.
+- TypeScript on the Obsidian Plugin API.
+- Phase A runtime: OpenRouter Chat Completions (`https://openrouter.ai/api/v1`), free models only by default.
+- Phase B runtime: Ollama installed by the user (loopback default).
+- Every model call uses structured output (JSON-schema / provider structured-output). Free-form model output is never parsed as facts.
 
 **Hardware floor**
-- Supported: Apple Silicon (M1 or later) with 8 GB unified memory, or a Windows/Linux machine with a GPU of ≥6 GB VRAM.
-- Best-effort: CPU-only with 16 GB RAM.
-- Default model context is capped at about 4–8K tokens.
-- The plugin never loads a model on its own; the user pulls it.
+- Phase A: any desktop that can run Obsidian; model compute is remote. Latency budgets still apply as product targets.
+- Phase B (local): Apple Silicon (M1 or later) with 8 GB unified memory, or Windows/Linux with ≥6 GB VRAM GPU; best-effort CPU-only with 16 GB RAM.
+- Default model context is capped at about 4–8K tokens for plugin-assembled prompts.
+- The plugin never pulls or starts a local model on its own.
 
 **Model**
-- The model is not fixed. It is user-configurable in settings and must be available in Ollama.
-- Candidate families: a small non-thinking instruct model, or Qwen3-4B-class, to be confirmed by the Phase 0 bake-off.
-- Thinking output must be disabled or stripped, since it conflicts with constrained output and hurts latency.
+- Phase A default candidates (confirm in health check; pin what works): `openrouter/free` router and/or explicit `:free` IDs such as `qwen/qwen3.8-27b:free`, `google/gemma-4-31b-it:free` (list is provisional; availability changes). Prefer models that honor JSON / structured output; avoid free routers that inject long “thinking” traces when schema mode is required.
+- Phase B candidates: small instruct models in Ollama (e.g. Qwen3-4B-class instruct), confirmed by Gate A after feature-complete — not before.
+- Thinking / reasoning traces must be disabled or stripped when they conflict with constrained output.
 
 **Scale**
 - Up to 10,000 notes and 500 text-layer PDFs.
 - An in-memory content cache is kept fresh by vault file events.
-- Any single tool call returns within 2 s on floor hardware.
+- Any single tool call returns within 2 s on floor hardware (local vault I/O; not model latency).
 
 **Privacy and network**
-- Default endpoint is loopback: `http://127.0.0.1:11434`.
-- The endpoint is configurable. A non-loopback endpoint triggers a visible warning.
+- Phase A default endpoint: `https://openrouter.ai/api/v1`. API key from settings (and optionally env `OPENROUTER_API_KEY` for dev). First-use warning: note excerpts used in AI jobs are sent to OpenRouter.
+- Phase A egress allowlist: OpenRouter API hosts only (no other cloud). Non-allowlisted hosts are blocked.
+- Phase B default endpoint: loopback `http://127.0.0.1:11434`. Non-loopback triggers a visible warning + acknowledgement.
 - No telemetry and no update pings.
 - Note content is never logged to disk beyond the plugin's own cache.
 - Network behavior is disclosed in the README and in settings.
@@ -119,8 +141,8 @@ A published, reviewed community plugin that installs cleanly, works on the hardw
 
 **Release**
 - MIT license, semantic versioning, GitHub releases with `main.js`, `manifest.json`, `styles.css`.
-- README documents the Ollama requirement, hardware floor, network behavior, and the no-telemetry promise.
-- The plugin must comply with Obsidian's developer policies and plugin guidelines.
+- README documents Phase A OpenRouter requirements (API key, free models, egress), Phase B Ollama path (when landed), hardware floor for local, and the no-telemetry promise.
+- The plugin must comply with Obsidian's developer policies and plugin guidelines. Never ship API keys in the repo.
 
 ---
 
@@ -130,9 +152,9 @@ Latency figures apply on floor hardware (8 GB Apple Silicon, or 6 GB VRAM GPU) w
 
 ### M1: Model runtime and harness
 
-- AC-M1.1: On first run, a health check reports separately whether the Ollama server is reachable, whether the configured model is present, and whether a trivial schema-constrained call returns valid JSON. Each failure shows a specific remediation message.
-- AC-M1.2: The plugin never pulls a model or starts Ollama on its own.
-- AC-M1.3: If Ollama is unreachable, all AI features are disabled with a clear message, and the plugin still loads without errors.
+- AC-M1.1: On first run, a health check reports separately whether the configured provider is reachable (Phase A: OpenRouter auth + model; Phase B: Ollama server + model present), and whether a trivial schema-constrained call returns valid JSON. Each failure shows a specific remediation message.
+- AC-M1.2: The plugin never pulls a model or starts Ollama on its own. Phase A never auto-purchases credits.
+- AC-M1.3: If the active provider is unreachable or unauthenticated, all AI features are disabled with a clear message, and the plugin still loads without errors.
 - AC-M1.4: Across 100 constrained calls in the eval suite, 100% of parsed outputs conform to the requested schema (schema validation is enforced, and failures retry once, then fail visibly).
 - AC-M1.5: Jobs run one at a time. When a Q&A job is submitted while a background job runs, the background job pauses and resumes after Q&A completes.
 - AC-M1.6: Every job has a working cancel control, and cancellation stops model generation within 2 s.
@@ -202,10 +224,10 @@ Latency figures apply on floor hardware (8 GB Apple Silicon, or 6 GB VRAM GPU) w
 
 ### M8: Privacy, exclusions, and state
 
-- AC-M8.1: An integration test that blocks all non-loopback network traffic passes every feature in the suite.
-- AC-M8.2: With a non-loopback endpoint configured, a warning is visible in settings and at first use.
+- AC-M8.1: Phase A — an integration test that blocks all hosts except the OpenRouter allowlist still passes the suite (or fails closed). Phase B — an integration test that blocks all non-loopback traffic passes every feature against local Ollama / mocks.
+- AC-M8.2: Phase A — settings and first-use UI warn that note excerpts leave the machine. Phase B — non-loopback endpoints show a warning and require acknowledgement.
 - AC-M8.3: The codebase contains no telemetry, analytics, or update-check calls (verified by code review checklist and a grep-based CI check).
-- AC-M8.4: Notes in excluded folders, notes with excluded tags, and notes with `synapse: ignore` in frontmatter are never searched, never sent to the model, and never appear in results, flags, or resurfacing.
+- AC-M8.4: Notes in excluded folders, notes with excluded tags, and notes with the plugin exclusion frontmatter key set to `ignore` are never searched, never sent to the model, and never appear in results, flags, or resurfacing.
 - AC-M8.5: The plugin performs no writes to any file outside its own plugin folder (verified by test that spies on vault write APIs).
 - AC-M8.6 (S3): The "clear all Synapse data" command removes dismissals, the open log, and caches after confirmation.
 - AC-M8.7: Loading a `data.json` with conflicting or partially missing fields does not throw, and unknown fields are preserved.
@@ -215,8 +237,8 @@ Latency figures apply on floor hardware (8 GB Apple Silicon, or 6 GB VRAM GPU) w
 - AC-M9.1: A fixture vault ships in the repo, with seeded contradictions, known-answer questions, stale-but-relevant notes, text-layer PDFs, and at least one scanned PDF.
 - AC-M9.2: A scripted eval reports, per model: JSON validity rate, citation validity rate, contradiction precision and recall, Q&A answer correctness on known-answer questions, and median latency for each job type.
 - AC-M9.3 (S4): A model is listed as "recommended" only if it meets: JSON validity 100% (after one retry), citation validity ≥95%, contradiction precision ≥90%, and the latency budgets above on floor hardware.
-- AC-M9.4: Unit tests with a mocked model cover the harness, state machine, queue, and scoring, and they run in CI without Ollama.
-- AC-M9.5: The release contains `main.js`, `manifest.json`, `styles.css`, has `isDesktopOnly: true`, an MIT license file, and a README covering the Ollama requirement, hardware floor, network behavior, and no-telemetry promise.
+- AC-M9.4: Unit tests with a mocked model cover the harness, state machine, queue, and scoring, and they run in CI without OpenRouter or Ollama.
+- AC-M9.5: The release contains `main.js`, `manifest.json`, `styles.css`, has `isDesktopOnly: true`, an MIT license file, and a README covering provider phases (OpenRouter free models → local Ollama after feature-complete), hardware floor for Phase B, network behavior, and no-telemetry promise.
 - AC-M9.6: The plugin passes Obsidian's plugin-review checklist (no unnecessary global access, proper cleanup on unload, no innerHTML from untrusted content, settings UI uses the API's setting components).
 - AC-M9.7: Unloading the plugin cancels running jobs, removes gutter extensions and views, and leaves no listeners.
 
@@ -226,12 +248,12 @@ Latency figures apply on floor hardware (8 GB Apple Silicon, or 6 GB VRAM GPU) w
 
 **Technical risks to verify in Phase 0**
 
-- **OQ-1: Ollama CORS.** Requests from Obsidian's renderer originate from `app://obsidian.md`, which Ollama may block unless `OLLAMA_ORIGINS` is set. `requestUrl` bypasses CORS but does not stream. Decide between `fetch` (streaming, requires user config) and `requestUrl` (no streaming, no user config), or a hybrid. This affects the "first visible progress within 3 s" criterion.
+- **OQ-1: Transport from Obsidian.** Phase A talks to HTTPS OpenRouter; Phase B may hit loopback Ollama (CORS / `OLLAMA_ORIGINS` vs Node transport vs `requestUrl`). Prefer the existing `Transport` port (Node `http`/`https` primary). Revisit when Phase B starts.
 - **OQ-2: Backlinks API.** `getBacklinksForFile` is referenced in the original brief but may not be part of Obsidian's public typings. Fallback: invert `metadataCache.resolvedLinks` ourselves. Decide which is safer for community review.
 - **OQ-3: "Near-identical mtime".** Proposed definition: more than 50% of notes share an mtime within the same 1-hour window. Needs a sanity check against real synced and cloned vaults.
 - **OQ-4: pdf.js access.** Confirm that Obsidian's bundled pdf.js can be loaded from a plugin (e.g. via `loadPdfJs`) and can extract text without opening the viewer. Fall back to a bundled dependency only if it cannot, and account for bundle size.
-- **OQ-5: Model choice.** Names in the original brief (a Gemma-family E4B model and Qwen3-4B-Thinking) need confirming against the current Ollama library, plus memory footprint at the 4–8K context cap on an 8 GB Mac. The 8 GB floor may force ≤3B models or a smaller context. If nothing passes the eval bar, the hardware floor must be revised.
-- **OQ-6: Structured output with the chosen model.** Verify that Ollama's schema-constrained output works reliably with the chosen model, including how thinking output is disabled.
+- **OQ-5: Model choice.** Phase A: pin which OpenRouter `:free` models reliably return schema-valid JSON under rate limits (probe 2026-10-05: key works; `qwen/qwen3.8-27b:free` returned valid JSON; `openrouter/free` may route to thinking-heavy models). Phase B (after feature-complete only): confirm Ollama candidates vs 8 GB Mac footprint; revise hardware floor if needed.
+- **OQ-6: Structured output with the chosen model.** Verify JSON / structured-output mode on the pinned Phase A free model(s), and later on Phase B Ollama models, including how thinking output is disabled.
 
 **Product decisions still open**
 

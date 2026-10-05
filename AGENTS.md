@@ -1,8 +1,13 @@
 # AGENTS.md — Synapse
 
-Local Obsidian plugin: on-device LLM (Ollama) Q&A, contradiction flags, and resurfacing via tool-based vault search. **No embeddings, no vector DB, no cloud calls by default.** Desktop only (`isDesktopOnly: true`).
+Obsidian plugin: tool-based vault Q&A, contradiction flags, and resurfacing. **No embeddings, no vector DB, no telemetry.** Desktop only (`isDesktopOnly: true`).
 
-**Docs:** [SPEC.md](SPEC.md) · [DESIGN.md](DESIGN.md) · [PLAN.md](PLAN.md) · [PROGRESS.md](PROGRESS.md) (create if missing)
+**Provider phasing (binding):**
+
+1. **Phase A (now → feature-complete):** default LLM = **OpenRouter free models** (`:free` / pinned IDs). API key via settings or `OPENROUTER_API_KEY` (never commit `.env`).
+2. **Phase B (only after Must+Should complete):** add/validate **local Ollama**. Do not block feature work on local VRAM or Gate A.
+
+**Docs:** [SPEC.md](SPEC.md) · [DESIGN.md](DESIGN.md) · [PLAN.md](PLAN.md) · [PROGRESS.md](PROGRESS.md)
 
 ---
 
@@ -49,9 +54,9 @@ Ports-and-adapters. Layers and imports: DESIGN §2.
 - Import via each module’s **`index.ts` only** (no deep imports). `main.ts` is the sole composition root — no feature logic there.
 - **I/O only through ports** (`VaultPort`, `StoragePort`, `Transport`, …). Features never call Obsidian/Node APIs directly.
 - **File writes only via `StoragePort`** (plugin folder). Never use vault write APIs; never edit user notes.
-- **Network only in allowlisted transport files.** Default endpoint loopback; no `fetch`; no telemetry.
+- **Network only in allowlisted transport files.** Phase A allowlist = OpenRouter API hosts; Phase B adds loopback Ollama. No bare `fetch` in features; no telemetry.
 - **Exclusion at ingest** (`corpus` + `policy`). Excluded notes must never appear in tools, model context, flags, or resurfacing.
-- **Model I/O:** structured schemas only (zod); one `buildChatRequest`; model returns enums/terms/booleans/ledger IDs — never paths, regex, or quotes.
+- **Model I/O:** structured schemas only (zod); one request builder per provider; model returns enums/terms/booleans/ledger IDs — never paths, regex, or quotes.
 - **One model lane:** all model work through `JobQueue`. UI uses pure viewmodels + `textContent` (no `innerHTML` from untrusted text).
 - CSS selectors prefixed `.syn-`; UI strings in `ui/strings/`; identity/tunables in `src/constants.ts`.
 
@@ -61,7 +66,7 @@ Ports-and-adapters. Layers and imports: DESIGN §2.
 
 - Strict TypeScript; branded paths (`VaultPath`); facades return `Result<T>` (ports may throw typed errors).
 - Colocate `*.test.ts`; shared fakes/contracts/integration under `test/`.
-- Never log prompts, note text, or excerpts. Paths → `h:` + 8 hex of SHA-1.
+- Never log prompts, note text, excerpts, or API keys. Paths → `h:` + 8 hex of SHA-1.
 - Provisional numbers live in `constants.ts` / settings — not magic literals.
 - Prefer small tasks (1–5 files). Do not parallelize work that shares `main.ts`, `styles.css`, or the same module `index.ts`.
 
@@ -71,11 +76,12 @@ Ports-and-adapters. Layers and imports: DESIGN §2.
 
 - Never disable, skip, or weaken tests to make them pass; never delete failing tests without a real fix.
 - Never edit generated files (e.g. `recommended.generated.json`, built `main.js`) by hand — regenerate via harness/build.
-- Never commit secrets, API keys, or vault note content.
-- Never add embeddings, cloud inference, telemetry, note-editing, or non-Ollama runtimes (SPEC §3 / DESIGN §11).
+- Never commit secrets, API keys, or vault note content (`.env` is gitignored).
+- Never add embeddings, vector DBs, telemetry, note-editing, or runtimes beyond **OpenRouter (Phase A)** and **Ollama (Phase B)** (SPEC §3 / DESIGN §11 / ADR-21).
+- Never start Phase B local bake-off / Gate A before Must+Should feature-complete.
 
 ---
 
 ## Definition of done
 
-Per PLAN + DESIGN §9.4: acceptance criteria met; status → `DONE` in `PLAN.md`; required tests green; no illegal imports/writes/network; no note text in logs; plugin still **builds and loads**; smoke `npm run build` when the toolchain exists.
+Per PLAN + DESIGN §9.4: acceptance criteria met; status → `DONE` in `PLAN.md`; required tests green; no illegal imports/writes/network; no note text or keys in logs; plugin still **builds and loads**; smoke `npm run build` when the toolchain exists.
