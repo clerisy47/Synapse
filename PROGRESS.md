@@ -2,19 +2,20 @@
 
 ## Current focus
 
-Next PLAN tasks (both unblocked by M1-T02): **M1-T02b** (vitest/eslint/CI) ∥ **M1-T02c** (boundary/privacy check scripts).
+Next PLAN tasks (both unblocked): **M1-T03** · **M1-T04** · **M1-T05 (∥A after T02b)** — core types, ports, model schemas.
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M1-T02**: package/tsconfig/esbuild scaffold; stub `src/main.ts`; `styles.css`; `npm run build` → `main.js`.
-- Earlier: Probed OpenRouter; rewrote Phase A/B docs; M1-T01 identity (`vault-synapse`) frozen.
+- Completed **M1-T02b** + **M1-T02c**: Vitest + smoke test, ESLint (obsidianmd + import bans), dependency-cruiser, `scripts/check-*`, GitHub CI workflow.
+- Verified full local gate: typecheck → lint → boundaries → test → check:network → check:writes → build.
 
 ## Known issues
 
 - `.env` previously had a trailing space in the key name and quoted value — normalized; keep `OPENROUTER_API_KEY=...` unquoted.
 - `openrouter/free` can route to thinking-heavy models; prefer pinned `:free` IDs for schema work.
+- `npm run lint` targets `src` and `test` only (root/scripts `.mjs` excluded from type-checked ESLint).
 
 ## Shortcuts taken
 

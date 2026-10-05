@@ -84,7 +84,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T02
 - **Acceptance criteria:** `npm test` runs; CI typecheck + lint + test + build; import bans wired (empty allowlists OK).
 - **How to verify:** Local test + lint; CI config validates.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥** with M1-T02c after M1-T02
 
 ### M1-T02c — Boundary and privacy check scripts
@@ -93,7 +93,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T02
 - **Acceptance criteria:** Scripts exit 0 on skeleton tree; CI invokes them; AC-M8.3 path is ready.
 - **How to verify:** Run scripts; introduce a forbidden `fetch` in `src/` and confirm failure.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥** with M1-T02b after M1-T02
 
 ### M1-T03 — Core types and Result/Error
