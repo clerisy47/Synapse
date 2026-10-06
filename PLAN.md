@@ -120,7 +120,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T03
 - **Acceptance criteria:** Schemas cover health, plan, select, answer, claims, compare×2; subset check in CI; free-form parse paths do not exist.
 - **How to verify:** CI schema check; unit test that invalid shapes fail validation.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥A**
 
 ### M1-T06 — Config store (zod settings)
