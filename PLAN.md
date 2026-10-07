@@ -263,7 +263,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M2-T01, M1-T04, M1-T08
 - **Acceptance criteria:** Unparsed metadata stays out; status `warming|ready`; yield slices respect `SLICE_MS`.
 - **How to verify:** FakeVault unit tests; no UI freeze assertion via yield spy.
-- **Status:** TODO
+- **Status:** DONE
 
 ### M2-T03 — Text index (folded)
 - **Description:** Folded-text body index; `bodyStart` skips frontmatter; snippet cut from original on read.
