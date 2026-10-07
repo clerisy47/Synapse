@@ -2,15 +2,15 @@
 
 ## Current focus
 
-Next PLAN tasks (unblocked): **M1-T13 (∥C)** (Obsidian storage; needs T04+T07) · **M1-T14 (∥D)** (status bar; needs T11) · **M1-T15** still needs T12+T13 (T12 DONE).
+Next PLAN tasks (unblocked): **M1-T14 (∥D)** (status bar; needs T11) · **M1-T15 (∥D)** (settings tab; needs T06+T12+T13 — all DONE).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M1-T12**: `createEndpointPolicy` (Phase A OpenRouter host allowlist; Phase B loopback + `endpointAckHost` stub; `assertAllowed` → `TransportError` blocked; egress-warning helper) and `createExclusionPolicy` (folder/tag/frontmatter, fail-closed on null metadata, PDF folder-only).
-- Policy stays pure; frontmatter key / host list injected (no `constants` import). Composition / transport wiring deferred to M1-T16.
-- Verified local gate: typecheck → lint → boundaries → network/writes/schema → test → build.
+- Completed **M1-T13**: path-guarded `ObsidianStorage` (`resolvePluginRel` + plugin-folder `DataAdapter` writes; `loadData`/`saveData`), lifecycle helpers (`bindExternalSettingsChange`, `onLayoutReady`), and `RequestUrlTransport` (`streaming: false`, `abortable: false`) for health/degraded mode.
+- Allowlisted `src/adapters/obsidian/storage.ts` in `check-no-writes.mjs` so intentional adapter writes are legal only there (AC-M8.5 path ready; full spy test remains M7-T02).
+- Composition-root wiring deferred to M1-T16.
 
 ## Known issues
 
@@ -31,6 +31,7 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - M1-T09 injects optional `checkEndpoint` instead of importing `policy` (adapters may only depend on `core`); EndpointPolicy wiring lands with M1-T12 / composition root. Disabled Obsidian window-timer lint rules for `adapters/node` and `test/` because Node timers are correct there.
 - M1-T10: optional `headers` on `Transport`; `llm-deps` may import `src/constants.ts` (same as config/state) for timeouts / `NUM_PREDICT` / `PLUGIN_NAME`. Auth/rate-limit map to `MODEL_HTTP_ERROR` + remediation keys (no new `ErrorCode`s). Composition root / settings UI wiring deferred to M1-T16.
 - M1-T11: `createJobQueue({ clock, abortable })` injects abortability (composition root will pass `transport.capabilities.abortable`); `progress()` stores last stage only (status-bar UI is M1-T14).
+- M1-T13: `createObsidianStorage` takes injectable deps for CI; `createObsidianStorageFromPlugin` wraps live Plugin. `RequestUrlTransport` injects `requestUrl` for tests and lazy-imports Obsidian otherwise; local `EndpointChecker` type (adapters must not import each other). `onLayoutReady` disposable only suppresses late callbacks (Obsidian API has no unsubscribe). Bumped `minAppVersion` to 1.5.7 for `onExternalSettingsChange`. Vitest aliases `obsidian` → `test/stubs/obsidian.ts`.
 
 ## Decisions not in DESIGN.md
 

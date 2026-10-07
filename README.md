@@ -15,7 +15,7 @@ Phase A sends selected note excerpts used in AI jobs to OpenRouter. Phase B targ
 
 ## Requirements (Phase A)
 
-- Obsidian desktop ≥ 1.5.0
+- Obsidian desktop ≥ 1.5.7
 - OpenRouter API key with access to free models
 - Dev: copy `.env.example` → `.env` and set `OPENROUTER_API_KEY=...` (never commit `.env`)
 

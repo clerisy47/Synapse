@@ -12,7 +12,7 @@ export const PLUGIN_DESCRIPTION =
   "OpenRouter free-model Q&A (Phase A), then local Ollama (Phase B): contradiction flags and note resurfacing — no embeddings, no telemetry." as const;
 export const PLUGIN_AUTHOR = "Utsav Acharya" as const;
 export const PLUGIN_VERSION = "0.1.0" as const;
-export const MIN_APP_VERSION = "1.5.0" as const;
+export const MIN_APP_VERSION = "1.5.7" as const;
 export const IS_DESKTOP_ONLY = true as const;
 
 /** Frontmatter key for note exclusion: `<key>: ignore` (case-insensitive). */
