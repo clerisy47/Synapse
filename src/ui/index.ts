@@ -48,3 +48,14 @@ export {
   STATUS,
 } from "./strings/en";
 export { interpolate } from "./strings/t";
+
+export type {
+  CommandDef,
+  CommandId,
+  M1CommandHandlers,
+} from "./commands";
+export {
+  COMMAND_IDS,
+  COMMAND_NAMES,
+  createM1Commands,
+} from "./commands";

@@ -51,3 +51,8 @@
   font-weight: var(--font-semibold);
   color: var(--text-normal);
 }
+
+/* Notice Retry action row (AC-M1.8). */
+.syn-notice-actions {
+  margin-top: 0.5em;
+}
