@@ -189,7 +189,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T04, M1-T07
 - **Acceptance criteria:** Writes outside plugin folder rejected; `requestUrl` transport available for health/degraded mode; AC-M8.5 path ready.
 - **How to verify:** Unit test of path guard; manual load in Obsidian.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥C**
 
 ### M1-T14 — Status bar + notices viewmodels/UI

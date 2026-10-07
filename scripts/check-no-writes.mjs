@@ -9,6 +9,9 @@ import process from "node:process";
 const ROOT = path.resolve(import.meta.dirname, "..");
 const SRC = path.join(ROOT, "src");
 
+/** Paths relative to repo root. StoragePort may use vault.adapter under the plugin folder. */
+const ALLOWLIST = new Set(["src/adapters/obsidian/storage.ts"]);
+
 const PATTERNS = [
   { name: "vault.modify", re: /\bvault\.modify\s*\(/ },
   { name: "vault.create", re: /\bvault\.create\s*\(/ },
@@ -42,6 +45,8 @@ const violations = [];
 
 for (const file of await walk(SRC)) {
   const relative = rel(file);
+  if (ALLOWLIST.has(relative)) continue;
+
   const text = await readFile(file, "utf8");
   const lines = text.split("\n");
   for (let i = 0; i < lines.length; i++) {
