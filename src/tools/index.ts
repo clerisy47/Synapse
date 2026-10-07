@@ -67,6 +67,7 @@ export { createToolRegistry } from "./registry";
 
 export type {
   CoreToolDeps,
+  TagPathsOptions,
   TextScanHit,
   TextScanOutcome,
   TextScanRequest,
@@ -93,3 +94,14 @@ export { createSearchByTitleHandler } from "./search-by-title";
 
 export type { ReadNoteResult } from "./read-note";
 export { createReadNoteHandler } from "./read-note";
+
+export type {
+  GetBacklinksPathResult,
+  GetBacklinksResult,
+  GetLinksPathResult,
+  GetLinksResult,
+} from "./links";
+export { createGetBacklinksHandler, createGetLinksHandler } from "./links";
+
+export type { SearchByTagResult } from "./search-by-tag";
+export { createSearchByTagHandler } from "./search-by-tag";

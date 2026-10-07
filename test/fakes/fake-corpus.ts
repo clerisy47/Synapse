@@ -4,6 +4,7 @@
  */
 
 import {
+  asVaultPath,
   createObservable,
   type Clock,
   type DocMeta,
@@ -11,9 +12,13 @@ import {
 } from "../../src/core";
 import {
   createCorpusReader,
+  createLinkGraph,
+  createTagIndex,
   createTextIndex,
   createTitleIndex,
   emptyCorpusStatus,
+  type LinkGraph,
+  type TagIndex,
   type TextIndex,
   type TitleIndex,
 } from "../../src/corpus";
@@ -31,10 +36,19 @@ export interface FakeCorpusNoteSeed {
   ctime?: number;
 }
 
+export interface FakeCorpusPdfSeed {
+  path: string;
+  title?: string;
+  mtime?: number;
+  ctime?: number;
+}
+
 export interface FakeCorpusOptions {
   clock?: Clock;
   sliceMs?: number;
   budgetMs?: number;
+  /** source → target → count (MetadataPort.resolvedLinks shape). */
+  resolvedLinks?: Record<string, Record<string, number>>;
 }
 
 function folderOf(path: VaultPath): string {
@@ -44,18 +58,31 @@ function folderOf(path: VaultPath): string {
 
 function defaultTitle(path: VaultPath): string {
   const base = path.includes("/") ? path.slice(path.lastIndexOf("/") + 1) : path;
-  return base.toLowerCase().endsWith(".md") ? base.slice(0, -3) : base;
+  if (base.toLowerCase().endsWith(".md")) {
+    return base.slice(0, -3);
+  }
+  if (base.toLowerCase().endsWith(".pdf")) {
+    return base.slice(0, -4);
+  }
+  return base;
+}
+
+function normalizePath(path: string): VaultPath {
+  return asVaultPath(path.replace(/\\/g, "/").replace(/^\/+/, ""));
 }
 
 export class FakeCorpus {
   readonly vault = new FakeVault();
   readonly textIndex: TextIndex = createTextIndex();
   readonly titleIndex: TitleIndex = createTitleIndex();
+  readonly tagIndex: TagIndex = createTagIndex();
+  readonly linkGraph: LinkGraph = createLinkGraph();
   readonly docs = new Map<VaultPath, DocMeta>();
   readonly clock: Clock;
   sliceMs: number;
   budgetMs: number;
   private nextMtime = 1_700_000_000_000;
+  private readonly unresolvedBySource = new Map<VaultPath, number>();
 
   constructor(notes: readonly FakeCorpusNoteSeed[] = [], opts: FakeCorpusOptions = {}) {
     this.clock = opts.clock ?? new FakeClock();
@@ -64,6 +91,9 @@ export class FakeCorpus {
 
     for (const seed of notes) {
       this.addNote(seed);
+    }
+    if (opts.resolvedLinks) {
+      this.setResolvedLinks(opts.resolvedLinks);
     }
   }
 
@@ -92,7 +122,66 @@ export class FakeCorpus {
     this.docs.set(path, meta);
     this.textIndex.upsert(path, seed.text);
     this.titleIndex.upsert(path, title, aliases);
+    this.tagIndex.upsert(path, tags);
     return path;
+  }
+
+  addPdf(seed: FakeCorpusPdfSeed): VaultPath {
+    const mtime = seed.mtime ?? this.nextMtime++;
+    const ctime = seed.ctime ?? mtime;
+    const path = this.vault.addPdf({
+      path: seed.path,
+      mtime,
+      ctime,
+    });
+    const title = seed.title ?? defaultTitle(path);
+    const meta: DocMeta = {
+      ref: { path, kind: "pdf" },
+      title,
+      aliases: [],
+      tags: [],
+      folder: folderOf(path),
+      mtime,
+      ctime,
+      size: 0,
+      pdf: { pageCount: 1, status: "pending", emptyPages: [] },
+    };
+    this.docs.set(path, meta);
+    this.titleIndex.upsert(path, title, []);
+    return path;
+  }
+
+  /**
+   * Rebuild link graph from resolvedLinks; excluded/missing targets become unresolved.
+   */
+  setResolvedLinks(resolvedLinks: Record<string, Record<string, number>>): void {
+    const allowed = new Set<string>([...this.docs.keys()]);
+    this.linkGraph.rebuild(resolvedLinks, allowed);
+    this.unresolvedBySource.clear();
+    for (const [rawSource, targets] of Object.entries(resolvedLinks)) {
+      const source = normalizePath(rawSource);
+      if (!allowed.has(source)) {
+        continue;
+      }
+      let unresolved = 0;
+      const seen = new Set<string>();
+      for (const [rawTarget, count] of Object.entries(targets)) {
+        if (count <= 0) {
+          continue;
+        }
+        const target = normalizePath(rawTarget);
+        if (seen.has(target)) {
+          continue;
+        }
+        seen.add(target);
+        if (!allowed.has(target)) {
+          unresolved += 1;
+        }
+      }
+      if (unresolved > 0) {
+        this.unresolvedBySource.set(source, unresolved);
+      }
+    }
   }
 
   reader() {
@@ -119,6 +208,18 @@ export class FakeCorpus {
       },
       readText(path) {
         return corpus.vault.readText(path);
+      },
+      outgoing(path) {
+        return corpus.linkGraph.outgoing(path);
+      },
+      incoming(path) {
+        return corpus.linkGraph.incoming(path);
+      },
+      unresolvedCount(path) {
+        return corpus.unresolvedBySource.get(normalizePath(path)) ?? 0;
+      },
+      pathsForTag(tag, opts) {
+        return corpus.tagIndex.pathsForTag(tag, opts);
       },
       get clock() {
         return corpus.clock;
