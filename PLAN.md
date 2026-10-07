@@ -306,7 +306,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M2-T03, M2-T05, M2-T06
 - **Acceptance criteria:** AC-M2.1 cases (typical, empty, excluded) for these tools.
 - **How to verify:** Fixture/`FakeCorpus` tests.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥F**
 
 ### M2-T08 — Tools: links, backlinks, tags

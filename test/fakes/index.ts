@@ -8,6 +8,11 @@ export {
   type FakeVaultNoteSeed,
   type FakeVaultPdfSeed,
 } from "./fake-vault";
+export {
+  FakeCorpus,
+  type FakeCorpusNoteSeed,
+  type FakeCorpusOptions,
+} from "./fake-corpus";
 export { FakeMetadata } from "./fake-metadata";
 export {
   FakeTransport,

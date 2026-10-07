@@ -1,6 +1,5 @@
 /**
- * tools — arg validation, canonical keys, registry (DESIGN §5.4).
- * Tool bodies land in M2-T07–T09.
+ * tools — arg validation, canonical keys, registry, core tool bodies (DESIGN §5.4).
  */
 
 export type {
@@ -65,3 +64,32 @@ export type {
   ToolRegistry,
 } from "./registry";
 export { createToolRegistry } from "./registry";
+
+export type {
+  CoreToolDeps,
+  TextScanHit,
+  TextScanOutcome,
+  TextScanRequest,
+  TitleMatchedOn,
+  TitleSearchHit,
+} from "./deps";
+
+export type { SearchTextHit, SearchTextResult } from "./search-text";
+export {
+  EXCERPT_EXPAND_MAX,
+  EXCERPT_EXPAND_MIN,
+  SEARCH_TEXT_BUDGET_MS,
+  SEARCH_TEXT_SLICE_MS,
+  createSearchTextHandler,
+  docMatchesScope,
+} from "./search-text";
+
+export type {
+  SearchByTitleHit,
+  SearchByTitleMatchedOn,
+  SearchByTitleResult,
+} from "./search-by-title";
+export { createSearchByTitleHandler } from "./search-by-title";
+
+export type { ReadNoteResult } from "./read-note";
+export { createReadNoteHandler } from "./read-note";
