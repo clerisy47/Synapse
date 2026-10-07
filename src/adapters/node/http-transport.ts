@@ -48,7 +48,11 @@ export class NodeHttpTransport implements Transport {
 
   async getJson(
     url: string,
-    o: { timeoutMs: number; signal?: AbortSignal },
+    o: {
+      timeoutMs: number;
+      signal?: AbortSignal;
+      headers?: Record<string, string>;
+    },
   ): Promise<{ status: number; body: unknown }> {
     this.assertEndpoint(url);
     throwIfAborted(o.signal);
@@ -56,6 +60,7 @@ export class NodeHttpTransport implements Transport {
     const mods = await loadHttpModules();
     const parsed = parseUrl(url);
     const lib = parsed.protocol === "https:" ? mods.https : mods.http;
+    const headers = { Accept: "application/json", ...o.headers };
 
     return new Promise((resolve, reject) => {
       let settled = false;
@@ -110,7 +115,7 @@ export class NodeHttpTransport implements Transport {
 
       try {
         req = lib.request(
-          requestOptions(parsed, "GET", { Accept: "application/json" }),
+          requestOptions(parsed, "GET", headers),
           (res) => {
             const chunks: Buffer[] = [];
             res.on("data", (chunk: Buffer | string) => {
@@ -160,6 +165,7 @@ export class NodeHttpTransport implements Transport {
       signal: AbortSignal;
       firstByteTimeoutMs: number;
       idleTimeoutMs: number;
+      headers?: Record<string, string>;
     },
   ): AsyncIterable<unknown> {
     this.assertEndpoint(url);
@@ -268,13 +274,16 @@ export class NodeHttpTransport implements Transport {
       }
     }, o.firstByteTimeoutMs);
 
+    const headers = {
+      Accept: "application/x-ndjson, application/json",
+      "Content-Type": "application/json",
+      "Content-Length": String(Buffer.byteLength(payload)),
+      ...o.headers,
+    };
+
     try {
       req = lib.request(
-        requestOptions(parsed, "POST", {
-          Accept: "application/x-ndjson, application/json",
-          "Content-Type": "application/json",
-          "Content-Length": String(Buffer.byteLength(payload)),
-        }),
+        requestOptions(parsed, "POST", headers),
         (incoming) => {
           res = incoming;
           const status = incoming.statusCode ?? 0;

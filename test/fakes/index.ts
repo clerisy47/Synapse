@@ -7,6 +7,7 @@ export {
   FakeTransport,
   type FakeGetJsonResult,
   type FakePostStreamResult,
+  type FakeTransportCall,
 } from "./fake-transport";
 export { MemoryStorage } from "./memory-storage";
 export {
