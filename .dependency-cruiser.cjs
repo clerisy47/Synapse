@@ -36,11 +36,21 @@ module.exports = {
       from: {
         path: "^src/",
         pathNot:
-          "^src/main\\.ts$|^src/(config|state|policy|evidence|jobs|llm|pdf|corpus|tools|compare|agent|contradiction|resurface|core|adapters)/",
+          "^src/main\\.ts$|^src/(config|state|policy|evidence|jobs|llm|pdf|corpus|tools|compare|agent|contradiction|resurface|core|adapters|ui)/",
       },
       to: {
-        path: "^src/(config|state|policy|evidence|jobs|llm|pdf|corpus|tools|compare|agent|contradiction|resurface|core|adapters)/",
+        path: "^src/(config|state|policy|evidence|jobs|llm|pdf|corpus|tools|compare|agent|contradiction|resurface|core|adapters|ui)/",
         pathNot: "/index\\.(ts|tsx|js)$",
+      },
+    },
+    {
+      name: "ui-deps",
+      comment: "ui may import core, jobs, constants; never adapters (separate rule)",
+      severity: "error",
+      from: { path: "^src/ui/" },
+      to: {
+        path: "^src/",
+        pathNot: "^(src/core/|src/jobs/|src/constants\\.ts$|src/ui/)",
       },
     },
     {
