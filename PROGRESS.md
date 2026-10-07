@@ -2,14 +2,14 @@
 
 ## Current focus
 
-Next PLAN tasks (unblocked): **M1-T09 (∥B)** (Node HTTP transport; needs T04+T08) · **M1-T11 (∥B)** (job queue; needs T04+T08) · **M1-T12 (∥C)** (policy stubs; needs T03+T06) — T08 fake ports done. M1-T13 still waits on adapters (T07 DONE).
+Next PLAN tasks (unblocked): **M1-T11 (∥B)** (job queue; needs T04+T08) · **M1-T12 (∥C)** (policy stubs; needs T03+T06) · **M1-T13 (∥C)** (Obsidian storage; needs T04+T07). **M1-T10** waits on T09 (DONE).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M1-T08**: `test/fakes/` with `FakeClock`, `FakeTransport`, `MemoryStorage`, `ScriptedModel` (skeleton `ModelPort` until M1-T10), and `RingBufferLogger` (80-char field dump guard, shared child ring); barrel `index.ts` + vitest smoke covering each port.
-- Verified local gate: typecheck → lint (`src` + `test`) → boundaries → network/writes → test → schema → build.
+- Completed **M1-T09**: `NodeHttpTransport` with guarded dynamic `import('http'/'https')`, NDJSON `postStream`, first-byte/idle timeouts, abort that destroys the socket; injectable `checkEndpoint` for M1-T12; loopback `test/mock-ollama/server.ts`; contract suite in `test/contract/transport.test.ts`.
+- Verified local gate: typecheck → lint (`src` + `test`) → boundaries → network/writes → test → build.
 
 ## Known issues
 
@@ -27,6 +27,7 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - Tightened `check-no-network.mjs` `requestUrl` pattern to `\brequestUrl\s*\(` so the §4.5 transport-mode enum string is not a false positive.
 - M1-T07 injects optional `schedule` for debounce (defaults to `window` timers) so vitest can run without a DOM `window`; touch-log hygiene deferred until vault/policy exist.
 - M1-T08 keeps temporary `ModelPort` / structured-request types in `scripted-model.ts` until the production client lands in M1-T10; ring-buffer logger is a fake (production `ConsoleSink` still later).
+- M1-T09 injects optional `checkEndpoint` instead of importing `policy` (adapters may only depend on `core`); EndpointPolicy wiring lands with M1-T12 / composition root. Disabled Obsidian window-timer lint rules for `adapters/node` and `test/` because Node timers are correct there.
 
 ## Decisions not in DESIGN.md
 
