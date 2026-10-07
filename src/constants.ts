@@ -125,3 +125,9 @@ export const OPENROUTER_API_KEY_ENV = "OPENROUTER_API_KEY" as const;
  * Intentionally unset — callers must treat absence as "no cap yet".
  */
 export const CACHE_TEXT_CAP_MB: number | null = null;
+
+/** `data.json` schema version (DESIGN §4.6). */
+export const STATE_SCHEMA_VERSION = 1 as const;
+
+/** Debounce for StateStore writes to `data.json` (ms). DESIGN §4.3. */
+export const STATE_WRITE_DEBOUNCE_MS = 30_000;

@@ -55,10 +55,11 @@ module.exports = {
     },
     {
       name: "state-deps",
+      comment: "state may import core, config, and constants",
       from: { path: "^src/state/" },
       to: {
         path: "^src/",
-        pathNot: "^(src/core/|src/config/|src/state/)",
+        pathNot: "^(src/core/|src/config/|src/state/|src/constants\\.ts$)",
       },
     },
     {
