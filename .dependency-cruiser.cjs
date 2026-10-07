@@ -45,12 +45,12 @@ module.exports = {
     },
     {
       name: "config-deps",
-      comment: "config may import core only",
+      comment: "config may import core and constants",
       severity: "error",
       from: { path: "^src/config/" },
       to: {
         path: "^src/",
-        pathNot: "^(src/core/|src/config/)",
+        pathNot: "^(src/core/|src/config/|src/constants\\.ts$)",
       },
     },
     {

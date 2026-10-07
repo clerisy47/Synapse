@@ -2,14 +2,14 @@
 
 ## Current focus
 
-Next PLAN tasks (unblocked): **M1-T06** (config store) · **M1-T08 (∥B)** (fake ports) — T05 schemas done; T06 needs T03+T04; T08 needs T04.
+Next PLAN tasks (unblocked): **M1-T07** (state store; needs T06) · **M1-T08 (∥B)** (fake ports; needs T04) — T06 config store done.
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M1-T05**: seven zod model-output schemas (`health`, `qa.plan`, `qa.select`, `qa.answer`, `claims.extract`, `compare.contradiction`, `compare.relevance`); subset-safe JSON Schema emitter (nullable objects as `type: ["object","null"]`); `scripts/check-schema-subset.mjs` + CI `check:schema`; unit tests for valid/invalid shapes and keyword allowlist.
-- Verified local gate: typecheck → lint → boundaries → test → check:network → check:writes → check:schema → build.
+- Completed **M1-T06**: `src/config/` with zod `settingsSchema`, `DEFAULT_SETTINGS` from Phase A constants, tolerant `parseSettings` (per-field fallback + int clamps), identity `migrateSettings` stub, `createConfigStore` via `createObservable`; widened `config-deps` to allow `src/constants.ts`.
+- Verified local gate: typecheck → lint → boundaries → test → build.
 
 ## Known issues
 
@@ -23,6 +23,8 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - M1-T04 adds a small `createObservable` + `TransportError` class beyond the DESIGN interface snippets so later stores/fakes have a usable pure primitive and `instanceof` mapping.
 - Tightened `check-no-writes.mjs` vault patterns to `\bvault\.(modify|create|…)` so `Set.delete` / similar are not false positives.
 - M1-T05 uses a hand-rolled subset emitter instead of Zod’s `toJSONSchema` so nullable objects never emit `anyOf` (Zod 4’s default for `.nullable()` on objects).
+- M1-T06 uses explicit clamp/fallback helpers rather than zod `.catch` so out-of-range ints clamp instead of resetting to defaults.
+- Tightened `check-no-network.mjs` `requestUrl` pattern to `\brequestUrl\s*\(` so the §4.5 transport-mode enum string is not a false positive.
 
 ## Decisions not in DESIGN.md
 

@@ -21,7 +21,8 @@ const PATTERNS = [
   { name: "WebSocket", re: /\bWebSocket\b/ },
   { name: "EventSource", re: /\bEventSource\b/ },
   { name: "sendBeacon", re: /\bsendBeacon\s*\(/ },
-  { name: "requestUrl", re: /\brequestUrl\b/ },
+  // Obsidian API call only — not the transport-mode enum string (DESIGN §4.5).
+  { name: "requestUrl", re: /\brequestUrl\s*\(/ },
   { name: "import node:http", re: /\bfrom\s+["']node:(https?|net)["']/ },
   { name: "require http", re: /\brequire\s*\(\s*["'](https?|net)["']\s*\)/ },
   { name: "import http module", re: /\bfrom\s+["'](https?|net)["']/ },

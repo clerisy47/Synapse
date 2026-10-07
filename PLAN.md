@@ -129,7 +129,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T03, M1-T04
 - **Acceptance criteria:** Invalid fields fall back to defaults; bounds clamped; endpoint/model/`numCtx`/transport/exclusions present per DESIGN §4.5.
 - **How to verify:** Unit tests for bad JSON and bound clamping.
-- **Status:** TODO
+- **Status:** DONE
 
 ### M1-T07 — State store: tolerant parse + merge
 - **Description:** `parsePersisted` never throws; `mergeState` LWW rules; debounced write via `StoragePort`; unknown fields preserved.
