@@ -289,7 +289,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M2-T02
 - **Acceptance criteria:** Nested tag expand; aliases in title search; date resolver shared with M7 later.
 - **How to verify:** Unit tests.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥E**
 
 ### M2-T06 — Tool registry + canonical keys
