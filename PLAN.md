@@ -171,7 +171,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T04, M1-T08
 - **Acceptance criteria:** AC-M1.5–1.6 semantics (abort+resume, not pause); one job at a time; cancel propagates `AbortSignal`.
 - **How to verify:** Unit tests with `FakeClock` and fake long-running steps.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥B**
 
 ### M1-T12 — Policy: endpoint + exclusion stubs
