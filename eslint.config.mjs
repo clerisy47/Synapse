@@ -98,6 +98,16 @@ export default defineConfig([
           ],
         },
       ],
+      // Node adapter runs on Node timers, not Obsidian popout windows.
+      "obsidianmd/prefer-window-timers": "off",
+      "obsidianmd/no-global-this": "off",
+    },
+  },
+  {
+    files: ["test/**/*.ts"],
+    rules: {
+      "obsidianmd/prefer-window-timers": "off",
+      "obsidianmd/no-global-this": "off",
     },
   },
   {

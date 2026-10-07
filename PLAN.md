@@ -154,7 +154,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T04, M1-T08
 - **Acceptance criteria:** Streaming NDJSON read; abort closes socket; only this file (+ requestUrl later) may open network; addresses R2.
 - **How to verify:** Contract tests; abort timing test (milliseconds on mock).
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥B** (after T08)
 
 ### M1-T10 — OpenRouter client + health checker
