@@ -145,7 +145,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T04
 - **Acceptance criteria:** Fakes implement ports; usable from vitest without Obsidian/Ollama.
 - **How to verify:** Smoke test imports each fake.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥B**
 
 ### M1-T09 — Node HTTP transport
