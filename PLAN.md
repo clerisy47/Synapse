@@ -324,7 +324,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M2-T05, M2-T06
 - **Acceptance criteria:** AC-M2.1 for both.
 - **How to verify:** Unit tests.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥F**
 
 ### M2-T10 — Obsidian vault/metadata adapters + wire corpus

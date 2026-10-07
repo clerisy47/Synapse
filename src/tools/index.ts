@@ -105,3 +105,12 @@ export { createGetBacklinksHandler, createGetLinksHandler } from "./links";
 
 export type { SearchByTagResult } from "./search-by-tag";
 export { createSearchByTagHandler } from "./search-by-tag";
+
+export type {
+  GetFrontmatterPathResult,
+  GetFrontmatterResult,
+} from "./frontmatter";
+export { clipFrontmatterValue, createGetFrontmatterHandler } from "./frontmatter";
+
+export type { ListRecentItem, ListRecentResult } from "./list-recent";
+export { createListRecentHandler } from "./list-recent";

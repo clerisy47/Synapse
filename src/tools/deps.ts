@@ -45,6 +45,10 @@ export interface CoreToolDeps {
   incoming(path: VaultPath): readonly VaultPath[];
   unresolvedCount(path: VaultPath): number;
   pathsForTag(tag: string, opts?: TagPathsOptions): readonly VaultPath[];
+  /** Frontmatter JSON for an indexed doc; null when path has no doc. */
+  getFrontmatter(path: VaultPath): Record<string, unknown> | null;
+  /** User open/edit touch timestamp; undefined when never touched. */
+  lastTouchedAt(path: VaultPath): number | undefined;
   clock: Clock;
   sliceMs: number;
   budgetMs: number;

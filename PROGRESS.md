@@ -2,13 +2,14 @@
 
 ## Current focus
 
-Next PLAN task: **M2-T09** (tools: get_frontmatter, list_recent; deps M2-T05 + M2-T06 DONE). ∥F remnant after T08. **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
+Next PLAN task: **M2-T10** (Obsidian vault/metadata adapters + wire corpus; deps M2-T02–M2-T09 DONE). ∥F complete. **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M2-T08**: `get_links` / `get_backlinks` / `search_by_tag` over extended `CoreToolDeps` (outgoing/incoming/unresolvedCount/pathsForTag); FakeCorpus owns LinkGraph + TagIndex; AC-M2.1/M2.7 coverage including nested tags and PDF empty outgoing.
+- Completed **M2-T09**: `get_frontmatter` / `list_recent` over extended `CoreToolDeps` (`getFrontmatter`, `lastTouchedAt`); FakeCorpus seeds FM + touch map; AC-M2.1 coverage (clip, keys, PDF empty FM, mtime/touched windows, scope/limit).
+- Prior **M2-T08**: `get_links` / `get_backlinks` / `search_by_tag` over extended `CoreToolDeps` (outgoing/incoming/unresolvedCount/pathsForTag); FakeCorpus owns LinkGraph + TagIndex; AC-M2.1/M2.7 coverage including nested tags and PDF empty outgoing.
 - Prior **M2-T07**: `search_text` / `search_by_title` / `read_note` handlers over injected `CoreToolDeps` (no corpus import); `FakeCorpus` for AC-M2.1; ranking + scope + NOT_FOUND exclusion parity.
 - Prior **M2-T06**: `ToolRegistry` with arg validation, canonical keys (fold/sort/drop defaults), duplicate tracker, result-cap helpers. Handlers injected later by T07–T09; no corpus import.
 
@@ -44,6 +45,7 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - M2-T06: tool arg/result caps live as named constants in `args.ts` (tools-deps forbids `constants.ts`); duplicate checks stay outside `invoke` via `createDuplicateTracker`; registry `canonicalKey` returns `null` on invalid args.
 - M2-T07: tool bodies take `CoreToolDeps` (duck-typed); `sliceMs`/`budgetMs`/excerpt expand live in tools (not `constants.ts`); filename match for `search_by_title` is tool-layer only; FakeCorpus omits excluded notes so missing≡excluded.
 - M2-T08: `unresolvedCount` lives on `CoreToolDeps` (FakeCorpus counts non-allowed resolved targets) rather than extending LinkGraph; store/metadata wiring deferred to M2-T10.
+- M2-T09: touch/FM seams on `CoreToolDeps` only (FakeCorpus); real MetadataPort/`touchLog`/SessionTracker wiring deferred to M2-T10.
 
 ## Decisions not in DESIGN.md
 
