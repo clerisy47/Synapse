@@ -2,15 +2,15 @@
 
 ## Current focus
 
-Next PLAN task: **M2-T06** (tool registry + canonical keys; deps M2-T02 + M1-T03 DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
+Next PLAN task: **M2-T07** (tools: search_text, search_by_title, read_note; deps M2-T03 + M2-T05 + M2-T06 DONE). ∥F with M2-T08 / M2-T09. **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M2-T05**: `TagIndex` (nested expand at query), `TitleIndex` (foldCase title/alias substring search), `NoteDateResolver` / frontmatter date parse for resurface.dateField. Standalone — not wired into `CorpusStore` yet.
+- Completed **M2-T06**: `ToolRegistry` with arg validation, canonical keys (fold/sort/drop defaults), duplicate tracker, result-cap helpers. Handlers injected later by T07–T09; no corpus import.
+- Prior **M2-T05**: `TagIndex` (nested expand at query), `TitleIndex` (foldCase title/alias substring search), `NoteDateResolver` / frontmatter date parse for resurface.dateField. Standalone — not wired into `CorpusStore` yet.
 - Prior **M2-T04**: `LinkGraph` forward+inverse from `resolvedLinks` with allowed-set filtering (OQ-11); incremental `updateSource`/`remove`; `FakeMetadata` for CI.
-- Prior **M2-T03**: folded `TextIndex` + `bodyStartOffset`; `cutSnippet`; time-sliced `scan`. Standalone until M2-T10 / later index wiring.
 
 ## Known issues
 
@@ -41,6 +41,7 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - M2-T03: TextIndex stays standalone (no CorpusStore wiring); `bytesCached` is folded-length sum only (F-26 cap open); PDF page arrays deferred to M4.
 - M2-T04: LinkGraph stays standalone; `store.test.ts` keeps local TestMetadata stub (FakeMetadata exported for new tests); unique targets only (`count > 0` gates edges).
 - M2-T05: Tag/Title/NoteDate stay standalone; combined tests in `note-dates.test.ts` to stay in file budget; title search trims query; date-only ISO uses UTC midnight.
+- M2-T06: tool arg/result caps live as named constants in `args.ts` (tools-deps forbids `constants.ts`); duplicate checks stay outside `invoke` via `createDuplicateTracker`; registry `canonicalKey` returns `null` on invalid args.
 
 ## Decisions not in DESIGN.md
 
