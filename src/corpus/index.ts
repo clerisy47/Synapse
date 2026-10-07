@@ -10,3 +10,12 @@ export { createSessionTracker } from "./session";
 
 export type { CorpusStore, CreateCorpusStoreOptions } from "./store";
 export { createCorpusStore } from "./store";
+
+export type {
+  TextIndex,
+  TextIndexEntry,
+  TextScanHit,
+  TextScanOptions,
+  TextScanResult,
+} from "./text-index";
+export { createTextIndex, cutSnippet } from "./text-index";
