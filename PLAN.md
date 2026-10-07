@@ -198,7 +198,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T11 (status events), M1-T04
 - **Acceptance criteria:** AC-M1.7, M1.8; strings centralized; no `innerHTML`.
 - **How to verify:** Viewmodel unit tests; manual: trigger error via bad endpoint.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥D**
 
 ### M1-T15 — Settings tab (endpoint, model, transport warning)

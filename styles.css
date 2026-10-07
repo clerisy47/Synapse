@@ -1,1 +1,23 @@
 /* Vault Synapse styles. Every selector must use the .syn- prefix (DESIGN §7 / OQ-14). */
+
+.syn-status-bar {
+  padding: 0 0.5em;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+.syn-status-bar--idle {
+  color: var(--text-muted);
+}
+
+.syn-status-bar--running {
+  color: var(--text-accent);
+}
+
+.syn-status-bar--paused {
+  color: var(--text-warning);
+}
+
+.syn-status-bar--error {
+  color: var(--text-error);
+}

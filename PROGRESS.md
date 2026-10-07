@@ -2,15 +2,14 @@
 
 ## Current focus
 
-Next PLAN tasks (unblocked): **M1-T14 (∥D)** (status bar; needs T11) · **M1-T15 (∥D)** (settings tab; needs T06+T12+T13 — all DONE).
+Next PLAN tasks (unblocked): **M1-T15 (∥D)** (settings tab; deps T06+T12+T13 DONE) · then **M1-T16** (composition root; needs T14+T15).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M1-T13**: path-guarded `ObsidianStorage` (`resolvePluginRel` + plugin-folder `DataAdapter` writes; `loadData`/`saveData`), lifecycle helpers (`bindExternalSettingsChange`, `onLayoutReady`), and `RequestUrlTransport` (`streaming: false`, `abortable: false`) for health/degraded mode.
-- Allowlisted `src/adapters/obsidian/storage.ts` in `check-no-writes.mjs` so intentional adapter writes are legal only there (AC-M8.5 path ready; full spy test remains M7-T02).
-- Composition-root wiring deferred to M1-T16.
+- Completed **M1-T14**: pure `toStatusVm` (idle/running/paused/error; Retry for schema/timeout/HTTP; CANCELLED silent), injected `mountStatusBar` / `mountStatusNotices` (no `obsidian` in `ui/`), centralized `ui/strings`, `.syn-status-bar*` CSS. Composition wiring deferred to M1-T16.
+- Added `ui-deps` boundary (core, jobs, constants only).
 
 ## Known issues
 
@@ -32,6 +31,7 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - M1-T10: optional `headers` on `Transport`; `llm-deps` may import `src/constants.ts` (same as config/state) for timeouts / `NUM_PREDICT` / `PLUGIN_NAME`. Auth/rate-limit map to `MODEL_HTTP_ERROR` + remediation keys (no new `ErrorCode`s). Composition root / settings UI wiring deferred to M1-T16.
 - M1-T11: `createJobQueue({ clock, abortable })` injects abortability (composition root will pass `transport.capabilities.abortable`); `progress()` stores last stage only (status-bar UI is M1-T14).
 - M1-T13: `createObsidianStorage` takes injectable deps for CI; `createObsidianStorageFromPlugin` wraps live Plugin. `RequestUrlTransport` injects `requestUrl` for tests and lazy-imports Obsidian otherwise; local `EndpointChecker` type (adapters must not import each other). `onLayoutReady` disposable only suppresses late callbacks (Obsidian API has no unsubscribe). Bumped `minAppVersion` to 1.5.7 for `onExternalSettingsChange`. Vitest aliases `obsidian` → `test/stubs/obsidian.ts`.
+- M1-T14: notice Retry is an injected `onRetry` callback; full job re-submit lands in M1-T16. Mount tests use a minimal `HTMLElement` fake (vitest `environment: node`).
 
 ## Decisions not in DESIGN.md
 
