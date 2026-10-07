@@ -45,12 +45,14 @@ module.exports = {
     },
     {
       name: "ui-deps",
-      comment: "ui may import core, jobs, constants; never adapters (separate rule)",
+      comment:
+        "ui may import core, jobs, config, policy, constants; never adapters (separate rule)",
       severity: "error",
       from: { path: "^src/ui/" },
       to: {
         path: "^src/",
-        pathNot: "^(src/core/|src/jobs/|src/constants\\.ts$|src/ui/)",
+        pathNot:
+          "^(src/core/|src/jobs/|src/config/|src/policy/|src/constants\\.ts$|src/ui/)",
       },
     },
     {

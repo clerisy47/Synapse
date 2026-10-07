@@ -2,14 +2,13 @@
 
 ## Current focus
 
-Next PLAN tasks (unblocked): **M1-T15 (∥D)** (settings tab; deps T06+T12+T13 DONE) · then **M1-T16** (composition root; needs T14+T15).
+Next PLAN task: **M1-T16** (composition root; deps T10–T15 DONE). Wires adapters → config/state → llm/jobs → status + settings UI; health on layout-ready; unload cancel/flush.
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M1-T14**: pure `toStatusVm` (idle/running/paused/error; Retry for schema/timeout/HTTP; CANCELLED silent), injected `mountStatusBar` / `mountStatusNotices` (no `obsidian` in `ui/`), centralized `ui/strings`, `.syn-status-bar*` CSS. Composition wiring deferred to M1-T16.
-- Added `ui-deps` boundary (core, jobs, constants only).
+- Completed **M1-T15**: pure `toSettingsVm` / `settingsChangeEffects` (egress, non-loopback, blocked, degraded `requestUrl`; health invalidate for endpoint/model/numCtx; no telemetry), injectable `mountSettingsPanel` + `SettingsTabHost` (no `obsidian` in `ui/`), `SETTINGS` strings, `.syn-settings-*` CSS. Extended `ui-deps` for `config` + `policy`. Tab registration deferred to M1-T16.
 
 ## Known issues
 
@@ -32,6 +31,7 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - M1-T11: `createJobQueue({ clock, abortable })` injects abortability (composition root will pass `transport.capabilities.abortable`); `progress()` stores last stage only (status-bar UI is M1-T14).
 - M1-T13: `createObsidianStorage` takes injectable deps for CI; `createObsidianStorageFromPlugin` wraps live Plugin. `RequestUrlTransport` injects `requestUrl` for tests and lazy-imports Obsidian otherwise; local `EndpointChecker` type (adapters must not import each other). `onLayoutReady` disposable only suppresses late callbacks (Obsidian API has no unsubscribe). Bumped `minAppVersion` to 1.5.7 for `onExternalSettingsChange`. Vitest aliases `obsidian` → `test/stubs/obsidian.ts`.
 - M1-T14: notice Retry is an injected `onRetry` callback; full job re-submit lands in M1-T16. Mount tests use a minimal `HTMLElement` fake (vitest `environment: node`).
+- M1-T15: settings panel uses injectable `SettingsTabHost` (Obsidian `Setting` / `PluginSettingTab` in T16). Avoided `requestUrl (` in UI strings so `check-no-network` `\brequestUrl\s*\(` stays green. Health invalidate is a VM signal only until T16 resets `availability`.
 
 ## Decisions not in DESIGN.md
 

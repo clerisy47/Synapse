@@ -21,3 +21,33 @@
 .syn-status-bar--error {
   color: var(--text-error);
 }
+
+/* Settings panel warnings (AC-M8.2). Host may attach these modifiers. */
+.syn-settings-warning {
+  margin: 0.75em 0;
+  padding: 0.6em 0.75em;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+
+.syn-settings-warning--egress,
+.syn-settings-warning--non-loopback {
+  border-color: var(--text-warning);
+  color: var(--text-warning);
+}
+
+.syn-settings-warning--blocked,
+.syn-settings-warning--degraded {
+  border-color: var(--text-error);
+  color: var(--text-error);
+}
+
+.syn-settings-section {
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
