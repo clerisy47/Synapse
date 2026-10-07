@@ -2,15 +2,15 @@
 
 ## Current focus
 
-Next PLAN tasks (unblocked): **M1-T12 (∥C)** (policy stubs; needs T03+T06) · **M1-T13 (∥C)** (Obsidian storage; needs T04+T07) · **M1-T14 (∥D)** (status bar; needs T11). **M1-T11** DONE.
+Next PLAN tasks (unblocked): **M1-T13 (∥C)** (Obsidian storage; needs T04+T07) · **M1-T14 (∥D)** (status bar; needs T11) · **M1-T15** still needs T12+T13 (T12 DONE).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M1-T11**: `createJobQueue` single-lane priority queue with abort-and-resume preemption, step memoization (`JobContextImpl`), dedupe keys, cancel/`cancelAll`/`dispose`, non-abortable lane hold, `activeMs` pause accounting, and `QueueStatus` / per-job state observables.
-- Abort reasons use `JobAbortError` as `AbortSignal.reason` (lint-safe throws; `abortReasonOf` unwraps).
-- Verified local gate: typecheck → lint (`src` + `test`) → boundaries → network/writes/schema → test → build.
+- Completed **M1-T12**: `createEndpointPolicy` (Phase A OpenRouter host allowlist; Phase B loopback + `endpointAckHost` stub; `assertAllowed` → `TransportError` blocked; egress-warning helper) and `createExclusionPolicy` (folder/tag/frontmatter, fail-closed on null metadata, PDF folder-only).
+- Policy stays pure; frontmatter key / host list injected (no `constants` import). Composition / transport wiring deferred to M1-T16.
+- Verified local gate: typecheck → lint → boundaries → network/writes/schema → test → build.
 
 ## Known issues
 

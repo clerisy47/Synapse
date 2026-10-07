@@ -180,7 +180,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T03, M1-T06
 - **Acceptance criteria:** OpenRouter hosts allowed when configured; other hosts blocked; folder/tag/frontmatter rules fail-closed.
 - **How to verify:** Unit tests.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥C**
 
 ### M1-T13 — Obsidian storage + lifecycle adapters
