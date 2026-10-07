@@ -4,6 +4,11 @@
 
 export { FakeClock, formatTodayLocal } from "./fake-clock";
 export {
+  FakeVault,
+  type FakeVaultNoteSeed,
+  type FakeVaultPdfSeed,
+} from "./fake-vault";
+export {
   FakeTransport,
   type FakeGetJsonResult,
   type FakePostStreamResult,

@@ -255,7 +255,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T12
 - **Acceptance criteria:** Fail-closed rules documented in tests; addresses R6.
 - **How to verify:** Unit tests.
-- **Status:** TODO
+- **Status:** DONE
 
 ### M2-T02 — Corpus store + DocTable + warm loop
 - **Description:** Time-sliced warm over `VaultPort`/`MetadataPort`; `CorpusStatus` observable; apply exclusion at ingest.

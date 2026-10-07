@@ -2,13 +2,13 @@
 
 ## Current focus
 
-Next PLAN task: **M2-T01** (exclusion policy integration tests — deps DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
+Next PLAN task: **M2-T02** (corpus store + DocTable + warm loop — deps M2-T01/M1-T04/M1-T08 DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M1-T18**: added `docs/m1-checklist.md` for the walking-skeleton demo path (install → settings → health pass/fail → status bar → three release artifacts). Ran typecheck/lint/test/boundaries/privacy/schema/build — all green; no code gaps. Obsidian operator rows remain optional for a clean vault.
+- Completed **M2-T01**: added `FakeVault` (`test/fakes/fake-vault.ts`) and expanded exclusion unit + FakeVault ingest-gate integration tests (folder/tag/frontmatter/`ignore`, fail-closed nulls, PDF folder-only F-22 / R6). No `exclusion.ts` behavior change.
 
 ## Known issues
 
