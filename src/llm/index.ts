@@ -27,3 +27,46 @@ export {
   schemaSubsetViolations,
   selectOutputSchema,
 } from "./schemas";
+
+export type {
+  ModelPort,
+  ModelUsage,
+  OpenRouterClientOptions,
+  StructuredRequest,
+  StructuredResponse,
+} from "./client";
+export {
+  OpenRouterClient,
+  authHeaders,
+  mapTransportFailure,
+} from "./client";
+
+export type {
+  AiAvailability,
+  HealthChecker,
+  HealthReport,
+  OpenRouterHealthCheckerOptions,
+} from "./health";
+export {
+  OpenRouterHealthChecker,
+  createOpenRouterHealthChecker,
+} from "./health";
+
+export type {
+  BuildOpenRouterChatRequestArgs,
+  OpenRouterChatMessage,
+  OpenRouterChatRequest,
+} from "./request";
+export {
+  SHARED_SYSTEM_PREFIX,
+  buildOpenRouterChatRequest,
+  joinEndpoint,
+} from "./request";
+
+export type { UsageFields } from "./validate";
+export {
+  extractChatContent,
+  extractUsage,
+  formatValidationFeedback,
+  parseStructuredContent,
+} from "./validate";

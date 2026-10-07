@@ -109,7 +109,12 @@ export interface Transport {
   readonly capabilities: TransportCapabilities;
   getJson(
     url: string,
-    o: { timeoutMs: number; signal?: AbortSignal },
+    o: {
+      timeoutMs: number;
+      signal?: AbortSignal;
+      /** Extra request headers (e.g. Authorization). Merged over defaults. */
+      headers?: Record<string, string>;
+    },
   ): Promise<{ status: number; body: unknown }>;
   /**
    * One parsed JSON object per NDJSON line.
@@ -122,6 +127,8 @@ export interface Transport {
       signal: AbortSignal;
       firstByteTimeoutMs: number;
       idleTimeoutMs: number;
+      /** Extra request headers (e.g. Authorization). Merged over defaults. */
+      headers?: Record<string, string>;
     },
   ): AsyncIterable<unknown>;
 }

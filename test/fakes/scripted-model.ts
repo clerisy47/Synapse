@@ -1,11 +1,7 @@
 /**
  * Scripted ModelPort for CI (DESIGN §5.4 / §9.1).
  * Returns canned structured output per PromptKind; no network.
- *
- * ModelPort types live here until `src/llm` owns the production client (M1-T10).
  */
-
-import type { z } from "zod";
 
 import {
   err,
@@ -14,37 +10,20 @@ import {
   type Result,
   type SynapseError,
 } from "../../src/core";
-import type { PromptKind } from "../../src/llm";
+import {
+  type ModelPort,
+  type ModelUsage,
+  type PromptKind,
+  type StructuredRequest,
+  type StructuredResponse,
+} from "../../src/llm";
 
-export interface ModelUsage {
-  promptTokens: number;
-  outputTokens: number;
-  loadMs: number;
-  promptEvalMs: number;
-  evalMs: number;
-  totalMs: number;
-}
-
-export interface StructuredResponse<T> {
-  value: T;
-  usage: ModelUsage;
-  attempts: 1 | 2;
-}
-
-export interface StructuredRequest<T> {
-  kind: PromptKind;
-  instructions: string;
-  input: string;
-  schema: z.ZodType<T>;
-  numPredict: number;
-}
-
-export interface ModelPort {
-  generate<T>(
-    req: StructuredRequest<T>,
-    signal: AbortSignal,
-  ): Promise<Result<StructuredResponse<T>>>;
-}
+export type {
+  ModelPort,
+  ModelUsage,
+  StructuredRequest,
+  StructuredResponse,
+};
 
 const ZERO_USAGE: ModelUsage = {
   promptTokens: 0,

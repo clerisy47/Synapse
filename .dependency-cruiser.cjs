@@ -91,7 +91,7 @@ module.exports = {
       from: { path: "^src/llm/" },
       to: {
         path: "^src/",
-        pathNot: "^(src/core/|src/config/|src/llm/)",
+        pathNot: "^(src/core/|src/config/|src/llm/|src/constants\\.ts$)",
       },
     },
     {

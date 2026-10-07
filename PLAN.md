@@ -163,7 +163,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T05, M1-T09, M1-T08
 - **Acceptance criteria:** AC-M1.1–1.4 (on mock); API key required; default pinned `:free` model; never auto-purchases credits; Ollama deferred to Milestone 9.
 - **How to verify:** Unit tests with `FakeTransport` / mock OpenRouter; optional live probe via `OPENROUTER_API_KEY` (never commit the key).
-- **Status:** TODO
+- **Status:** DONE
 
 ### M1-T11 — Job queue (single lane)
 - **Description:** Priority queue, cancel, abort-and-resume preemption memoization hooks, status events.

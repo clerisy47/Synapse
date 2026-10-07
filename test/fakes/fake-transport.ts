@@ -17,10 +17,19 @@ export type FakePostStreamResult =
   | { chunks: unknown[] }
   | { error: { kind: TransportErrorKind; status?: number; message?: string } };
 
+export type FakeTransportCall = {
+  method: "getJson" | "postStream";
+  url: string;
+  body?: unknown;
+  headers?: Record<string, string>;
+};
+
 export class FakeTransport implements Transport {
   readonly capabilities: TransportCapabilities;
   private readonly getQueue: FakeGetJsonResult[] = [];
   private readonly postQueue: FakePostStreamResult[] = [];
+  /** Recorded calls for auth/header assertions (M1-T10). */
+  readonly calls: FakeTransportCall[] = [];
 
   constructor(
     capabilities: TransportCapabilities = { streaming: true, abortable: true },
@@ -37,10 +46,19 @@ export class FakeTransport implements Transport {
   }
 
   async getJson(
-    _url: string,
-    o: { timeoutMs: number; signal?: AbortSignal },
+    url: string,
+    o: {
+      timeoutMs: number;
+      signal?: AbortSignal;
+      headers?: Record<string, string>;
+    },
   ): Promise<{ status: number; body: unknown }> {
     throwIfAborted(o.signal);
+    const call: FakeTransportCall = { method: "getJson", url };
+    if (o.headers !== undefined) {
+      call.headers = o.headers;
+    }
+    this.calls.push(call);
     const next = this.getQueue.shift();
     if (!next) {
       throw new TransportError({
@@ -56,15 +74,21 @@ export class FakeTransport implements Transport {
   }
 
   async *postStream(
-    _url: string,
-    _body: unknown,
+    url: string,
+    body: unknown,
     o: {
       signal: AbortSignal;
       firstByteTimeoutMs: number;
       idleTimeoutMs: number;
+      headers?: Record<string, string>;
     },
   ): AsyncIterable<unknown> {
     throwIfAborted(o.signal);
+    const call: FakeTransportCall = { method: "postStream", url, body };
+    if (o.headers !== undefined) {
+      call.headers = o.headers;
+    }
+    this.calls.push(call);
     const next = this.postQueue.shift();
     if (!next) {
       throw new TransportError({
