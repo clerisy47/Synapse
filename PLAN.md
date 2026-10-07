@@ -137,7 +137,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T04, M1-T06
 - **Acceptance criteria:** AC-M8.7; merge property tests (commutative/associative/idempotent); no note text in `data.json`.
 - **How to verify:** Property + unit tests with `MemoryStorage`.
-- **Status:** TODO
+- **Status:** DONE
 
 ### M1-T08 — Fake ports for CI
 - **Description:** Skeleton fakes: `FakeClock`, `FakeTransport`, `MemoryStorage`, `ScriptedModel`, ring-buffer logger.

@@ -2,14 +2,14 @@
 
 ## Current focus
 
-Next PLAN tasks (unblocked): **M1-T07** (state store; needs T06) · **M1-T08 (∥B)** (fake ports; needs T04) — T06 config store done.
+Next PLAN tasks (unblocked): **M1-T08 (∥B)** (fake ports; needs T04) · **M1-T12 (∥C)** (policy stubs; needs T03+T06) — T07 state store done. M1-T13 still waits on T07 (now DONE) + adapters.
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M1-T06**: `src/config/` with zod `settingsSchema`, `DEFAULT_SETTINGS` from Phase A constants, tolerant `parseSettings` (per-field fallback + int clamps), identity `migrateSettings` stub, `createConfigStore` via `createObservable`; widened `config-deps` to allow `src/constants.ts`.
-- Verified local gate: typecheck → lint → boundaries → test → build.
+- Completed **M1-T07**: `src/state/` with tolerant `parsePersisted` (unknown keys preserved, never throws), pure `mergeState` LWW rules + property tests, `StateStore` with debounced save / flush / reloadAndMerge / clearAll (keeps settings); `STATE_SCHEMA_VERSION` + `STATE_WRITE_DEBOUNCE_MS` in constants; widened `state-deps` for constants. Store I/O tests use an inline StoragePort double + injectable debounce scheduler (full `MemoryStorage` remains M1-T08).
+- Verified local gate: typecheck → lint → boundaries → network/writes → test → schema → build.
 
 ## Known issues
 
@@ -25,6 +25,7 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - M1-T05 uses a hand-rolled subset emitter instead of Zod’s `toJSONSchema` so nullable objects never emit `anyOf` (Zod 4’s default for `.nullable()` on objects).
 - M1-T06 uses explicit clamp/fallback helpers rather than zod `.catch` so out-of-range ints clamp instead of resetting to defaults.
 - Tightened `check-no-network.mjs` `requestUrl` pattern to `\brequestUrl\s*\(` so the §4.5 transport-mode enum string is not a false positive.
+- M1-T07 injects optional `schedule` for debounce (defaults to `window` timers) so vitest can run without a DOM `window`; touch-log hygiene deferred until vault/policy exist.
 
 ## Decisions not in DESIGN.md
 
