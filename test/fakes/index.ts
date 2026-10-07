@@ -12,6 +12,7 @@ export {
   FakeCorpus,
   type FakeCorpusNoteSeed,
   type FakeCorpusOptions,
+  type FakeCorpusPdfSeed,
 } from "./fake-corpus";
 export { FakeMetadata } from "./fake-metadata";
 export {

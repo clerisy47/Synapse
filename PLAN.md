@@ -315,7 +315,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M2-T04, M2-T05, M2-T06
 - **Acceptance criteria:** AC-M2.1; excluded never returned (AC-M2.7).
 - **How to verify:** Unit tests.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥F**
 
 ### M2-T09 — Tools: frontmatter + list_recent

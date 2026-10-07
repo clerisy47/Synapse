@@ -30,6 +30,10 @@ export interface TitleSearchHit {
   matchedOn: TitleMatchedOn;
 }
 
+export interface TagPathsOptions {
+  nested?: boolean;
+}
+
 /** Duck-typed ports wired by FakeCorpus / composition root. */
 export interface CoreToolDeps {
   getDoc(path: VaultPath): DocMeta | null;
@@ -37,6 +41,10 @@ export interface CoreToolDeps {
   scanText(opts: TextScanRequest): Promise<TextScanOutcome>;
   searchTitles(query: string): TitleSearchHit[];
   readText(path: VaultPath): Promise<string>;
+  outgoing(path: VaultPath): readonly VaultPath[];
+  incoming(path: VaultPath): readonly VaultPath[];
+  unresolvedCount(path: VaultPath): number;
+  pathsForTag(tag: string, opts?: TagPathsOptions): readonly VaultPath[];
   clock: Clock;
   sliceMs: number;
   budgetMs: number;
