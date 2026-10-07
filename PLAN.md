@@ -280,7 +280,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M2-T02
 - **Acceptance criteria:** AC-M2.2; no `getBacklinksForFile`; excluded link targets unresolved; addresses R9.
 - **How to verify:** Unit tests on synthetic `resolvedLinks`.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥E**
 
 ### M2-T05 — Tag, title, frontmatter, note-date indexes
