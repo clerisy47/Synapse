@@ -232,7 +232,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T16, M1-T02c
 - **Acceptance criteria:** Fresh install → settings → health pass/fail paths → status bar → build artifacts only `main.js`/`manifest.json`/`styles.css`.
 - **How to verify:** Checklist all boxes; second machine or clean vault optional. Bugfixes land as separate ≤5-file tasks if needed.
-- **Status:** TODO
+- **Status:** DONE
 
 **Milestone 1 exit:** Plugin is community-install-shaped, Phase A privacy defaults (OpenRouter allowlist + key disclosure) are real, AI harness works on mock + real OpenRouter free models. Local Gate A is **not** required for M1 exit.
 

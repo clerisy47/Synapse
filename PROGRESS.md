@@ -2,13 +2,13 @@
 
 ## Current focus
 
-Next PLAN task: **M1-T18** (walking-skeleton checklist) once ready, or **M2-T01** (exclusion integration tests — deps DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
+Next PLAN task: **M2-T01** (exclusion policy integration tests — deps DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M1-T16**: composition root wires storage → state/config → Node/`requestUrl` transport → OpenRouter client/health → job queue → status bar, notices, settings tab, `run-health-check` / `cancel-job`. `HealthChecker.quick()` on layout-ready; unload disposes jobs/UI and flushes state. Obsidian settings host + `registerSettingsTab` in adapters (mount injected so adapters never import ui). Bumped `minAppVersion` to 1.8.7 for `Notice.messageEl`.
+- Completed **M1-T18**: added `docs/m1-checklist.md` for the walking-skeleton demo path (install → settings → health pass/fail → status bar → three release artifacts). Ran typecheck/lint/test/boundaries/privacy/schema/build — all green; no code gaps. Obsidian operator rows remain optional for a clean vault.
 
 ## Known issues
 
@@ -34,6 +34,7 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - M1-T14: notice Retry is an injected `onRetry` callback; mount tests use a minimal `HTMLElement` fake (vitest `environment: node`).
 - M1-T15: settings panel uses injectable `SettingsTabHost` (no `obsidian` in `ui/`). Avoided `requestUrl (` in UI strings so `check-no-network` `\brequestUrl\s*\(` stays green.
 - M1-T16: `PluginSettingTab` lives in adapters with injected `mount` callback (adapters-deps forbid importing ui). HealthChecker rebuilt on settings invalidate rather than adding a reset API. System `Clock` inlined in `main.ts`. `minAppVersion` 1.8.7 for `Notice.messageEl`.
+- M1-T18: checklist marks automated CI/build rows done; Obsidian UI rows left for optional clean-vault operator pass (PLAN allows).
 
 ## Decisions not in DESIGN.md
 
