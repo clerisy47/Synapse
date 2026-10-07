@@ -19,6 +19,7 @@ export type { Result } from "./result";
 export { err, isErr, isOk, ok } from "./result";
 
 export {
+  bodyStartOffset,
   estimateTokens,
   foldCase,
   hashPathForLog,

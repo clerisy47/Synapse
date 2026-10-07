@@ -271,7 +271,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M2-T02
 - **Acceptance criteria:** Offset round-trip; excluded paths absent; tool-call budget path ready (<2 s target later).
 - **How to verify:** Unit + property tests.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥E**
 
 ### M2-T04 — Link graph (invert resolvedLinks)

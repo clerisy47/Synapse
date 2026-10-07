@@ -17,6 +17,72 @@ export function foldCase(s: string): string {
   return out;
 }
 
+/**
+ * Offset of note body after an Obsidian-style YAML frontmatter fence (DESIGN §4.1).
+ * Opening line must be exactly `---` (optional leading BOM); closing line exactly `---`.
+ * Returns the index of the first character after the closing fence's trailing newline,
+ * or `0` when no valid fence pair exists. Does not parse YAML.
+ */
+export function bodyStartOffset(fullText: string): number {
+  let i = 0;
+  if (fullText.length > 0 && fullText.charCodeAt(0) === 0xfeff) {
+    i = 1;
+  }
+  if (!fullText.startsWith("---", i)) {
+    return 0;
+  }
+  const afterOpenFence = i + 3;
+  const afterOpenNl = skipNewline(fullText, afterOpenFence);
+  if (afterOpenNl === afterOpenFence) {
+    return 0;
+  }
+
+  let pos = afterOpenNl;
+  while (pos < fullText.length) {
+    const lineStart = pos;
+    const lineEnd = findLineEnd(fullText, pos);
+    const line = fullText.slice(lineStart, lineEnd);
+    const afterNl = skipNewline(fullText, lineEnd);
+    if (line === "---") {
+      return afterNl === lineEnd ? lineEnd : afterNl;
+    }
+    if (afterNl === lineEnd) {
+      break;
+    }
+    pos = afterNl;
+  }
+  return 0;
+}
+
+function findLineEnd(text: string, from: number): number {
+  let j = from;
+  while (j < text.length) {
+    const c = text.charCodeAt(j);
+    if (c === 0x0a || c === 0x0d) {
+      break;
+    }
+    j++;
+  }
+  return j;
+}
+
+/** Advance past `\n` or `\r\n` at `from`; returns `from` if no newline. */
+function skipNewline(text: string, from: number): number {
+  if (from >= text.length) {
+    return from;
+  }
+  if (text.charCodeAt(from) === 0x0d) {
+    if (from + 1 < text.length && text.charCodeAt(from + 1) === 0x0a) {
+      return from + 2;
+    }
+    return from + 1;
+  }
+  if (text.charCodeAt(from) === 0x0a) {
+    return from + 1;
+  }
+  return from;
+}
+
 /** For claimHash keys: lower-case and collapse whitespace (DESIGN §4.3). */
 export function normalizeClaimText(s: string): string {
   return s.toLowerCase().replace(/\s+/g, " ").trim();

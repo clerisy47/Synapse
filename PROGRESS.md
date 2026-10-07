@@ -2,13 +2,14 @@
 
 ## Current focus
 
-Next PLAN task: **M2-T03** (folded text index — deps M2-T02 DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
+Next PLAN task: **M2-T04** (link graph — ∥E with M2-T05; deps M2-T02 DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M2-T02**: `CorpusStore` warm loop + DocTable + `CorpusReader` + `SessionTracker`; exclusion at ingest; `CorpusStatus` warming→ready; yield slices via injected `sliceMs` (no constants import). Tests use FakeVault + inline MetadataPort stub (FakeMetadata deferred to M2-T04). Not wired into `main.ts` yet (M2-T10).
+- Completed **M2-T03**: folded `TextIndex` + `bodyStartOffset` (frontmatter skip); `cutSnippet` from originals; time-sliced `scan` with `budgetMs`/`AbortSignal`/`truncated` for later `search_text`. Standalone module — not wired into `CorpusStore` yet (M2-T10 / later index wiring).
+- Prior **M2-T02**: `CorpusStore` warm + DocTable + reader + session; exclusion at ingest; FakeMetadata deferred to M2-T04.
 
 ## Known issues
 
@@ -36,6 +37,7 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - M1-T16: `PluginSettingTab` lives in adapters with injected `mount` callback (adapters-deps forbid importing ui). HealthChecker rebuilt on settings invalidate rather than adding a reset API. System `Clock` inlined in `main.ts`. `minAppVersion` 1.8.7 for `Notice.messageEl`.
 - M1-T18: checklist marks automated CI/build rows done; Obsidian UI rows left for optional clean-vault operator pass (PLAN allows).
 - M2-T02: inject `sliceMs` into `createCorpusStore` (corpus must not import `constants.ts` per dependency-cruiser); MetadataPort stub lives in the test until M2-T04 FakeMetadata; PDFs enter DocTable as `pending` without binary read.
+- M2-T03: TextIndex stays standalone (no CorpusStore wiring); `bytesCached` is folded-length sum only (F-26 cap open); PDF page arrays deferred to M4.
 
 ## Decisions not in DESIGN.md
 
