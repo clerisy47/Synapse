@@ -5,11 +5,20 @@
 
 import { describe, expect, it } from "vitest";
 
-import { TransportError, type Clock, type Logger, type StoragePort, type Transport } from "../../src/core";
+import {
+  TransportError,
+  asVaultPath,
+  type Clock,
+  type Logger,
+  type StoragePort,
+  type Transport,
+  type VaultPort,
+} from "../../src/core";
 import { healthOutputSchema } from "../../src/llm";
 import {
   FakeClock,
   FakeTransport,
+  FakeVault,
   MemoryStorage,
   RingBufferLogger,
   ScriptedModel,
@@ -58,6 +67,25 @@ describe("test/fakes smoke (M1-T08)", () => {
     await expect(
       transport.getJson("https://example.test/", { timeoutMs: 1000 }),
     ).rejects.toBeInstanceOf(TransportError);
+  });
+
+  it("exports FakeVault as VaultPort", async () => {
+    const vault: VaultPort = new FakeVault();
+    (vault as FakeVault).addNote({ path: "Notes/a.md", text: "hello" });
+    (vault as FakeVault).addPdf({ path: "Papers/x.pdf" });
+
+    const files = await vault.listFiles();
+    expect(files.map((f) => f.path)).toEqual(["Notes/a.md", "Papers/x.pdf"]);
+    expect(await vault.readText(asVaultPath("Notes/a.md"))).toBe("hello");
+    expect((await vault.readBinary(asVaultPath("Papers/x.pdf"))).byteLength).toBe(0);
+
+    const events: string[] = [];
+    const dispose = vault.onChange((e) => {
+      events.push(e.type);
+    });
+    (vault as FakeVault).emitModify("Notes/a.md");
+    expect(events).toEqual(["modify"]);
+    dispose();
   });
 
   it("exports MemoryStorage as StoragePort", async () => {
