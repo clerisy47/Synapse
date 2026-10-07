@@ -22,3 +22,25 @@ export { createTextIndex, cutSnippet } from "./text-index";
 
 export type { LinkGraph } from "./link-graph";
 export { createLinkGraph } from "./link-graph";
+
+export type { TagIndex, TagQueryOptions } from "./tag-index";
+export { createTagIndex } from "./tag-index";
+
+export type {
+  TitleIndex,
+  TitleIndexEntry,
+  TitleMatchOn,
+  TitleSearchHit,
+} from "./title-index";
+export { createTitleIndex } from "./title-index";
+
+export type {
+  NoteDateMode,
+  NoteDateResolver,
+  ResolveNoteDateInput,
+} from "./note-dates";
+export {
+  createNoteDateResolver,
+  parseFrontmatterDate,
+  resolveNoteDate,
+} from "./note-dates";
