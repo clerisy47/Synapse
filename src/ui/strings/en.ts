@@ -17,6 +17,50 @@ export const STATUS = {
 /** Shared notice action (AC-M1.8). */
 export const ACTIONS = {
   retry: "Retry",
+  acknowledgeEndpoint: "Acknowledge this endpoint",
+} as const;
+
+/**
+ * Settings tab labels and warnings (AC-M8.2 / DESIGN §4.5 / §8.1).
+ * Never put API keys or note text here.
+ */
+export const SETTINGS = {
+  sectionConnection: "Connection",
+  sectionTransport: "Transport",
+  sectionExclusions: "Exclusions",
+
+  endpoint: "API endpoint",
+  endpointDesc: "OpenRouter base URL (Phase A). Other hosts are blocked.",
+  apiKey: "OpenRouter API key",
+  apiKeyDesc: "Required for Phase A. Never committed; stored only in plugin data.",
+  apiKeyMissing: "Add an API key to enable AI features.",
+  model: "Model",
+  modelDesc: "Prefer a pinned :free model ID for stable structured output.",
+  numCtx: "Context window (num_ctx)",
+  numCtxDesc: "Tokens of context sent to the model (2048–8192).",
+  provider: "Provider",
+  providerDesc: "Phase A uses OpenRouter. Local Ollama arrives in Phase B.",
+  transport: "Transport mode",
+  transportDesc: "auto prefers Node HTTP; requestUrl is degraded (no stream/cancel).",
+  transportAuto: "Auto",
+  transportNode: "Node HTTP",
+  transportRequestUrl: "requestUrl — degraded",
+  excludedFolders: "Excluded folders",
+  excludedFoldersDesc: "One vault-relative folder path per line. Applied at ingest.",
+  excludedTags: "Excluded tags",
+  excludedTagsDesc: "One tag per line (without #). Applied at ingest.",
+  endpointAckHost: "Acknowledged non-loopback host",
+  endpointAckHostDesc:
+    "Phase B only: hostname you explicitly allow when not using loopback.",
+
+  egressWarning:
+    "Note excerpts used in AI jobs leave this machine and are sent to OpenRouter.",
+  nonLoopbackWarning:
+    "This endpoint is not loopback. Acknowledge the host below before Synapse will use it.",
+  endpointBlocked:
+    "This endpoint is blocked by policy. Fix the URL or acknowledge the host.",
+  degradedTransport:
+    "Degraded mode: requestUrl cannot stream and cannot cancel in-flight model calls.",
 } as const;
 
 /**

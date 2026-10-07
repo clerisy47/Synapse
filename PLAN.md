@@ -207,7 +207,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T06, M1-T12, M1-T13
 - **Acceptance criteria:** AC-M8.2; changing endpoint/model invalidates health; no telemetry toggles.
 - **How to verify:** Manual in Obsidian; viewmodel tests for warning state.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥D**
 
 ### M1-T16 — Wire composition root (deployable slice)
