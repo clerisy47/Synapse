@@ -2,13 +2,13 @@
 
 ## Current focus
 
-Next PLAN task: **M2-T02** (corpus store + DocTable + warm loop — deps M2-T01/M1-T04/M1-T08 DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
+Next PLAN task: **M2-T03** (folded text index — deps M2-T02 DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M2-T01**: added `FakeVault` (`test/fakes/fake-vault.ts`) and expanded exclusion unit + FakeVault ingest-gate integration tests (folder/tag/frontmatter/`ignore`, fail-closed nulls, PDF folder-only F-22 / R6). No `exclusion.ts` behavior change.
+- Completed **M2-T02**: `CorpusStore` warm loop + DocTable + `CorpusReader` + `SessionTracker`; exclusion at ingest; `CorpusStatus` warming→ready; yield slices via injected `sliceMs` (no constants import). Tests use FakeVault + inline MetadataPort stub (FakeMetadata deferred to M2-T04). Not wired into `main.ts` yet (M2-T10).
 
 ## Known issues
 
@@ -35,6 +35,7 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - M1-T15: settings panel uses injectable `SettingsTabHost` (no `obsidian` in `ui/`). Avoided `requestUrl (` in UI strings so `check-no-network` `\brequestUrl\s*\(` stays green.
 - M1-T16: `PluginSettingTab` lives in adapters with injected `mount` callback (adapters-deps forbid importing ui). HealthChecker rebuilt on settings invalidate rather than adding a reset API. System `Clock` inlined in `main.ts`. `minAppVersion` 1.8.7 for `Notice.messageEl`.
 - M1-T18: checklist marks automated CI/build rows done; Obsidian UI rows left for optional clean-vault operator pass (PLAN allows).
+- M2-T02: inject `sliceMs` into `createCorpusStore` (corpus must not import `constants.ts` per dependency-cruiser); MetadataPort stub lives in the test until M2-T04 FakeMetadata; PDFs enter DocTable as `pending` without binary read.
 
 ## Decisions not in DESIGN.md
 
