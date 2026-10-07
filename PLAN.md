@@ -214,9 +214,9 @@ Address these before they block a vertical slice.
 - **Description:** `main.ts` builds adapters → config/state → llm/jobs → UI; sync `onload`; health on `layout-ready`; unload cancels jobs and flushes state.
 - **Files:** `src/main.ts`, `src/ui/commands.ts`, `styles.css`, `manifest.json`
 - **Dependencies:** M1-T10, M1-T11, M1-T13, M1-T14, M1-T15
-- **Acceptance criteria:** Plugin loads with Ollama down (AI disabled, clear message) — AC-M1.3; with Ollama up, health report shows three facets; unload leaves no listeners (smoke); release artifacts build.
-- **How to verify:** Install built files into a vault; enable plugin; toggle Ollama; run health from settings/command; unload/reload.
-- **Status:** TODO
+- **Acceptance criteria:** Plugin loads with OpenRouter down / key missing (AI disabled, clear message) — AC-M1.3; with provider up, health report shows three facets; unload leaves no listeners (smoke); release artifacts build.
+- **How to verify:** Install built files into a vault; enable plugin; toggle key/endpoint; run health from command; unload/reload.
+- **Status:** DONE
 
 ### M1-T17 — Gate A bake-off (risk burn-down)
 - **Description:** On floor hardware, measure structured-output validity, abort behavior, prefill/decode, GPU residency for bake-off tags; record switches in `constants` / notes.

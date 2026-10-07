@@ -2,19 +2,20 @@
 
 ## Current focus
 
-Next PLAN task: **M1-T16** (composition root; deps T10–T15 DONE). Wires adapters → config/state → llm/jobs → status + settings UI; health on layout-ready; unload cancel/flush.
+Next PLAN task: **M1-T18** (walking-skeleton checklist) once ready, or **M2-T01** (exclusion integration tests — deps DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M1-T15**: pure `toSettingsVm` / `settingsChangeEffects` (egress, non-loopback, blocked, degraded `requestUrl`; health invalidate for endpoint/model/numCtx; no telemetry), injectable `mountSettingsPanel` + `SettingsTabHost` (no `obsidian` in `ui/`), `SETTINGS` strings, `.syn-settings-*` CSS. Extended `ui-deps` for `config` + `policy`. Tab registration deferred to M1-T16.
+- Completed **M1-T16**: composition root wires storage → state/config → Node/`requestUrl` transport → OpenRouter client/health → job queue → status bar, notices, settings tab, `run-health-check` / `cancel-job`. `HealthChecker.quick()` on layout-ready; unload disposes jobs/UI and flushes state. Obsidian settings host + `registerSettingsTab` in adapters (mount injected so adapters never import ui). Bumped `minAppVersion` to 1.8.7 for `Notice.messageEl`.
 
 ## Known issues
 
 - `.env` previously had a trailing space in the key name and quoted value — normalized; keep `OPENROUTER_API_KEY=...` unquoted.
 - `openrouter/free` can route to thinking-heavy models; prefer pinned `:free` IDs for schema work.
 - `npm run lint` targets `src` only; run `npx eslint src test` until the script includes `test/`.
+- ESLint warns that `PluginSettingTab` lacks `getSettingDefinitions()` (Obsidian 1.13+ settings search); declarative settings deferred.
 
 ## Shortcuts taken
 
@@ -27,11 +28,12 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - M1-T07 injects optional `schedule` for debounce (defaults to `window` timers) so vitest can run without a DOM `window`; touch-log hygiene deferred until vault/policy exist.
 - M1-T08 kept temporary `ModelPort` types in `scripted-model.ts` until M1-T10; ring-buffer logger is a fake (production `ConsoleSink` still later).
 - M1-T09 injects optional `checkEndpoint` instead of importing `policy` (adapters may only depend on `core`); EndpointPolicy wiring lands with M1-T12 / composition root. Disabled Obsidian window-timer lint rules for `adapters/node` and `test/` because Node timers are correct there.
-- M1-T10: optional `headers` on `Transport`; `llm-deps` may import `src/constants.ts` (same as config/state) for timeouts / `NUM_PREDICT` / `PLUGIN_NAME`. Auth/rate-limit map to `MODEL_HTTP_ERROR` + remediation keys (no new `ErrorCode`s). Composition root / settings UI wiring deferred to M1-T16.
+- M1-T10: optional `headers` on `Transport`; `llm-deps` may import `src/constants.ts` (same as config/state) for timeouts / `NUM_PREDICT` / `PLUGIN_NAME`. Auth/rate-limit map to `MODEL_HTTP_ERROR` + remediation keys (no new `ErrorCode`s).
 - M1-T11: `createJobQueue({ clock, abortable })` injects abortability (composition root will pass `transport.capabilities.abortable`); `progress()` stores last stage only (status-bar UI is M1-T14).
-- M1-T13: `createObsidianStorage` takes injectable deps for CI; `createObsidianStorageFromPlugin` wraps live Plugin. `RequestUrlTransport` injects `requestUrl` for tests and lazy-imports Obsidian otherwise; local `EndpointChecker` type (adapters must not import each other). `onLayoutReady` disposable only suppresses late callbacks (Obsidian API has no unsubscribe). Bumped `minAppVersion` to 1.5.7 for `onExternalSettingsChange`. Vitest aliases `obsidian` → `test/stubs/obsidian.ts`.
-- M1-T14: notice Retry is an injected `onRetry` callback; full job re-submit lands in M1-T16. Mount tests use a minimal `HTMLElement` fake (vitest `environment: node`).
-- M1-T15: settings panel uses injectable `SettingsTabHost` (Obsidian `Setting` / `PluginSettingTab` in T16). Avoided `requestUrl (` in UI strings so `check-no-network` `\brequestUrl\s*\(` stays green. Health invalidate is a VM signal only until T16 resets `availability`.
+- M1-T13: `createObsidianStorage` takes injectable deps for CI; `createObsidianStorageFromPlugin` wraps live Plugin. `RequestUrlTransport` injects `requestUrl` for tests and lazy-imports Obsidian otherwise; local `EndpointChecker` type (adapters must not import each other). `onLayoutReady` disposable only suppresses late callbacks (Obsidian API has no unsubscribe). Vitest aliases `obsidian` → `test/stubs/obsidian.ts`.
+- M1-T14: notice Retry is an injected `onRetry` callback; mount tests use a minimal `HTMLElement` fake (vitest `environment: node`).
+- M1-T15: settings panel uses injectable `SettingsTabHost` (no `obsidian` in `ui/`). Avoided `requestUrl (` in UI strings so `check-no-network` `\brequestUrl\s*\(` stays green.
+- M1-T16: `PluginSettingTab` lives in adapters with injected `mount` callback (adapters-deps forbid importing ui). HealthChecker rebuilt on settings invalidate rather than adding a reset API. System `Clock` inlined in `main.ts`. `minAppVersion` 1.8.7 for `Notice.messageEl`.
 
 ## Decisions not in DESIGN.md
 
