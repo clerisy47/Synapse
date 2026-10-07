@@ -298,7 +298,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M2-T02, M1-T03
 - **Acceptance criteria:** Identical tool+args key stable; invalid args rejected.
 - **How to verify:** Unit tests.
-- **Status:** TODO
+- **Status:** DONE
 
 ### M2-T07 — Tools: search_text, search_by_title, read_note
 - **Description:** Implement three core tools over `CorpusReader`.
