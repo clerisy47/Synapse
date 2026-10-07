@@ -19,3 +19,6 @@ export type {
   TextScanResult,
 } from "./text-index";
 export { createTextIndex, cutSnippet } from "./text-index";
+
+export type { LinkGraph } from "./link-graph";
+export { createLinkGraph } from "./link-graph";

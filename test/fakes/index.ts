@@ -8,6 +8,7 @@ export {
   type FakeVaultNoteSeed,
   type FakeVaultPdfSeed,
 } from "./fake-vault";
+export { FakeMetadata } from "./fake-metadata";
 export {
   FakeTransport,
   type FakeGetJsonResult,
