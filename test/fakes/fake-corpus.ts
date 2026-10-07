@@ -34,6 +34,7 @@ export interface FakeCorpusNoteSeed {
   tags?: string[];
   mtime?: number;
   ctime?: number;
+  frontmatter?: Record<string, unknown>;
 }
 
 export interface FakeCorpusPdfSeed {
@@ -83,6 +84,8 @@ export class FakeCorpus {
   budgetMs: number;
   private nextMtime = 1_700_000_000_000;
   private readonly unresolvedBySource = new Map<VaultPath, number>();
+  private readonly frontmatterByPath = new Map<VaultPath, Record<string, unknown>>();
+  private readonly touchByPath = new Map<VaultPath, number>();
 
   constructor(notes: readonly FakeCorpusNoteSeed[] = [], opts: FakeCorpusOptions = {}) {
     this.clock = opts.clock ?? new FakeClock();
@@ -123,7 +126,19 @@ export class FakeCorpus {
     this.textIndex.upsert(path, seed.text);
     this.titleIndex.upsert(path, title, aliases);
     this.tagIndex.upsert(path, tags);
+    if (seed.frontmatter !== undefined) {
+      this.frontmatterByPath.set(path, { ...seed.frontmatter });
+    }
     return path;
+  }
+
+  /** Record user open/edit activity for list_recent by:touched. */
+  touch(path: string, atMs: number): void {
+    const p = normalizePath(path);
+    const prev = this.touchByPath.get(p);
+    if (prev === undefined || atMs >= prev) {
+      this.touchByPath.set(p, atMs);
+    }
   }
 
   addPdf(seed: FakeCorpusPdfSeed): VaultPath {
@@ -220,6 +235,20 @@ export class FakeCorpus {
       },
       pathsForTag(tag, opts) {
         return corpus.tagIndex.pathsForTag(tag, opts);
+      },
+      getFrontmatter(path) {
+        const p = normalizePath(path);
+        if (!corpus.docs.has(p)) {
+          return null;
+        }
+        const doc = corpus.docs.get(p);
+        if (doc?.ref.kind === "pdf") {
+          return {};
+        }
+        return corpus.frontmatterByPath.get(p) ?? {};
+      },
+      lastTouchedAt(path) {
+        return corpus.touchByPath.get(normalizePath(path));
       },
       get clock() {
         return corpus.clock;
