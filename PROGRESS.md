@@ -2,15 +2,14 @@
 
 ## Current focus
 
-Next PLAN tasks (unblocked): **M1-T11 (∥B)** (job queue; needs T04+T08) · **M1-T12 (∥C)** (policy stubs; needs T03+T06) · **M1-T13 (∥C)** (Obsidian storage; needs T04+T07). **M1-T10** DONE.
+Next PLAN tasks (unblocked): **M1-T12 (∥C)** (policy stubs; needs T03+T06) · **M1-T13 (∥C)** (Obsidian storage; needs T04+T07) · **M1-T14 (∥D)** (status bar; needs T11). **M1-T11** DONE.
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M1-T10**: `OpenRouterClient` (`ModelPort`) with production `buildOpenRouterChatRequest`, schema validate + one retry, `FORMAT_IGNORED` / auth / rate-limit classification; `OpenRouterHealthChecker` (`GET /key` quick + production-shaped structured `full`); optional live probe under `test/live/` when `OPENROUTER_API_KEY` is set.
-- Extended `Transport` with optional `headers` so Bearer auth can flow through Node + Fake transports without putting network I/O in `llm/`.
-- Moved `ModelPort` types from `test/fakes/scripted-model.ts` into `src/llm`.
+- Completed **M1-T11**: `createJobQueue` single-lane priority queue with abort-and-resume preemption, step memoization (`JobContextImpl`), dedupe keys, cancel/`cancelAll`/`dispose`, non-abortable lane hold, `activeMs` pause accounting, and `QueueStatus` / per-job state observables.
+- Abort reasons use `JobAbortError` as `AbortSignal.reason` (lint-safe throws; `abortReasonOf` unwraps).
 - Verified local gate: typecheck → lint (`src` + `test`) → boundaries → network/writes/schema → test → build.
 
 ## Known issues
@@ -31,6 +30,7 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - M1-T08 kept temporary `ModelPort` types in `scripted-model.ts` until M1-T10; ring-buffer logger is a fake (production `ConsoleSink` still later).
 - M1-T09 injects optional `checkEndpoint` instead of importing `policy` (adapters may only depend on `core`); EndpointPolicy wiring lands with M1-T12 / composition root. Disabled Obsidian window-timer lint rules for `adapters/node` and `test/` because Node timers are correct there.
 - M1-T10: optional `headers` on `Transport`; `llm-deps` may import `src/constants.ts` (same as config/state) for timeouts / `NUM_PREDICT` / `PLUGIN_NAME`. Auth/rate-limit map to `MODEL_HTTP_ERROR` + remediation keys (no new `ErrorCode`s). Composition root / settings UI wiring deferred to M1-T16.
+- M1-T11: `createJobQueue({ clock, abortable })` injects abortability (composition root will pass `transport.capabilities.abortable`); `progress()` stores last stage only (status-bar UI is M1-T14).
 
 ## Decisions not in DESIGN.md
 
