@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { synapseError } from "../../core";
 import type { QueueStatus } from "../../jobs";
 import { ACTIONS, STATUS } from "../strings/en";
-import { toStatusVm } from "./status";
+import { toMergedStatusVm, toStatusVm } from "./status";
 
 function base(partial: Partial<QueueStatus> = {}): QueueStatus {
   return {
@@ -135,5 +135,39 @@ describe("toStatusVm", () => {
     );
     expect(vm.showNotice).toBe(false);
     expect(vm.showRetry).toBe(false);
+  });
+});
+
+describe("toMergedStatusVm", () => {
+  it("shows indexing while warming and queue idle", () => {
+    const vm = toMergedStatusVm(base({ model: "idle" }), {
+      phase: "warming",
+      indexedNotes: 3,
+      totalNotes: 10,
+    });
+    expect(vm.cssModifier).toBe("indexing");
+    expect(vm.barText).toBe("Vault Synapse: indexing 3/10");
+  });
+
+  it("prefers running jobs over indexing", () => {
+    const vm = toMergedStatusVm(
+      base({
+        model: "running",
+        running: { id: "j1", kind: "health", label: "Health" },
+      }),
+      { phase: "warming", indexedNotes: 1, totalNotes: 5 },
+    );
+    expect(vm.cssModifier).toBe("running");
+    expect(vm.barText).toBe("Vault Synapse: Health");
+  });
+
+  it("falls back to queue when index ready", () => {
+    const vm = toMergedStatusVm(base({ model: "idle" }), {
+      phase: "ready",
+      indexedNotes: 5,
+      totalNotes: 5,
+    });
+    expect(vm.barText).toBe(STATUS.idle);
+    expect(vm.cssModifier).toBe("idle");
   });
 });

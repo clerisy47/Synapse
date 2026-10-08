@@ -1,5 +1,5 @@
 /**
- * CorpusStore — DocTable + time-sliced warm + exclusion at ingest (DESIGN §4.2 / §6.6).
+ * CorpusStore — DocTable + secondary indexes + time-sliced warm (DESIGN §4.2 / §6.6).
  */
 
 import type {
@@ -16,6 +16,7 @@ import type {
 } from "../core";
 import { asVaultPath, createObservable } from "../core";
 import type { ExclusionPolicy } from "../policy";
+import { createLinkGraph, type LinkGraph } from "./link-graph";
 import {
   createCorpusReader,
   emptyCorpusStatus,
@@ -23,6 +24,9 @@ import {
   type CorpusStatus,
 } from "./reader";
 import { createSessionTracker, type SessionTracker } from "./session";
+import { createTagIndex, type TagIndex } from "./tag-index";
+import { createTextIndex, type TextIndex } from "./text-index";
+import { createTitleIndex, type TitleIndex } from "./title-index";
 
 export interface CreateCorpusStoreOptions {
   vault: VaultPort;
@@ -33,10 +37,23 @@ export interface CreateCorpusStoreOptions {
   sliceMs: number;
 }
 
+/** Secondary indexes maintained during ingest (composition maps to CoreToolDeps). */
+export interface CorpusIndexes {
+  text: TextIndex;
+  title: TitleIndex;
+  tag: TagIndex;
+  links: LinkGraph;
+}
+
 export interface CorpusStore {
   readonly status: Observable<CorpusStatus>;
   reader(): CorpusReader;
   session(): SessionTracker;
+  indexes(): CorpusIndexes;
+  /** Frontmatter for an indexed note; `{}` for PDF; null when not indexed. */
+  getFrontmatter(path: VaultPath): Record<string, unknown> | null;
+  /** Unresolved outbound link count (targets not in DocTable). */
+  unresolvedCount(path: VaultPath): number;
   warm(signal?: AbortSignal): Promise<void>;
   dispose(): void;
 }
@@ -104,6 +121,7 @@ function recount(
   docs: Map<VaultPath, DocMeta>,
   totals: { totalNotes: number; pdfTotal: number },
   phase: CorpusStatus["phase"],
+  bytesCached: number,
 ): CorpusStatus {
   let indexedNotes = 0;
   let pdfIndexed = 0;
@@ -120,8 +138,44 @@ function recount(
     totalNotes: totals.totalNotes,
     pdfIndexed,
     pdfTotal: totals.pdfTotal,
-    bytesCached: 0,
+    bytesCached,
   };
+}
+
+function countUnresolved(
+  resolvedLinks: Record<string, Record<string, number>>,
+  allowed: ReadonlySet<string>,
+): Map<VaultPath, number> {
+  const out = new Map<VaultPath, number>();
+  for (const [rawSource, targets] of Object.entries(resolvedLinks)) {
+    const source = asVaultPath(
+      rawSource.replace(/\\/g, "/").replace(/^\/+/, ""),
+    );
+    if (!allowed.has(source)) {
+      continue;
+    }
+    let unresolved = 0;
+    const seen = new Set<string>();
+    for (const [rawTarget, count] of Object.entries(targets)) {
+      if (count <= 0) {
+        continue;
+      }
+      const target = asVaultPath(
+        rawTarget.replace(/\\/g, "/").replace(/^\/+/, ""),
+      );
+      if (seen.has(target)) {
+        continue;
+      }
+      seen.add(target);
+      if (!allowed.has(target)) {
+        unresolved += 1;
+      }
+    }
+    if (unresolved > 0) {
+      out.set(source, unresolved);
+    }
+  }
+  return out;
 }
 
 export function createCorpusStore(
@@ -129,6 +183,18 @@ export function createCorpusStore(
 ): CorpusStore {
   const { vault, metadata, exclusion, clock, sliceMs } = opts;
   const docs = new Map<VaultPath, DocMeta>();
+  const frontmatterByPath = new Map<VaultPath, Record<string, unknown>>();
+  const unresolvedBySource = new Map<VaultPath, number>();
+  const textIndex = createTextIndex();
+  const titleIndex = createTitleIndex();
+  const tagIndex = createTagIndex();
+  const linkGraph = createLinkGraph();
+  const indexes: CorpusIndexes = {
+    text: textIndex,
+    title: titleIndex,
+    tag: tagIndex,
+    links: linkGraph,
+  };
   const session = createSessionTracker();
   const statusObs = createObservable(emptyCorpusStatus());
   const reader = createCorpusReader({ docs, status: statusObs });
@@ -140,13 +206,60 @@ export function createCorpusStore(
   let phase: CorpusStatus["phase"] = "warming";
 
   function publish(): void {
-    statusObs.set(recount(docs, totals, phase));
+    statusObs.set(recount(docs, totals, phase, textIndex.bytesCached()));
+  }
+
+  function rebuildLinks(): void {
+    const allowed = new Set<string>([...docs.keys()]);
+    const links = metadata.resolvedLinks();
+    linkGraph.rebuild(links, allowed);
+    unresolvedBySource.clear();
+    for (const [path, n] of countUnresolved(links, allowed)) {
+      unresolvedBySource.set(path, n);
+    }
+  }
+
+  function clearSecondary(path: VaultPath): void {
+    textIndex.remove(path);
+    titleIndex.remove(path);
+    tagIndex.remove(path);
+    linkGraph.remove(path);
+    frontmatterByPath.delete(path);
+    unresolvedBySource.delete(path);
   }
 
   function removeDoc(path: VaultPath): void {
-    if (docs.delete(path)) {
-      publish();
+    if (!docs.delete(path)) {
+      clearSecondary(path);
+      return;
     }
+    clearSecondary(path);
+    rebuildLinks();
+    publish();
+  }
+
+  async function indexNote(
+    key: VaultPath,
+    doc: DocMeta,
+    meta: NoteMetadata,
+  ): Promise<void> {
+    let text = "";
+    try {
+      text = await vault.readText(key);
+    } catch {
+      text = "";
+    }
+    textIndex.upsert(key, text);
+    titleIndex.upsert(key, doc.title, doc.aliases);
+    tagIndex.upsert(key, doc.tags);
+    frontmatterByPath.set(key, { ...meta.frontmatter });
+  }
+
+  function indexPdf(key: VaultPath, doc: DocMeta): void {
+    textIndex.remove(key);
+    tagIndex.remove(key);
+    frontmatterByPath.delete(key);
+    titleIndex.upsert(key, doc.title, []);
   }
 
   async function consider(path: VaultPath): Promise<void> {
@@ -166,7 +279,10 @@ export function createCorpusStore(
         removeDoc(key);
         return;
       }
-      docs.set(key, docFromPdf(stat));
+      const doc = docFromPdf(stat);
+      docs.set(key, doc);
+      indexPdf(key, doc);
+      rebuildLinks();
       publish();
       return;
     }
@@ -186,7 +302,10 @@ export function createCorpusStore(
       return;
     }
 
-    docs.set(key, docFromNote(stat, meta));
+    const doc = docFromNote(stat, meta);
+    docs.set(key, doc);
+    await indexNote(key, doc, meta);
+    rebuildLinks();
     publish();
   }
 
@@ -220,7 +339,6 @@ export function createCorpusStore(
         }
       }
       removeDoc(path);
-      publish();
       return;
     }
 
@@ -228,9 +346,9 @@ export function createCorpusStore(
       const from = asVaultPath(e.from);
       const to = asVaultPath(e.to);
       const was = docs.get(from);
-      docs.delete(from);
       if (was) {
-        // Totals unchanged if kind stays the same; re-consider `to`.
+        docs.delete(from);
+        clearSecondary(from);
         if (
           (was.ref.kind === "note" && !to.toLowerCase().endsWith(".md")) ||
           (was.ref.kind === "pdf" && !to.toLowerCase().endsWith(".pdf"))
@@ -250,6 +368,8 @@ export function createCorpusStore(
             adjustTotalsForStat(toStat, 1);
           }
         }
+      } else {
+        clearSecondary(from);
       }
       publish();
       await consider(to);
@@ -291,6 +411,8 @@ export function createCorpusStore(
           }
           await consider(f.path);
         }
+        rebuildLinks();
+        publish();
       })();
     }),
   );
@@ -304,6 +426,26 @@ export function createCorpusStore(
 
     session(): SessionTracker {
       return session;
+    },
+
+    indexes(): CorpusIndexes {
+      return indexes;
+    },
+
+    getFrontmatter(path: VaultPath): Record<string, unknown> | null {
+      const key = asVaultPath(path);
+      const doc = docs.get(key);
+      if (!doc) {
+        return null;
+      }
+      if (doc.ref.kind === "pdf") {
+        return {};
+      }
+      return frontmatterByPath.get(key) ?? {};
+    },
+
+    unresolvedCount(path: VaultPath): number {
+      return unresolvedBySource.get(asVaultPath(path)) ?? 0;
     },
 
     async warm(signal?: AbortSignal): Promise<void> {
@@ -367,6 +509,7 @@ export function createCorpusStore(
         }
 
         if (!isAborted()) {
+          rebuildLinks();
           phase = "ready";
           publish();
         }
@@ -394,6 +537,12 @@ export function createCorpusStore(
       }
       disposables.length = 0;
       docs.clear();
+      frontmatterByPath.clear();
+      unresolvedBySource.clear();
+      textIndex.clear();
+      titleIndex.clear();
+      tagIndex.clear();
+      linkGraph.clear();
       session.clear();
     },
   };

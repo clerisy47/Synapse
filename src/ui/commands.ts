@@ -3,7 +3,7 @@
  * Handlers are injected — no Obsidian / adapter imports.
  */
 
-export type CommandId = "run-health-check" | "cancel-job";
+export type CommandId = "run-health-check" | "cancel-job" | "debug-list-recent";
 
 export type CommandDef = {
   id: CommandId;
@@ -16,15 +16,22 @@ export type M1CommandHandlers = {
   cancelJob: () => void;
 };
 
+export type M2CommandHandlers = M1CommandHandlers & {
+  /** Optional debug: invoke list_recent and surface path-only summary. */
+  debugListRecent?: () => void | Promise<void>;
+};
+
 /** Stable suffixes Obsidian prefixes with the plugin id. */
 export const COMMAND_IDS = {
   runHealthCheck: "run-health-check",
   cancelJob: "cancel-job",
+  debugListRecent: "debug-list-recent",
 } as const satisfies Record<string, CommandId>;
 
 export const COMMAND_NAMES = {
   runHealthCheck: "Run model health check",
   cancelJob: "Cancel current job",
+  debugListRecent: "Debug: list recent notes",
 } as const;
 
 /**
@@ -45,4 +52,18 @@ export function createM1Commands(handlers: M1CommandHandlers): CommandDef[] {
       },
     },
   ];
+}
+
+/** M1 commands plus optional M2 debug tool command. */
+export function createM2Commands(handlers: M2CommandHandlers): CommandDef[] {
+  const cmds = createM1Commands(handlers);
+  if (handlers.debugListRecent) {
+    const run = handlers.debugListRecent;
+    cmds.push({
+      id: COMMAND_IDS.debugListRecent,
+      name: COMMAND_NAMES.debugListRecent,
+      callback: () => run(),
+    });
+  }
+  return cmds;
 }

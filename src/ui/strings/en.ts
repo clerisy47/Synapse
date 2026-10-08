@@ -12,6 +12,8 @@ export const STATUS = {
   runningQueued: "Vault Synapse: {label} ({queued} queued)",
   paused: "Vault Synapse: paused",
   error: "Vault Synapse: error",
+  /** Corpus warm progress (M2-T10). */
+  indexing: "Vault Synapse: indexing {indexed}/{total}",
 } as const;
 
 /** Shared notice action (AC-M1.8). */

@@ -42,9 +42,42 @@ export class Plugin {
   async saveData(_data: unknown): Promise<void> {}
 }
 
+export class TFile {
+  path = "";
+  extension = "";
+  stat = { mtime: 0, ctime: 0, size: 0 };
+}
+
+export class MarkdownView {
+  editor: unknown = null;
+  file: TFile | null = null;
+}
+
 export type App = {
-  workspace: { onLayoutReady(cb: () => void): void };
-  vault: { adapter: unknown };
+  workspace: {
+    onLayoutReady(cb: () => void): void;
+    getActiveFile(): { path: string; extension: string } | null;
+    getActiveViewOfType(_t: unknown): MarkdownView | null;
+    getLeavesOfType(_t: string): { view: MarkdownView | null }[];
+    on(_event: string, _cb: (...args: unknown[]) => void): { id: string };
+    offref(_ref: { id: string }): void;
+  };
+  vault: {
+    adapter: unknown;
+    getFiles(): { path: string; extension: string; stat: { mtime: number; ctime: number; size: number } }[];
+    getMarkdownFiles?: () => { path: string; extension: string }[];
+    getAbstractFileByPath(_path: string): unknown;
+    read(_file: unknown): Promise<string>;
+    readBinary(_file: unknown): Promise<ArrayBuffer>;
+    on(_event: string, _cb: (...args: unknown[]) => void): { id: string };
+    offref(_ref: { id: string }): void;
+  };
+  metadataCache: {
+    getCache(_path: string): unknown;
+    resolvedLinks: Record<string, Record<string, number>>;
+    on(_event: string, _cb: (...args: unknown[]) => void): { id: string };
+    offref(_ref: { id: string }): void;
+  };
 };
 
 function stubEl(): HTMLElement {

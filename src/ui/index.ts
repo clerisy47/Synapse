@@ -2,8 +2,8 @@
  * ui — views, status bar, notices, settings (DOM shells + pure viewmodels).
  */
 
-export type { StatusVm } from "./viewmodels/status";
-export { toStatusVm } from "./viewmodels/status";
+export type { IndexBarStatus, StatusCssModifier, StatusVm } from "./viewmodels/status";
+export { toMergedStatusVm, toStatusVm } from "./viewmodels/status";
 
 export type {
   HealthInvalidatingKey,
@@ -53,9 +53,11 @@ export type {
   CommandDef,
   CommandId,
   M1CommandHandlers,
+  M2CommandHandlers,
 } from "./commands";
 export {
   COMMAND_IDS,
   COMMAND_NAMES,
   createM1Commands,
+  createM2Commands,
 } from "./commands";

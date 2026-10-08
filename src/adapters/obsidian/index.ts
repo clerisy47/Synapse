@@ -1,6 +1,6 @@
 /**
  * Obsidian adapters (DESIGN §2.2). Storage, lifecycle, requestUrl transport,
- * settings tab host.
+ * settings tab host, vault/metadata/active-note ports.
  */
 
 export {
@@ -36,3 +36,26 @@ export {
   type SettingLike,
   type TextComponentLike,
 } from "./settings-tab";
+
+export {
+  createObsidianVault,
+  createObsidianVaultFromApp,
+  type VaultAdapterSurface,
+  type VaultFileLike,
+} from "./vault";
+
+export {
+  createObsidianMetadata,
+  createObsidianMetadataFromApp,
+  type CreateObsidianMetadataOptions,
+  type FileCacheLike,
+  type MetadataCacheSurface,
+} from "./metadata";
+
+export {
+  createObsidianActiveNote,
+  createObsidianActiveNoteFromApp,
+  type ActiveEditorLike,
+  type ActiveFileLike,
+  type ActiveNoteWorkspaceSurface,
+} from "./active-note";
