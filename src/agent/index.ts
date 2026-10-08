@@ -1,6 +1,21 @@
 /**
- * agent — Q&A state machine, budgets, selectors, prompts (DESIGN §3 / §5.4 / §6.2).
+ * agent — Q&A state machine, budgets, selectors, prompts, pipeline (DESIGN §3 / §5.4 / §6.2).
  */
+
+export type {
+  AnswerClaim,
+  Citation,
+  CitationStatus,
+  ResolveNoteText,
+} from "./answer";
+export {
+  attachAnchors,
+  collectUnknownSourceIds,
+  excerptToAnchor,
+  mapAnswerClaims,
+  markUnknownClaimsUnverified,
+  orderEvidenceIds,
+} from "./answer";
 
 export type { CreateRunBudgetOpts, RunBudget, RunCounters } from "./budget";
 export {
@@ -16,6 +31,9 @@ export {
   remainingReads,
 } from "./budget";
 
+export type { ChatTurn as SessionChatTurn, QaInput } from "./chat-session";
+export { historyForPrompt } from "./chat-session";
+
 export type {
   AgentEvent,
   AgentPhase,
@@ -25,6 +43,17 @@ export type {
   Rejected,
 } from "./machine";
 export { initialState, isRejected, next } from "./machine";
+
+export type {
+  CreateQaPipelineOpts,
+  QaEvent,
+  QaIndexStatus,
+  QaPipeline,
+  QaResult,
+  QaStage,
+  TraceHop,
+} from "./pipeline";
+export { createQaPipeline } from "./pipeline";
 
 export type {
   BuildAnswerPromptOpts,

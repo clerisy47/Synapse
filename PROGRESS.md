@@ -2,13 +2,14 @@
 
 ## Current focus
 
-Next PLAN task: **M3-T05** (QaPipeline.run; deps M3-T01–T04 DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
+Next PLAN task: **M3-T06** (chat viewmodel + view; deps M3-T05 types DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M3-T04**: `ModelSelector` + `TopKSelector` via `createSelector('model'|'top-k')`; plan/select/answer prompt builders + compact SELECT lines; ScriptedModel tests; ledger-ID-only instructions (M1-T17 still deferred — provisional `QA_NUM_PREDICT`).
+- Completed **M3-T05**: `QaPipeline.run` orchestrates plan→search→select→read→answer→verify with citation retry, duplicate hop counting (AC-M2.5), ScriptedModel/FakeCorpus tests (AC-M3.4–3.6), multi-turn last-3 default off; `chat-session` + `answer` helpers.
+- Prior **M3-T04**: `ModelSelector` + `TopKSelector` via `createSelector('model'|'top-k')`; plan/select/answer prompt builders + compact SELECT lines; ScriptedModel tests; ledger-ID-only instructions (M1-T17 still deferred — provisional `QA_NUM_PREDICT`).
 - Prior **M3-T03**: pure `src/agent/` — `next(state,event)` (PLAN→…→DONE/INSUFFICIENT), `RunBudget` + wall-clock fractions, hop/read/model counters, token-cap helper; exhaustive AC-M2.3–2.6 tests (provisional numbers local to `budget.ts`).
 - Prior **M3-T02**: quote-first `resolveAnchor` (exact match; `hintStart` disambiguates duplicates; missing quote → `null`).
 - Prior **M3-T01**: pure `src/evidence/` — paragraph `segment`, `displayQuote` (≤300), `EvidenceLedger` (`E1…`, dedupe, forged → undefined, token-budget `renderForPrompt`).
@@ -51,6 +52,7 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - M3-T02: `resolveAnchor` returns DESIGN `null` (not PLAN “undefined”); `hintStart` only disambiguates duplicate exact quotes (no wrong-text hint fallback).
 - M3-T03: RunBudget defaults/fractions live in `budget.ts` (agent-deps forbids `constants.ts`); SPEC evaluate/stop mapped to ANSWER/VERIFY/DONE; cancel stays outside the machine.
 - M3-T04: TopK sets `enough: true` (skip READ → two-call Gate A path); `QA_NUM_PREDICT` mirrored in `prompts.ts`; machine `modelCalls` accounting for top-k left to M3-T05.
+- M3-T05: public `ChatTurn` is `{question,answer}`; mapped to prompt `{role,text}` in `chat-session`; `QaIndexStatus` duck-typed (agent-deps forbids corpus); `enough` → empty machine `readIds` to skip READ; stats.modelCalls count actual generates (TopK select has no usage).
 
 ## Decisions not in DESIGN.md
 
