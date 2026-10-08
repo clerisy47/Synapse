@@ -2,16 +2,16 @@
 
 ## Current focus
 
-Next PLAN task: **M3-T03** (Agent state machine + budgets; deps M1-T03 DONE; Gate A notes from M1-T17 stay deferred — use provisional numbers in `constants.ts`). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
+Next PLAN task: **M3-T04** (Selectors + prompts; deps M3-T03 DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M3-T02**: quote-first `resolveAnchor` (exact match; `hintStart` disambiguates duplicates; missing quote → `null`).
+- Completed **M3-T03**: pure `src/agent/` — `next(state,event)` (PLAN→…→DONE/INSUFFICIENT), `RunBudget` + wall-clock fractions, hop/read/model counters, token-cap helper; exhaustive AC-M2.3–2.6 tests (provisional numbers local to `budget.ts`).
+- Prior **M3-T02**: quote-first `resolveAnchor` (exact match; `hintStart` disambiguates duplicates; missing quote → `null`).
 - Prior **M3-T01**: pure `src/evidence/` — paragraph `segment`, `displayQuote` (≤300), `EvidenceLedger` (`E1…`, dedupe, forged → undefined, token-budget `renderForPrompt`).
 - Prior **M2-T10**: Obsidian vault/metadata/active-note adapters + corpus warm wiring.
-- Prior **M2-T09**: `get_frontmatter` / `list_recent` over extended `CoreToolDeps`.
 
 ## Known issues
 
@@ -49,6 +49,7 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - M2-T10: adapters use injectable surfaces + `FromApp` factories; status bar duck-types `IndexBarStatus` (ui must not import corpus); stable `indexStatus` forwarder survives corpus rebuild; debug command is path-only Notice (no note body).
 - M3-T01: `segment` is async (needs `sha1Hex`) and takes `ref`/`sourceMtime` so it can return full `Excerpt[]`; evidence mirrors 200/600/300 locally (cannot import `constants.ts`); citation title in `renderForPrompt` is path basename until DocMeta is threaded later.
 - M3-T02: `resolveAnchor` returns DESIGN `null` (not PLAN “undefined”); `hintStart` only disambiguates duplicate exact quotes (no wrong-text hint fallback).
+- M3-T03: RunBudget defaults/fractions live in `budget.ts` (agent-deps forbids `constants.ts`); SPEC evaluate/stop mapped to ANSWER/VERIFY/DONE; cancel stays outside the machine.
 
 ## Decisions not in DESIGN.md
 

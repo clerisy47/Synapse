@@ -374,7 +374,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T03, Gate A notes (M1-T17) for provisional numbers
 - **Acceptance criteria:** AC-M2.3–2.6 paths; never-satisfied query hits hop cap → insufficient.
 - **How to verify:** Exhaustive transition tests with mocked events.
-- **Status:** TODO
+- **Status:** DONE
 
 ### M3-T04 — Selectors + prompts
 - **Description:** `ModelSelector` default + `TopKSelector` switch; plan/select/answer prompts.
