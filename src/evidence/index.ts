@@ -1,7 +1,9 @@
 /**
- * evidence — segmentation, ledger, display truncation (DESIGN §3 / §5.6).
- * Anchor resolution is M3-T02.
+ * evidence — segmentation, ledger, display truncation, anchor resolve (DESIGN §3 / §5.6).
  */
+
+export type { ResolvedAnchor } from "./anchor";
+export { resolveAnchor } from "./anchor";
 
 export { displayQuote, QUOTE_DISPLAY_CHARS } from "./display";
 

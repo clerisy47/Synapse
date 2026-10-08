@@ -365,7 +365,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M3-T01
 - **Acceptance criteria:** Resolve by quote then hint; failure → undefined.
 - **How to verify:** Unit tests with edited buffers.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥G**
 
 ### M3-T03 — Agent state machine + budgets
