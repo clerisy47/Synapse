@@ -356,7 +356,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T03
 - **Acceptance criteria:** Offset property test; IDs `E1…`; quote display ≤300 chars.
 - **How to verify:** Unit/property tests.
-- **Status:** TODO  
+- **Status:** DONE  
 - **∥G**
 
 ### M3-T02 — Anchor resolve

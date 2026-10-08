@@ -2,16 +2,16 @@
 
 ## Current focus
 
-Next PLAN task: **M3-T01** (Evidence segmentation + ledger; deps M1-T03 DONE). Milestone 2 complete (M2-T10 wired). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
+Next PLAN task: **M3-T02** (Anchor resolve; deps M3-T01 DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
 
-- Completed **M2-T10**: Obsidian `VaultPort` / `MetadataPort` / `ActiveNotePort` adapters; `CorpusStore` maintains Text/Title/Tag/Link indexes during ingest; composition warm on layout-ready; status-bar indexing progress; live `CoreToolDeps` + debug `list_recent` command; ActiveNote → session + `touchLog`.
-- Prior **M2-T09**: `get_frontmatter` / `list_recent` over extended `CoreToolDeps`; FakeCorpus seeds FM + touch map.
-- Prior **M2-T08**: `get_links` / `get_backlinks` / `search_by_tag` over extended `CoreToolDeps`; FakeCorpus owns LinkGraph + TagIndex.
-- Prior **M2-T07**: `search_text` / `search_by_title` / `read_note` handlers over injected `CoreToolDeps`.
+- Completed **M3-T01**: pure `src/evidence/` — paragraph `segment`, `displayQuote` (≤300), `EvidenceLedger` (`E1…`, dedupe, forged → undefined, token-budget `renderForPrompt`).
+- Prior **M2-T10**: Obsidian vault/metadata/active-note adapters + corpus warm wiring.
+- Prior **M2-T09**: `get_frontmatter` / `list_recent` over extended `CoreToolDeps`.
+- Prior **M2-T08**: `get_links` / `get_backlinks` / `search_by_tag`.
 
 ## Known issues
 
@@ -47,6 +47,7 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - M2-T08: `unresolvedCount` lives on `CoreToolDeps` / CorpusStore rather than extending LinkGraph.
 - M2-T09: touch/FM on `CoreToolDeps`; live wiring via CorpusStore + session/`touchLog` in composition (M2-T10).
 - M2-T10: adapters use injectable surfaces + `FromApp` factories; status bar duck-types `IndexBarStatus` (ui must not import corpus); stable `indexStatus` forwarder survives corpus rebuild; debug command is path-only Notice (no note body).
+- M3-T01: `segment` is async (needs `sha1Hex`) and takes `ref`/`sourceMtime` so it can return full `Excerpt[]`; evidence mirrors 200/600/300 locally (cannot import `constants.ts`); citation title in `renderForPrompt` is path basename until DocMeta is threaded later.
 
 ## Decisions not in DESIGN.md
 
