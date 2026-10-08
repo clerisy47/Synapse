@@ -333,7 +333,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M2-T02–M2-T09, M1-T16
 - **Acceptance criteria:** Plugin indexes a real vault; status shows progress; still works with AI disabled.
 - **How to verify:** Manual open vault with exclusions; confirm excluded note absent from tool debug output.
-- **Status:** TODO
+- **Status:** DONE
 
 **Milestone 2 exit:** Tools green in CI; corpus warm in Obsidian; exclusions hold by construction.
 

@@ -8,7 +8,11 @@ export { createCorpusReader, emptyCorpusStatus } from "./reader";
 export type { SessionTracker } from "./session";
 export { createSessionTracker } from "./session";
 
-export type { CorpusStore, CreateCorpusStoreOptions } from "./store";
+export type {
+  CorpusIndexes,
+  CorpusStore,
+  CreateCorpusStoreOptions,
+} from "./store";
 export { createCorpusStore } from "./store";
 
 export type {

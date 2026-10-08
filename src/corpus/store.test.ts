@@ -12,7 +12,7 @@ import {
   type VaultPath,
 } from "../core";
 import { createExclusionPolicy } from "../policy";
-import { FakeClock, FakeVault } from "../../test/fakes";
+import { FakeClock, FakeMetadata, FakeVault } from "../../test/fakes";
 import { createCorpusStore } from "./store";
 import { createSessionTracker } from "./session";
 
@@ -331,6 +331,80 @@ describe("CorpusStore", () => {
     const path = asVaultPath("x.md");
     store.session().touch(path, 42);
     expect(store.session().lastTouched(path)).toBe(42);
+    store.dispose();
+  });
+
+  it("maintains text/title/tag indexes for allowed notes", async () => {
+    const { vault, metadata, store } = setup();
+    vault.addNote({ path: "Notes/Idea.md", text: "hello Synapse body" });
+    metadata.set("Notes/Idea.md", {
+      frontmatter: { aliases: ["Alt"] },
+      tags: ["project/x"],
+      headings: [],
+    });
+
+    await store.warm();
+    const idx = store.indexes();
+    const path = asVaultPath("Notes/Idea.md");
+    expect(idx.text.has(path)).toBe(true);
+    expect(idx.title.search("Idea").map((h) => h.path)).toContain(path);
+    expect(idx.tag.pathsForTag("project")).toContain(path);
+    expect(store.getFrontmatter(path)).toEqual({ aliases: ["Alt"] });
+    expect(store.reader().status().bytesCached).toBeGreaterThan(0);
+    store.dispose();
+  });
+
+  it("rebuilds link graph with unresolved excluded targets", async () => {
+    const vault = new FakeVault();
+    const metadata = new FakeMetadata();
+    const clock = new FakeClock(1_000);
+    const exclusion = createExclusionPolicy({
+      folders: ["Private"],
+      tags: [],
+      frontmatterKey: EXCLUDE_KEY,
+    });
+    const store = createCorpusStore({
+      vault,
+      metadata,
+      exclusion,
+      clock,
+      sliceMs: 10,
+    });
+    vault.addNote({ path: "Open/a.md", text: "link" });
+    vault.addNote({ path: "Private/secret.md", text: "hidden" });
+    metadata.set("Open/a.md", noteMeta());
+    metadata.set("Private/secret.md", noteMeta());
+    metadata.setResolvedLinks({
+      "Open/a.md": { "Open/a.md": 1, "Private/secret.md": 1, "Missing.md": 1 },
+    });
+
+    await store.warm();
+    const a = asVaultPath("Open/a.md");
+    expect(store.reader().has(a)).toBe(true);
+    expect(store.reader().has(asVaultPath("Private/secret.md"))).toBe(false);
+    expect(store.indexes().links.outgoing(a)).toEqual([a]);
+    expect(store.unresolvedCount(a)).toBe(2);
+    store.dispose();
+  });
+
+  it("drops secondary indexes when a note is excluded later", async () => {
+    const { vault, metadata, store } = setup();
+    vault.addNote({ path: "n.md", text: "body" });
+    metadata.set("n.md", noteMeta({ tags: ["ok"] }));
+    await store.warm();
+    const path = asVaultPath("n.md");
+    expect(store.indexes().text.has(path)).toBe(true);
+
+    metadata.set("n.md", noteMeta({
+      frontmatter: { [EXCLUDE_KEY]: "ignore" },
+    }));
+    metadata.emitChanged("n.md");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(store.reader().has(path)).toBe(false);
+    expect(store.indexes().text.has(path)).toBe(false);
+    expect(store.getFrontmatter(path)).toBeNull();
     store.dispose();
   });
 });

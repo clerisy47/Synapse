@@ -1,6 +1,7 @@
 /**
  * Pure status-bar / notice viewmodel (AC-M1.7, AC-M1.8).
  * Maps JobQueue QueueStatus → display fields; never exposes SynapseError.message.
+ * Optionally merges corpus warm progress (duck-typed; ui must not import corpus).
  */
 
 import type { ErrorCode, SynapseError } from "../../core";
@@ -19,12 +20,21 @@ const RETRY_CODES: ReadonlySet<ErrorCode> = new Set([
 /** Codes that must not raise a user notice. */
 const SILENT_CODES: ReadonlySet<ErrorCode> = new Set(["CANCELLED", "NOT_FOUND"]);
 
+/** Minimal index/warm snapshot for the status bar (CorpusStatus shape). */
+export interface IndexBarStatus {
+  phase: "warming" | "ready";
+  indexedNotes: number;
+  totalNotes: number;
+}
+
+export type StatusCssModifier = QueueStatus["model"] | "indexing";
+
 export interface StatusVm {
   model: QueueStatus["model"];
   /** Status-bar text (from strings only). */
   barText: string;
-  /** CSS class modifier: idle | running | paused | error. */
-  cssModifier: QueueStatus["model"];
+  /** CSS class modifier: idle | running | paused | error | indexing. */
+  cssModifier: StatusCssModifier;
   showNotice: boolean;
   showRetry: boolean;
   /** Stable identity for notice edge-dedupe. */
@@ -115,4 +125,30 @@ export function toStatusVm(status: QueueStatus): StatusVm {
     noticeText: noticeForError(error),
     retryLabel: showRetry ? ACTIONS.retry : null,
   };
+}
+
+/**
+ * Prefer indexing progress when the corpus is warming and the job lane is idle.
+ * Active jobs / errors / paused still win over indexing.
+ */
+export function toMergedStatusVm(
+  queue: QueueStatus,
+  index?: IndexBarStatus | null,
+): StatusVm {
+  const queueVm = toStatusVm(queue);
+  if (
+    index &&
+    index.phase === "warming" &&
+    queue.model === "idle"
+  ) {
+    return {
+      ...queueVm,
+      barText: interpolate(STATUS.indexing, {
+        indexed: index.indexedNotes,
+        total: index.totalNotes,
+      }),
+      cssModifier: "indexing",
+    };
+  }
+  return queueVm;
 }

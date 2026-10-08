@@ -4,6 +4,7 @@ import {
   COMMAND_IDS,
   COMMAND_NAMES,
   createM1Commands,
+  createM2Commands,
 } from "./commands";
 
 describe("createM1Commands", () => {
@@ -24,5 +25,20 @@ describe("createM1Commands", () => {
 
     await cmds[1]?.callback();
     expect(cancelJob).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("createM2Commands", () => {
+  it("adds debug list_recent when handler provided", async () => {
+    const debugListRecent = vi.fn();
+    const cmds = createM2Commands({
+      runHealthCheck: vi.fn(),
+      cancelJob: vi.fn(),
+      debugListRecent,
+    });
+    expect(cmds.map((c) => c.id)).toContain(COMMAND_IDS.debugListRecent);
+    const debug = cmds.find((c) => c.id === COMMAND_IDS.debugListRecent);
+    await debug?.callback();
+    expect(debugListRecent).toHaveBeenCalledTimes(1);
   });
 });

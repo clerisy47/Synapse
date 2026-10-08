@@ -31,4 +31,31 @@ describe("mountStatusBar", () => {
     expect(el.textContent).toBe("");
     expect(el.className).toBe("");
   });
+
+  it("shows indexing progress when corpus is warming", () => {
+    const status = createObservable<QueueStatus>({
+      model: "idle",
+      queued: 0,
+    });
+    const indexStatus = createObservable<{
+      phase: "warming" | "ready";
+      indexedNotes: number;
+      totalNotes: number;
+    }>({
+      phase: "warming",
+      indexedNotes: 2,
+      totalNotes: 8,
+    });
+    const el = fakeEl();
+    const dispose = mountStatusBar({ el, status, indexStatus });
+    expect(el.textContent).toContain("indexing 2/8");
+    expect(el.className).toContain("syn-status-bar--indexing");
+    indexStatus.set({
+      phase: "ready",
+      indexedNotes: 8,
+      totalNotes: 8,
+    });
+    expect(el.textContent).toContain("idle");
+    dispose();
+  });
 });

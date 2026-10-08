@@ -1,6 +1,6 @@
 /**
  * Composition root (DESIGN §2 / §6.1). Wiring only — no feature logic.
- * M1-T16: adapters → config/state → llm/jobs → status + settings + commands.
+ * M1-T16 + M2-T10: adapters → config/state → corpus/tools → llm/jobs → UI.
  */
 
 import { Notice, Plugin } from "obsidian";
@@ -12,8 +12,11 @@ import {
 import {
   RequestUrlTransport,
   bindExternalSettingsChange,
+  createObsidianActiveNoteFromApp,
+  createObsidianMetadataFromApp,
   createObsidianSettingsHost,
   createObsidianStorageFromPlugin,
+  createObsidianVaultFromApp,
   onLayoutReady,
   registerSettingsTab,
   type EndpointChecker as RequestUrlEndpointChecker,
@@ -25,13 +28,29 @@ import {
   type Settings,
   type TransportMode,
 } from "./config";
-import { OPENROUTER_API_KEY_ENV, PLUGIN_NAME } from "./constants";
 import {
+  EXCLUSION_FRONTMATTER_KEY,
+  EXCLUSION_FRONTMATTER_VALUE,
+  OPENROUTER_API_KEY_ENV,
+  PLUGIN_NAME,
+  SLICE_MS,
+} from "./constants";
+import {
+  createObservable,
   ok,
   type Clock,
   type Disposable,
+  type MutableObservable,
   type Transport,
+  type VaultPath,
+  type VaultPort,
 } from "./core";
+import {
+  createCorpusStore,
+  emptyCorpusStatus,
+  type CorpusStatus,
+  type CorpusStore,
+} from "./corpus";
 import { createJobQueue, type JobQueue } from "./jobs";
 import {
   OpenRouterClient,
@@ -39,10 +58,25 @@ import {
   type HealthChecker,
   type HealthReport,
 } from "./llm";
-import { createEndpointPolicy } from "./policy";
+import { createEndpointPolicy, createExclusionPolicy } from "./policy";
 import { loadStateStore, type StateStore } from "./state";
 import {
-  createM1Commands,
+  SEARCH_TEXT_BUDGET_MS,
+  createGetBacklinksHandler,
+  createGetFrontmatterHandler,
+  createGetLinksHandler,
+  createListRecentHandler,
+  createReadNoteHandler,
+  createSearchByTagHandler,
+  createSearchByTitleHandler,
+  createSearchTextHandler,
+  createToolRegistry,
+  type CoreToolDeps,
+  type ListRecentResult,
+  type ToolRegistry,
+} from "./tools";
+import {
+  createM2Commands,
   mountSettingsPanel,
   mountStatusBar,
   mountStatusNotices,
@@ -190,6 +224,13 @@ function shouldRebuildAi(changedKeys: readonly string[]): boolean {
   return false;
 }
 
+function shouldRebuildCorpus(changedKeys: readonly string[]): boolean {
+  return (
+    changedKeys.includes("excludedFolders") ||
+    changedKeys.includes("excludedTags")
+  );
+}
+
 function presentObsidianNotice(p: NoticePresentation): void {
   const notice = new Notice(p.message, 8_000);
   if (p.actionLabel !== undefined && p.onAction !== undefined) {
@@ -202,6 +243,84 @@ function presentObsidianNotice(p: NoticePresentation): void {
   }
 }
 
+function exclusionFromSettings(settings: Settings) {
+  return createExclusionPolicy({
+    folders: settings.excludedFolders,
+    tags: settings.excludedTags,
+    frontmatterKey: EXCLUSION_FRONTMATTER_KEY,
+    frontmatterValue: EXCLUSION_FRONTMATTER_VALUE,
+  });
+}
+
+function buildCoreToolDeps(
+  store: CorpusStore,
+  vault: VaultPort,
+  clock: Clock,
+  touchLog: () => Record<VaultPath, number>,
+): CoreToolDeps {
+  return {
+    getDoc(path) {
+      return store.reader().get(path);
+    },
+    listDocs() {
+      return store.reader().list();
+    },
+    scanText(opts) {
+      return store.indexes().text.scan(opts);
+    },
+    searchTitles(query) {
+      return store.indexes().title.search(query);
+    },
+    readText(path) {
+      return vault.readText(path);
+    },
+    outgoing(path) {
+      return store.indexes().links.outgoing(path);
+    },
+    incoming(path) {
+      return store.indexes().links.incoming(path);
+    },
+    unresolvedCount(path) {
+      return store.unresolvedCount(path);
+    },
+    pathsForTag(tag, opts) {
+      return store.indexes().tag.pathsForTag(tag, opts);
+    },
+    getFrontmatter(path) {
+      return store.getFrontmatter(path);
+    },
+    lastTouchedAt(path) {
+      const session = store.session().lastTouched(path);
+      const persisted = touchLog()[path];
+      if (session === undefined) {
+        return persisted;
+      }
+      if (persisted === undefined) {
+        return session;
+      }
+      return Math.max(session, persisted);
+    },
+    clock,
+    sliceMs: SLICE_MS,
+    budgetMs: SEARCH_TEXT_BUDGET_MS,
+  };
+}
+
+function buildToolRegistry(deps: CoreToolDeps): ToolRegistry {
+  return createToolRegistry({
+    handlers: {
+      search_text: createSearchTextHandler(deps),
+      search_by_title: createSearchByTitleHandler(deps),
+      search_by_tag: createSearchByTagHandler(deps),
+      get_links: createGetLinksHandler(deps),
+      get_backlinks: createGetBacklinksHandler(deps),
+      get_frontmatter: createGetFrontmatterHandler(deps),
+      list_recent: createListRecentHandler(deps),
+      read_note: createReadNoteHandler(deps),
+    },
+  });
+}
+
 /** Composition root only — wiring lands here. Keep load cheap and throw-free (AC-M1.3). */
 export default class VaultSynapsePlugin extends Plugin {
   private readonly disposables: Disposable[] = [];
@@ -210,6 +329,14 @@ export default class VaultSynapsePlugin extends Plugin {
   private config: ConfigStore | null = null;
   private jobs: JobQueue | null = null;
   private lane: AiLane | null = null;
+  private vault: VaultPort | null = null;
+  private corpus: CorpusStore | null = null;
+  private tools: ToolRegistry | null = null;
+  private warmAbort: AbortController | null = null;
+  /** Stable forwarder so status bar survives corpus rebuilds. */
+  private readonly indexStatus: MutableObservable<CorpusStatus> =
+    createObservable(emptyCorpusStatus());
+  private indexStatusUnsub: Disposable | null = null;
 
   async onload(): Promise<void> {
     try {
@@ -223,6 +350,10 @@ export default class VaultSynapsePlugin extends Plugin {
   }
 
   onunload(): void {
+    if (this.warmAbort) {
+      this.warmAbort.abort();
+      this.warmAbort = null;
+    }
     for (const d of this.disposables.splice(0).reverse()) {
       try {
         d();
@@ -230,6 +361,16 @@ export default class VaultSynapsePlugin extends Plugin {
         // best-effort unload
       }
     }
+    this.indexStatusUnsub?.();
+    this.indexStatusUnsub = null;
+    try {
+      this.corpus?.dispose();
+    } catch {
+      // ignore
+    }
+    this.corpus = null;
+    this.tools = null;
+    this.vault = null;
     try {
       this.jobs?.dispose();
     } catch {
@@ -265,6 +406,19 @@ export default class VaultSynapsePlugin extends Plugin {
     });
     this.jobs = jobs;
 
+    const vault = createObsidianVaultFromApp(this.app);
+    const metadata = createObsidianMetadataFromApp(this.app);
+    const activeNote = createObsidianActiveNoteFromApp(this.app);
+    this.vault = vault;
+
+    this.installCorpus(vault, metadata, config.get());
+
+    this.disposables.push(
+      activeNote.onActivity((e) => {
+        this.onUserActivity(e.path);
+      }),
+    );
+
     bindExternalSettingsChange(this, () => {
       void this.onExternalSettings();
     });
@@ -273,9 +427,71 @@ export default class VaultSynapsePlugin extends Plugin {
     this.registerCommands(jobs);
 
     const layoutDispose = onLayoutReady(this.app, () => {
+      void this.startWarm();
       void this.runQuickHealth();
     });
     this.disposables.push(layoutDispose);
+  }
+
+  private installCorpus(
+    vault: VaultPort,
+    metadata: ReturnType<typeof createObsidianMetadataFromApp>,
+    settings: Settings,
+  ): void {
+    this.indexStatusUnsub?.();
+    this.indexStatusUnsub = null;
+    this.corpus?.dispose();
+    const corpus = createCorpusStore({
+      vault,
+      metadata,
+      exclusion: exclusionFromSettings(settings),
+      clock: this.clock,
+      sliceMs: SLICE_MS,
+    });
+    this.corpus = corpus;
+    this.indexStatus.set(corpus.status.get());
+    this.indexStatusUnsub = corpus.status.subscribe((s) => {
+      this.indexStatus.set(s);
+    });
+    this.tools = buildToolRegistry(
+      buildCoreToolDeps(corpus, vault, this.clock, () => this.state?.get().touchLog ?? {}),
+    );
+  }
+
+  private onUserActivity(path: VaultPath): void {
+    const at = this.clock.now();
+    this.corpus?.session().touch(path, at);
+    const state = this.state;
+    if (!state) {
+      return;
+    }
+    state.update((s) => {
+      const prev = s.touchLog[path];
+      if (prev === undefined || at >= prev) {
+        s.touchLog[path] = at;
+      }
+    });
+  }
+
+  private async startWarm(): Promise<void> {
+    const corpus = this.corpus;
+    if (!corpus) {
+      return;
+    }
+    if (this.warmAbort) {
+      this.warmAbort.abort();
+    }
+    const local = new AbortController();
+    this.warmAbort = local;
+    try {
+      await corpus.warm(local.signal);
+    } catch (cause) {
+      console.error(`${PLUGIN_NAME}: corpus warm failed`, cause);
+    } finally {
+      if (this.warmAbort === local) {
+        this.warmAbort = null;
+      }
+    }
   }
 
   private async onExternalSettings(): Promise<void> {
@@ -284,9 +500,25 @@ export default class VaultSynapsePlugin extends Plugin {
     if (!state || !config) return;
     try {
       await state.reloadAndMerge();
+      const prev = config.get();
       const next = parseSettings(state.get().settings);
       config.set(next);
       this.rebuildAi(next);
+      if (
+        shouldRebuildCorpus(
+          [
+            ...(prev.excludedFolders.join("\0") !==
+            next.excludedFolders.join("\0")
+              ? (["excludedFolders"] as const)
+              : []),
+            ...(prev.excludedTags.join("\0") !== next.excludedTags.join("\0")
+              ? (["excludedTags"] as const)
+              : []),
+          ],
+        )
+      ) {
+        this.rebuildCorpus(next);
+      }
     } catch (cause) {
       console.error(`${PLUGIN_NAME}: external settings reload failed`, cause);
     }
@@ -294,6 +526,16 @@ export default class VaultSynapsePlugin extends Plugin {
 
   private rebuildAi(settings: Settings): void {
     this.lane = buildAiLane(settings, this.clock);
+  }
+
+  private rebuildCorpus(settings: Settings): void {
+    const vault = this.vault;
+    if (!vault) {
+      return;
+    }
+    const metadata = createObsidianMetadataFromApp(this.app);
+    this.installCorpus(vault, metadata, settings);
+    void this.startWarm();
   }
 
   private applySettingsPatch(patch: SettingsPatch): void {
@@ -310,6 +552,9 @@ export default class VaultSynapsePlugin extends Plugin {
     });
     if (shouldRebuildAi(keys)) {
       this.rebuildAi(next);
+    }
+    if (shouldRebuildCorpus(keys)) {
+      this.rebuildCorpus(next);
     }
   }
 
@@ -339,11 +584,40 @@ export default class VaultSynapsePlugin extends Plugin {
     }
   }
 
+  private async debugListRecent(): Promise<void> {
+    const tools = this.tools;
+    if (!tools) {
+      new Notice(`${PLUGIN_NAME}: tools not ready.`);
+      return;
+    }
+    const ac = new AbortController();
+    const outcome = await tools.invoke(
+      "list_recent",
+      { by: "mtime", days: 30, limit: 20 },
+      { signal: ac.signal },
+    );
+    if (!outcome.ok) {
+      new Notice(`${PLUGIN_NAME}: list_recent failed (${outcome.error.code}).`);
+      return;
+    }
+    const data = outcome.data as ListRecentResult;
+    const paths = data.items.map((item) => item.ref.path);
+    const summary =
+      paths.length === 0
+        ? `${PLUGIN_NAME}: list_recent → 0 notes`
+        : `${PLUGIN_NAME}: list_recent → ${paths.length}: ${paths.join(", ")}`;
+    new Notice(summary, 10_000);
+  }
+
   private mountUi(config: ConfigStore, jobs: JobQueue): void {
     try {
       const statusEl = this.addStatusBarItem();
       this.disposables.push(
-        mountStatusBar({ el: statusEl, status: jobs.status }),
+        mountStatusBar({
+          el: statusEl,
+          status: jobs.status,
+          indexStatus: this.indexStatus,
+        }),
       );
     } catch (cause) {
       console.error(`${PLUGIN_NAME}: status bar failed`, cause);
@@ -373,8 +647,8 @@ export default class VaultSynapsePlugin extends Plugin {
               host,
               settings: config,
               actions: {
-                applyPatch: (patch) => {
-                  this.applySettingsPatch(patch);
+                applyPatch: (p) => {
+                  this.applySettingsPatch(p);
                 },
               },
             });
@@ -389,13 +663,14 @@ export default class VaultSynapsePlugin extends Plugin {
 
   private registerCommands(jobs: JobQueue): void {
     try {
-      const defs = createM1Commands({
+      const defs = createM2Commands({
         runHealthCheck: () => {
           this.submitHealthCheck();
         },
         cancelJob: () => {
           jobs.cancelAll();
         },
+        debugListRecent: () => this.debugListRecent(),
       });
       for (const def of defs) {
         this.addCommand({

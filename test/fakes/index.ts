@@ -15,6 +15,7 @@ export {
   type FakeCorpusPdfSeed,
 } from "./fake-corpus";
 export { FakeMetadata } from "./fake-metadata";
+export { FakeActiveNote } from "./fake-active-note";
 export {
   FakeTransport,
   type FakeGetJsonResult,
