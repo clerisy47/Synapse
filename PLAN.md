@@ -382,7 +382,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M3-T03, M1-T05, M1-T17
 - **Acceptance criteria:** Gate A can flip `top-k` without API break; prompts use ledger IDs only.
 - **How to verify:** Unit tests with `ScriptedModel`.
-- **Status:** TODO
+- **Status:** DONE
 
 ### M3-T05 — QaPipeline.run (end-to-end core)
 - **Description:** Orchestrate plan→search→select→read→answer→verify; citation check + one retry; duplicate tool call counts as hop; job integration.
