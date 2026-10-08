@@ -390,7 +390,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M3-T01–T04, M2-T06–T09, M1-T10, M1-T11
 - **Acceptance criteria:** AC-M2.5, M3.4–3.6 with `ScriptedModel`/`FakeCorpus`; multi-turn memory last-3 (S2 off by default).
 - **How to verify:** Pipeline unit/integration tests on mock.
-- **Status:** TODO
+- **Status:** DONE
 
 ### M3-T06 — Chat viewmodel + view
 - **Description:** Pure viewmodel for messages, stages, trace, citations; DOM shell `ItemView`.
