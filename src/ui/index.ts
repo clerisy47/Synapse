@@ -7,6 +7,7 @@ export { initialChatState, reduceChat } from "./viewmodels/chat";
 export type { ChatActions, MountChatViewOptions } from "./views/chat-view";
 export { mountChatView } from "./views/chat-view";
 export { CHAT } from "./strings/en";
+export { GATE_B } from "./strings/en";
 
 export type { IndexBarStatus, StatusCssModifier, StatusVm } from "./viewmodels/status";
 export { toMergedStatusVm, toStatusVm } from "./viewmodels/status";

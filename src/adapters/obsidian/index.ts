@@ -63,3 +63,5 @@ export {
 } from "./active-note";
 
 export { createObsidianNavigation, createObsidianNavigationFromApp, type NavigationSurface, type ResolveNavigationQuote } from "./navigation";
+
+export { createGateBPlugin, runGateBProbe, type GateBLabels, type GateBReport, type ProbePdfJs, type ProbeLoadingTask, type ProbeTiming } from "./pdfjs-probe";

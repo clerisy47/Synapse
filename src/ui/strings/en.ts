@@ -5,6 +5,16 @@
 
 import type { ErrorCode } from "../../core";
 
+export const GATE_B = {
+  run: "Measure PDF extraction (no viewer)",
+  pdf: "Open synthetic PDF at page 3",
+  note: "Select synthetic Markdown passage",
+  report: "Gate B measurements — copy this report",
+  wrongVault: "Run this probe only in the disposable vault named Synapse Gate B.",
+  busy: "The Gate B extraction probe is already running.",
+  failed: "The Gate B probe failed. No document content was logged.",
+};
+
 export const CHAT = {
   navigationFailed: "Could not open the cited passage.",
   title: "Synapse chat",
