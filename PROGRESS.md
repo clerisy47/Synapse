@@ -2,11 +2,13 @@
 
 ## Current focus
 
-Next PLAN task: **M3-T06** (chat viewmodel + view; deps M3-T05 types DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
+Next PLAN task: **M3-T07** (chat commands/ribbon + queue/pipeline wiring; deps M3-T05 and M3-T06 DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
+
+- Completed **M3-T06**: immutable chat state with run-ID stale-event guards, safe DOM pane with stages/citations/collapsible traces, and injected ItemView lifecycle adapter. Added happy-dom for DOM tests; 389 tests pass, typecheck/lint/boundaries/privacy/schema/build pass. Live pane opening awaits M3-T07; citation navigation awaits M3-T08.
 
 - Completed **M3-T05**: `QaPipeline.run` orchestrates plan→search→select→read→answer→verify with citation retry, duplicate hop counting (AC-M2.5), ScriptedModel/FakeCorpus tests (AC-M3.4–3.6), multi-turn last-3 default off; `chat-session` + `answer` helpers.
 - Prior **M3-T04**: `ModelSelector` + `TopKSelector` via `createSelector('model'|'top-k')`; plan/select/answer prompt builders + compact SELECT lines; ScriptedModel tests; ledger-ID-only instructions (M1-T17 still deferred — provisional `QA_NUM_PREDICT`).
@@ -18,7 +20,7 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 
 - `.env` previously had a trailing space in the key name and quoted value — normalized; keep `OPENROUTER_API_KEY=...` unquoted.
 - `openrouter/free` can route to thinking-heavy models; prefer pinned `:free` IDs for schema work.
-- `npm run lint` targets `src` only; run `npx eslint src test` until the script includes `test/`.
+- `npm run lint` targets `src` only. Supplemental `npx eslint src test` currently fails on pre-existing `@typescript-eslint/no-this-alias` at `test/fakes/fake-corpus.ts:210`; M3-T06 does not change that fake.
 - ESLint warns that `PluginSettingTab` lacks `getSettingDefinitions()` (Obsidian 1.13+ settings search); declarative settings deferred.
 
 ## Shortcuts taken
@@ -52,6 +54,7 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - M3-T02: `resolveAnchor` returns DESIGN `null` (not PLAN “undefined”); `hintStart` only disambiguates duplicate exact quotes (no wrong-text hint fallback).
 - M3-T03: RunBudget defaults/fractions live in `budget.ts` (agent-deps forbids `constants.ts`); SPEC evaluate/stop mapped to ANSWER/VERIFY/DONE; cancel stays outside the machine.
 - M3-T04: TopK sets `enough: true` (skip READ → two-call Gate A path); `QA_NUM_PREDICT` mirrored in `prompts.ts`; machine `modelCalls` accounting for top-k left to M3-T05.
+- M3-T06: UI uses structural Q&A input types to preserve the current ui-deps allowlist; ItemView lives in adapters and receives mount/type/title via injection. Registration and real pane smoke await M3-T07; navigation awaits M3-T08. DOM tests use happy-dom without changing the default Node test environment.
 - M3-T05: public `ChatTurn` is `{question,answer}`; mapped to prompt `{role,text}` in `chat-session`; `QaIndexStatus` duck-typed (agent-deps forbids corpus); `enough` → empty machine `readIds` to skip READ; stats.modelCalls count actual generates (TopK select has no usage).
 
 ## Decisions not in DESIGN.md
