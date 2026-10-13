@@ -41,6 +41,29 @@ describe("chat pane", () => {
     dispose(); el.remove();
   });
 
+  it("routes the full sourced excerpt through NavigationPort and handles rejection", async () => {
+    const el = document.createElement("div");
+    const running = reduceChat(initialChatState(), { type: "submit", question: "Q" });
+    const state = createObservable(reduceChat(running, { type: "complete", id: 1, result: {
+      status: "answered", trace: [], claims: [
+        { text: "Answer", sourced: true, citations: [{ excerpt, status: "sourced" }] },
+        { text: "Uncertain", sourced: false, citations: [{ excerpt, status: "unverified" }] },
+      ],
+    } }));
+    const navigation = { openAt: vi.fn().mockRejectedValue(new Error("unavailable")) };
+    const onNavigationError = vi.fn();
+    const dispose = mountChatView({ el, state, actions: { submit: vi.fn(), cancel: vi.fn() }, navigation, onNavigationError });
+    const buttons = el.querySelectorAll<HTMLButtonElement>(".syn-chat-citation");
+    buttons[0]?.click();
+    buttons[1]?.click();
+    await Promise.resolve();
+    expect(navigation.openAt).toHaveBeenCalledExactlyOnceWith({ path: excerpt.ref.path, ...excerpt.locator, quote: excerpt.text });
+    expect(onNavigationError).toHaveBeenCalledTimes(1);
+    dispose();
+    buttons[0]?.click();
+    expect(navigation.openAt).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps trace collapsed by default and preserves expansion across progress", () => {
     const running = reduceChat(initialChatState(), { type: "submit", question: "Q" });
     const { el, state, dispose } = setup(running);

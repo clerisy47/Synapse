@@ -2,11 +2,13 @@
 
 ## Current focus
 
-Next PLAN task: **M3-T08** (citation navigation; deps M3-T06 and M3-T02 DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
+Next PLAN task: **M3-T09** (Q&A integration coverage; use Phase A mock OpenRouter per provider rules). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
+
+- Completed **M3-T08**: sourced citations use NavigationPort; Obsidian opens the exact note in source mode and selects/scrolls the full quote resolved against the live editor buffer. Stale quotes open without unrelated highlighting. PDF page targets are supported pending M4 validation. Adapter and DOM tests cover edited/duplicate/stale passages, invalid offsets, PDF dispatch, sourced-only routing, disposal, and navigation failure. Automated plugin load smoke and build pass; real Obsidian citation clicks and PDF viewer behavior remain unverified manually.
 
 - Completed **M3-T07**: open-chat command and ribbon share a coalesced sidebar reveal/reuse adapter; an in-memory controller submits Q&A through the shared JobQueue with immediate queued progress, per-run cancellation, stale-event guards, and unload cleanup. Composition builds the pipeline from current settings/corpus when each job starts. Automated plugin-host smoke covers load without a key, command/ribbon, missing-key failure, and unload; DOM/queue tests cover cold/queued progress and non-abortable cancellation. 397 tests pass; typecheck/lint/boundaries/privacy/schema/build pass. Live OpenRouter and real Obsidian UI stopwatch checks were not run. Citation navigation remains M3-T08.
 
