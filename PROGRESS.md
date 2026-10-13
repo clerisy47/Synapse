@@ -2,11 +2,13 @@
 
 ## Current focus
 
-Next PLAN task: **M3-T09** (Q&A integration coverage; use Phase A mock OpenRouter per provider rules). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
+Next PLAN task: **M4-T01** (Gate B PDF extraction + navigation probe). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
+
+- Completed **M3-T09**: queued Q&A runs through real Node HTTP + OpenRouterClient against a loopback mock using `openrouter/free`, with FakeVault warmed through the real corpus and tool registry. Three integration scenarios cover sourced answers and hop traces, insufficient evidence, and a single forged-ID retry ending unverified. Excluded note content is absent from requests/results/traces. 406 tests pass; optional live probe remains skipped. Typecheck, lint, boundaries, privacy/schema checks, build, and automated plugin-host load smoke pass. Real Obsidian UI validation remains pending.
 
 - Completed **M3-T08**: sourced citations use NavigationPort; Obsidian opens the exact note in source mode and selects/scrolls the full quote resolved against the live editor buffer. Stale quotes open without unrelated highlighting. PDF page targets are supported pending M4 validation. Adapter and DOM tests cover edited/duplicate/stale passages, invalid offsets, PDF dispatch, sourced-only routing, disposal, and navigation failure. Automated plugin load smoke and build pass; real Obsidian citation clicks and PDF viewer behavior remain unverified manually.
 

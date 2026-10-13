@@ -418,15 +418,15 @@ Address these before they block a vertical slice.
 - **How to verify:** Manual click citation in fixture note.
 - **Status:** DONE
 
-### M3-T09 — Q&A integration test (mock Ollama)
+### M3-T09 — Q&A integration test (mock OpenRouter)
 - **Description:** End-to-end pipeline over mock HTTP + FakeVault; insufficient + unverified paths.
-- **Files:** `test/integration/pipeline-e2e.test.ts`, `test/mock-ollama/server.ts`
+- **Files:** `test/integration/pipeline-e2e.test.ts`, `test/mock-openrouter/server.ts`
 - **Dependencies:** M3-T05, M1-T09
-- **Acceptance criteria:** Green in CI without real Ollama; AC-M9.4 coverage for harness/machine.
+- **Acceptance criteria:** Green in CI without live OpenRouter or Ollama; AC-M9.4 coverage for harness/machine.
 - **How to verify:** `npm test` integration suite.
-- **Status:** TODO
+- **Status:** DONE
 
-**Milestone 3 exit:** Real Q&A in Obsidian against local Ollama + indexed vault; citations navigate.
+**Milestone 3 exit:** Real Q&A in Obsidian against Phase A OpenRouter + indexed vault; citations navigate.
 
 ---
 
