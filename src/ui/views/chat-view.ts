@@ -1,6 +1,6 @@
 /** Safe DOM shell. The composition root supplies state and action callbacks. */
 import { CSS_PREFIX, QUOTE_DISPLAY_CHARS } from "../../constants";
-import type { Disposable, Observable } from "../../core";
+import type { Disposable, Observable, NavigationPort } from "../../core";
 import { CHAT, ERROR_NOTICES } from "../strings/en";
 import type { ChatCitation, ChatState } from "../viewmodels/chat";
 
@@ -9,9 +9,9 @@ export type ChatActions = {
   cancel(id: number): void;
   openCitation?: (citation: ChatCitation) => void;
 };
-export type MountChatViewOptions = { el: HTMLElement; state: Observable<ChatState>; actions: ChatActions };
+export type MountChatViewOptions = { el: HTMLElement; state: Observable<ChatState>; actions: ChatActions; navigation?: NavigationPort; onNavigationError?: () => void };
 
-export function mountChatView({ el, state, actions }: MountChatViewOptions): Disposable {
+export function mountChatView({ el, state, actions, navigation, onNavigationError }: MountChatViewOptions): Disposable {
   const doc = el.ownerDocument;
   el.classList.add(`${CSS_PREFIX}-chat`);
   el.replaceChildren();
@@ -81,10 +81,15 @@ export function mountChatView({ el, state, actions }: MountChatViewOptions): Dis
           const labelText = page === undefined ? title : `${title} — ${CHAT.page} ${page}`;
           const button = append(row, "button", "chat-citation", labelText);
           button.type = "button";
-          button.disabled = !sourced || !actions.openCitation;
+          button.disabled = !sourced || !actions.openCitation && !navigation;
           button.title = sourced ? CHAT.located : CHAT.unverified;
           button.addEventListener("click", () => {
-            if (!disposed && sourced) actions.openCitation?.(citation);
+            if (disposed || !sourced) return;
+            if (navigation) {
+              const { excerpt } = citation;
+              void navigation.openAt({ path: excerpt.ref.path, ...excerpt.locator, quote: excerpt.text })
+                .catch(() => { if (!disposed) onNavigationError?.(); });
+            } else actions.openCitation?.(citation);
           });
           append(row, "blockquote", "chat-quote", citation.excerpt.text.slice(0, QUOTE_DISPLAY_CHARS));
         }

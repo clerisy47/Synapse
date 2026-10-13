@@ -61,3 +61,5 @@ export {
   type ActiveFileLike,
   type ActiveNoteWorkspaceSurface,
 } from "./active-note";
+
+export { createObsidianNavigation, createObsidianNavigationFromApp, type NavigationSurface, type ResolveNavigationQuote } from "./navigation";

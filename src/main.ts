@@ -13,6 +13,7 @@ import {
   RequestUrlTransport,
   createChatItemViewFactory,
   createChatOpener,
+  createObsidianNavigationFromApp,
   bindExternalSettingsChange,
   createObsidianActiveNoteFromApp,
   createObsidianMetadataFromApp,
@@ -57,6 +58,7 @@ import {
   type CorpusStatus,
   type CorpusStore,
 } from "./corpus";
+import { resolveAnchor } from "./evidence";
 import { createJobQueue, type JobQueue } from "./jobs";
 import {
   OpenRouterClient,
@@ -691,10 +693,14 @@ export default class VaultSynapsePlugin extends Plugin {
         indexStatus: corpus.status.get(),
       }).run(input, ctx, emit);
     });
+    const navigation = createObsidianNavigationFromApp(this.app, (text, quote, hintStart) =>
+      resolveAnchor(text, { quote, hintStart, hintLine: 0, textHash: "" }));
     this.registerView(VIEW_TYPE_CHAT, createChatItemViewFactory({
       viewType: VIEW_TYPE_CHAT,
       displayText: CHAT.title,
-      mount: (el) => mountChatView({ el, state: chat.state, actions: chat }),
+      mount: (el) => mountChatView({ el, state: chat.state, actions: chat, navigation,
+        onNavigationError: () => presentObsidianNotice({ message: CHAT.navigationFailed }),
+      }),
     }));
     const openChat = createChatOpener(this.app.workspace, VIEW_TYPE_CHAT);
     const ribbon = this.addRibbonIcon("messages-square", CHAT.openCommand, () => {

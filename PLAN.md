@@ -416,7 +416,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M3-T06, M3-T02
 - **Acceptance criteria:** AC-M3.3 for notes; addresses R10 partially.
 - **How to verify:** Manual click citation in fixture note.
-- **Status:** TODO
+- **Status:** DONE
 
 ### M3-T09 — Q&A integration test (mock Ollama)
 - **Description:** End-to-end pipeline over mock HTTP + FakeVault; insufficient + unverified paths.

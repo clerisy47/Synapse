@@ -6,6 +6,7 @@
 import type { ErrorCode } from "../../core";
 
 export const CHAT = {
+  navigationFailed: "Could not open the cited passage.",
   title: "Synapse chat",
   openCommand: "Open Synapse chat",
   openFailed: "Could not open the chat sidebar. Try again.",
