@@ -7,6 +7,8 @@ import type { ErrorCode } from "../../core";
 
 export const CHAT = {
   title: "Synapse chat",
+  openCommand: "Open Synapse chat",
+  openFailed: "Could not open the chat sidebar. Try again.",
   question: "Question",
   placeholder: "Ask a question about your vault",
   submit: "Ask",

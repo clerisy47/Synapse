@@ -66,4 +66,7 @@ export {
   COMMAND_NAMES,
   createM1Commands,
   createM2Commands,
+  createM3Commands,
 } from "./commands";
+
+export { createChatController, type ChatRunner, type ChatController } from "./chat-controller";
