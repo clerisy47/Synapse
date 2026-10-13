@@ -2,6 +2,12 @@
  * ui — views, status bar, notices, settings (DOM shells + pure viewmodels).
  */
 
+export type { ChatStage, ChatHop, ChatCitation, ChatClaim, ChatResult, ChatMessage, ChatState, ChatEvent } from "./viewmodels/chat";
+export { initialChatState, reduceChat } from "./viewmodels/chat";
+export type { ChatActions, MountChatViewOptions } from "./views/chat-view";
+export { mountChatView } from "./views/chat-view";
+export { CHAT } from "./strings/en";
+
 export type { IndexBarStatus, StatusCssModifier, StatusVm } from "./viewmodels/status";
 export { toMergedStatusVm, toStatusVm } from "./viewmodels/status";
 

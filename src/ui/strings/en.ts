@@ -5,6 +5,29 @@
 
 import type { ErrorCode } from "../../core";
 
+export const CHAT = {
+  title: "Synapse chat",
+  question: "Question",
+  placeholder: "Ask a question about your vault",
+  submit: "Ask",
+  cancel: "Cancel",
+  cancelled: "Question cancelled.",
+  insufficient: "There is insufficient evidence in your vault to answer this question.",
+  unverified: "Unverified",
+  located: "Quote located in source",
+  page: "page",
+  trace: "Search trace",
+  results: "results",
+  milliseconds: "ms",
+  indexing: "Index still warming:",
+  stages: {
+    queued: "Queued", planning: "Planning", searching: "Searching",
+    selecting: "Selecting evidence", reading: "Reading", answering: "Answering",
+    verifying: "Locating quotes in sources",
+  },
+  rejections: { duplicate: "Duplicate skipped", invalid_args: "Invalid arguments", budget: "Budget reached" },
+} as const;
+
 /** Status-bar state labels (AC-M1.7). */
 export const STATUS = {
   idle: "Vault Synapse: idle",

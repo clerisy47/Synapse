@@ -56,3 +56,23 @@
 .syn-notice-actions {
   margin-top: 0.5em;
 }
+
+.syn-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75em;
+  height: 100%;
+  color: var(--text-normal);
+}
+.syn-chat-messages { overflow-y: auto; flex: 1; min-height: 0; }
+.syn-chat-message { padding: 0.75em; border-bottom: 1px solid var(--background-modifier-border); }
+.syn-chat-question { font-weight: var(--font-semibold); white-space: pre-wrap; }
+.syn-chat-answer, .syn-chat-quote, .syn-chat-hop { white-space: pre-wrap; overflow-wrap: anywhere; }
+.syn-chat-progress, .syn-chat-index, .syn-chat-trace { color: var(--text-muted); font-size: var(--font-ui-small); }
+.syn-chat-unverified { color: var(--text-warning); }
+.syn-chat-form { display: flex; flex-wrap: wrap; gap: 0.5em; }
+.syn-chat-label { display: block; width: 100%; }
+.syn-chat-input { display: block; width: 100%; resize: vertical; }
+.syn-chat-citation { margin: 0.25em; }
+.syn-chat-quote { margin: 0.5em 0; padding-left: 0.75em; border-left: 2px solid var(--background-modifier-border); }
+.syn-chat-trace-summary { cursor: pointer; }

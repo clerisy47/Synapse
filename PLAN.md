@@ -398,7 +398,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M3-T05 (types), M1-T14 patterns
 - **Acceptance criteria:** AC-M3.1, M3.5; trace collapsed by default; `textContent` only.
 - **How to verify:** Viewmodel tests; manual open pane.
-- **Status:** TODO  
+- **Status:** DONE
 - **∥H**
 
 ### M3-T07 — Commands + ribbon for chat

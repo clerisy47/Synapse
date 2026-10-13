@@ -53,6 +53,17 @@ export class MarkdownView {
   file: TFile | null = null;
 }
 
+export type WorkspaceLeaf = { contentEl: HTMLElement };
+export class ItemView {
+  contentEl: HTMLElement;
+  constructor(leaf: WorkspaceLeaf) { this.contentEl = leaf.contentEl; }
+  getViewType(): string { return ""; }
+  getDisplayText(): string { return ""; }
+  getIcon(): string { return ""; }
+  async onOpen(): Promise<void> {}
+  async onClose(): Promise<void> {}
+}
+
 export type App = {
   workspace: {
     onLayoutReady(cb: () => void): void;
