@@ -3,7 +3,7 @@
  * settings tab host, vault/metadata/active-note ports.
  */
 
-export { createChatItemViewFactory, type CreateChatItemViewOptions, type ChatItemView } from "./chat-view";
+export { createChatOpener, type ChatWorkspace, createChatItemViewFactory, type CreateChatItemViewOptions, type ChatItemView } from "./chat-view";
 
 export {
   bindExternalSettingsChange,

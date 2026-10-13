@@ -2,11 +2,13 @@
 
 ## Current focus
 
-Next PLAN task: **M3-T07** (chat commands/ribbon + queue/pipeline wiring; deps M3-T05 and M3-T06 DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
+Next PLAN task: **M3-T08** (citation navigation; deps M3-T06 and M3-T02 DONE). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
+
+- Completed **M3-T07**: open-chat command and ribbon share a coalesced sidebar reveal/reuse adapter; an in-memory controller submits Q&A through the shared JobQueue with immediate queued progress, per-run cancellation, stale-event guards, and unload cleanup. Composition builds the pipeline from current settings/corpus when each job starts. Automated plugin-host smoke covers load without a key, command/ribbon, missing-key failure, and unload; DOM/queue tests cover cold/queued progress and non-abortable cancellation. 397 tests pass; typecheck/lint/boundaries/privacy/schema/build pass. Live OpenRouter and real Obsidian UI stopwatch checks were not run. Citation navigation remains M3-T08.
 
 - Completed **M3-T06**: immutable chat state with run-ID stale-event guards, safe DOM pane with stages/citations/collapsible traces, and injected ItemView lifecycle adapter. Added happy-dom for DOM tests; 389 tests pass, typecheck/lint/boundaries/privacy/schema/build pass. Live pane opening awaits M3-T07; citation navigation awaits M3-T08.
 

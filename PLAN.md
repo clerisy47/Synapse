@@ -407,7 +407,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M3-T05, M3-T06
 - **Acceptance criteria:** AC-M3.1; first visible progress is UI stage within 3 s even if model cold.
 - **How to verify:** Manual stopwatch on stage badge; cancel control works.
-- **Status:** TODO  
+- **Status:** DONE
 - **∥H** (commands after view exists — run T06 first within group)
 
 ### M3-T08 — NavigationPort citation clicks

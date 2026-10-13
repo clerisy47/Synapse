@@ -27,3 +27,28 @@ export function createChatItemViewFactory(opts: CreateChatItemViewOptions): (lea
     }
   }(leaf);
 }
+
+/** Small workspace surface for testing reveal/reuse without the Obsidian runtime. */
+export type ChatWorkspace = {
+  getLeavesOfType(type: string): WorkspaceLeaf[];
+  getRightLeaf(split: boolean): WorkspaceLeaf | null;
+  revealLeaf(leaf: WorkspaceLeaf): Promise<void>;
+};
+
+/** Coalesce concurrent command/ribbon clicks to avoid duplicate sidebar leaves. */
+export function createChatOpener(workspace: ChatWorkspace, viewType: string): () => Promise<void> {
+  let opening: Promise<void> | null = null;
+  return () => {
+    if (opening) return opening;
+    opening = (async () => {
+      let leaf: WorkspaceLeaf | undefined = workspace.getLeavesOfType(viewType)[0];
+      if (!leaf) {
+        leaf = workspace.getRightLeaf(false) ?? undefined;
+        if (!leaf) throw new Error("Chat sidebar unavailable");
+        await leaf.setViewState({ type: viewType, active: true });
+      }
+      await workspace.revealLeaf(leaf);
+    })().finally(() => { opening = null; });
+    return opening;
+  };
+}

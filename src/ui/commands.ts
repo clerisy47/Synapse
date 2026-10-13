@@ -3,7 +3,9 @@
  * Handlers are injected — no Obsidian / adapter imports.
  */
 
-export type CommandId = "run-health-check" | "cancel-job" | "debug-list-recent";
+import { CHAT } from "./strings/en";
+
+export type CommandId = "open-chat" | "run-health-check" | "cancel-job" | "debug-list-recent";
 
 export type CommandDef = {
   id: CommandId;
@@ -23,12 +25,14 @@ export type M2CommandHandlers = M1CommandHandlers & {
 
 /** Stable suffixes Obsidian prefixes with the plugin id. */
 export const COMMAND_IDS = {
+  openChat: "open-chat",
   runHealthCheck: "run-health-check",
   cancelJob: "cancel-job",
   debugListRecent: "debug-list-recent",
 } as const satisfies Record<string, CommandId>;
 
 export const COMMAND_NAMES = {
+  openChat: CHAT.openCommand,
   runHealthCheck: "Run model health check",
   cancelJob: "Cancel current job",
   debugListRecent: "Debug: list recent notes",
@@ -66,4 +70,15 @@ export function createM2Commands(handlers: M2CommandHandlers): CommandDef[] {
     });
   }
   return cmds;
+}
+
+/** Chat command shares its handler with the ribbon icon. */
+export function createM3Commands(handlers: M2CommandHandlers & {
+  openChat: () => void | Promise<void>;
+}): CommandDef[] {
+  return [...createM2Commands(handlers), {
+    id: COMMAND_IDS.openChat,
+    name: COMMAND_NAMES.openChat,
+    callback: () => handlers.openChat(),
+  }];
 }

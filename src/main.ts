@@ -11,6 +11,8 @@ import {
 } from "./adapters/node";
 import {
   RequestUrlTransport,
+  createChatItemViewFactory,
+  createChatOpener,
   bindExternalSettingsChange,
   createObsidianActiveNoteFromApp,
   createObsidianMetadataFromApp,
@@ -21,6 +23,7 @@ import {
   registerSettingsTab,
   type EndpointChecker as RequestUrlEndpointChecker,
 } from "./adapters/obsidian";
+import { createQaPipeline } from "./agent";
 import {
   createConfigStore,
   parseSettings,
@@ -34,9 +37,12 @@ import {
   OPENROUTER_API_KEY_ENV,
   PLUGIN_NAME,
   SLICE_MS,
+  VIEW_TYPE_CHAT,
 } from "./constants";
 import {
   createObservable,
+  err,
+  synapseError,
   ok,
   type Clock,
   type Disposable,
@@ -76,7 +82,10 @@ import {
   type ToolRegistry,
 } from "./tools";
 import {
-  createM2Commands,
+  CHAT,
+  createChatController,
+  createM3Commands,
+  mountChatView,
   mountSettingsPanel,
   mountStatusBar,
   mountStatusNotices,
@@ -424,7 +433,8 @@ export default class VaultSynapsePlugin extends Plugin {
     });
 
     this.mountUi(config, jobs);
-    this.registerCommands(jobs);
+    const openChat = this.mountChat(jobs);
+    this.registerCommands(jobs, openChat);
 
     const layoutDispose = onLayoutReady(this.app, () => {
       void this.startWarm();
@@ -661,9 +671,47 @@ export default class VaultSynapsePlugin extends Plugin {
     }
   }
 
-  private registerCommands(jobs: JobQueue): void {
+  private mountChat(jobs: JobQueue): () => Promise<void> {
+    const chat = createChatController(jobs, (input, ctx, emit) => {
+      const lane = this.lane;
+      const tools = this.tools;
+      const corpus = this.corpus;
+      const vault = this.vault;
+      const settings = this.config?.get();
+      if (!lane || !tools || !corpus || !vault || !settings) {
+        return Promise.resolve(err(synapseError({ code: "INTERNAL", message: "Q&A unavailable" })));
+      }
+      return createQaPipeline({
+        model: lane.client,
+        tools,
+        readText: async (path) => corpus.reader().get(path) ? vault.readText(path) : null,
+        multiTurn: settings.qa.multiTurn,
+        budget: { maxHops: settings.qa.maxHops, wallClockMs: settings.qa.wallClockSec * 1000 },
+        numCtx: settings.numCtx,
+        indexStatus: corpus.status.get(),
+      }).run(input, ctx, emit);
+    });
+    this.registerView(VIEW_TYPE_CHAT, createChatItemViewFactory({
+      viewType: VIEW_TYPE_CHAT,
+      displayText: CHAT.title,
+      mount: (el) => mountChatView({ el, state: chat.state, actions: chat }),
+    }));
+    const openChat = createChatOpener(this.app.workspace, VIEW_TYPE_CHAT);
+    const ribbon = this.addRibbonIcon("messages-square", CHAT.openCommand, () => {
+      void openChat().catch(() => presentObsidianNotice({ message: CHAT.openFailed }));
+    });
+    this.disposables.push(() => {
+      chat.dispose();
+      this.app.workspace.detachLeavesOfType(VIEW_TYPE_CHAT);
+      ribbon.remove();
+    });
+    return () => openChat().catch(() => presentObsidianNotice({ message: CHAT.openFailed }));
+  }
+
+  private registerCommands(jobs: JobQueue, openChat: () => Promise<void>): void {
     try {
-      const defs = createM2Commands({
+      const defs = createM3Commands({
+        openChat,
         runHealthCheck: () => {
           this.submitHealthCheck();
         },

@@ -5,6 +5,7 @@ import {
   COMMAND_NAMES,
   createM1Commands,
   createM2Commands,
+  createM3Commands,
 } from "./commands";
 
 describe("createM1Commands", () => {
@@ -41,4 +42,13 @@ describe("createM2Commands", () => {
     await debug?.callback();
     expect(debugListRecent).toHaveBeenCalledTimes(1);
   });
+});
+
+it("registers open-chat with the injected sidebar handler", async () => {
+  const openChat = vi.fn();
+  const cmds = createM3Commands({ runHealthCheck: vi.fn(), cancelJob: vi.fn(), openChat });
+  const chat = cmds.find((c) => c.id === "open-chat");
+  expect(chat?.name).toBe("Open Synapse chat");
+  await chat?.callback();
+  expect(openChat).toHaveBeenCalledOnce();
 });
