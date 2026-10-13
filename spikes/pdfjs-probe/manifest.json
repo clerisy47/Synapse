@@ -1,0 +1,9 @@
+{
+  "id": "synapse-gate-b",
+  "name": "Synapse Gate B",
+  "version": "0.1.0",
+  "minAppVersion": "1.8.7",
+  "description": "Disposable synthetic-fixture PDF extraction and navigation probe.",
+  "author": "Synapse",
+  "isDesktopOnly": true
+}

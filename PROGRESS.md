@@ -2,11 +2,13 @@
 
 ## Current focus
 
-Next PLAN task: **M4-T01** (Gate B PDF extraction + navigation probe). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
+Current PLAN task: **M4-T01** (Gate B PDF extraction + navigation probe), awaiting manual Obsidian observations. **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
 
 Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
 
 ## Last session
+
+- Prepared **M4-T01**: standalone synthetic-fixture PDF extraction/navigation probe and operator runbook. 417 tests pass; the optional live test remains skipped. Typecheck, lint (existing warnings only), boundaries, network/write/schema checks, and production build pass. The standalone build passes injected-host load/unload and wrong-vault guard smoke; production bundle excludes probe code and strings. qpdf validates generated text, blank, and encrypted fixtures. Real Obsidian extraction timings, visible page navigation, and Markdown selection observations remain pending; bundled-vs-fallback decision is not yet validated. No PDF ingestion or Gate A work started.
 
 - Completed **M3-T09**: queued Q&A runs through real Node HTTP + OpenRouterClient against a loopback mock using `openrouter/free`, with FakeVault warmed through the real corpus and tool registry. Three integration scenarios cover sourced answers and hop traces, insufficient evidence, and a single forged-ID retry ending unverified. Excluded note content is absent from requests/results/traces. 406 tests pass; optional live probe remains skipped. Typecheck, lint, boundaries, privacy/schema checks, build, and automated plugin-host load smoke pass. Real Obsidian UI validation remains pending.
 
