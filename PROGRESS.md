@@ -8,6 +8,8 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 
 ## Last session
 
+- Started **M4-T01**: added an in-memory synthetic PDF extraction/timing probe and contract tests; Poppler independently validates every generated page. `docs/gate-b.md` records the public loader candidate, conditional bundling decision, and exact renderer/navigation checks still needed. Installed Obsidian reports 1.14.4, but CLI is disabled and no renderer debugging endpoint is available. No application settings or user notes changed. Gate B remains pending; M4-T02 must wait.
+
 - Completed **M3-T09**: queued Q&A runs through real Node HTTP + OpenRouterClient against a loopback mock using `openrouter/free`, with FakeVault warmed through the real corpus and tool registry. Three integration scenarios cover sourced answers and hop traces, insufficient evidence, and a single forged-ID retry ending unverified. Excluded note content is absent from requests/results/traces. 406 tests pass; optional live probe remains skipped. Typecheck, lint, boundaries, privacy/schema checks, build, and automated plugin-host load smoke pass. Real Obsidian UI validation remains pending.
 
 - Completed **M3-T08**: sourced citations use NavigationPort; Obsidian opens the exact note in source mode and selects/scrolls the full quote resolved against the live editor buffer. Stale quotes open without unrelated highlighting. PDF page targets are supported pending M4 validation. Adapter and DOM tests cover edited/duplicate/stale passages, invalid offsets, PDF dispatch, sourced-only routing, disposal, and navigation failure. Automated plugin load smoke and build pass; real Obsidian citation clicks and PDF viewer behavior remain unverified manually.

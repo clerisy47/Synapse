@@ -440,7 +440,7 @@ Address these before they block a vertical slice.
 - **Dependencies:** M1-T16
 - **Acceptance criteria:** Written Gate B PDF + navigation outcomes; addresses R7, R10.
 - **How to verify:** Probe run notes in `docs/gate-b.md`.
-- **Status:** TODO
+- **Status:** IN_PROGRESS
 
 ### M4-T02 — PdfJsPort adapter
 - **Description:** Implement `PdfJsPort` per Gate B (Obsidian bundled or `pdfjs-dist`).
