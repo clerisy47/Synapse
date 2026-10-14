@@ -17,3 +17,5 @@ export type {
   StateStore,
 } from "./store";
 export { createStateStore, loadStateStore } from "./store";
+
+export { emptyResearchLedger, parseResearchLedger, cloneResearchLedger, mergeResearchLedgers } from "./research-ledger";

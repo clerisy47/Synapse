@@ -5,6 +5,7 @@
 
 import type { Settings } from "../config";
 import { stableStringify, type VaultPath } from "../core";
+import { mergeResearchLedgers } from "./research-ledger";
 import type { PersistedState } from "./parse";
 
 const KNOWN_KEYS = new Set([
@@ -14,6 +15,7 @@ const KNOWN_KEYS = new Set([
   // Retired keys are recognized only to drop them rather than preserve as unknown.
   "dismissals",
   "touchLog",
+  "researchLedger",
   "resurface",
 ]);
 
@@ -85,6 +87,7 @@ export function mergeState(a: PersistedState, b: PersistedState): PersistedState
     settings,
     settingsUpdatedAt,
     touchLog: mergeTouchLog(a.touchLog, b.touchLog),
+    researchLedger: mergeResearchLedgers(a.researchLedger, b.researchLedger),
   };
 
   const keys = new Set([...unknownKeys(a), ...unknownKeys(b)]);
