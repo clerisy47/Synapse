@@ -85,6 +85,8 @@ Only current allowed evidence enters the ledger. Before each remote request, app
 
 ### 5.2 Research proposals
 
+R3-T01 implements local selected inbox capture, exact source/selection snapshots and an approval-free durable processing ledger. Stable content identity is separate from source freshness; malformed or conflicting history fails closed. Current behavior and interfaces are recorded in [research capture audit](docs/r3-t01-research-audit.md). Proposal generation and application remain subsequent tasks.
+
 The user selects an inbox batch → snapshot research/instructions/policy → retrieve permitted target context → schema-constrained generation → deterministic validation → immutable proposal → full diff in local review UI. Unresolved routing or provenance issues prevent approval.
 
 The UI lets the user accept/reject individual changes and approve the selected batch. Editing generated text produces a new proposal/diff. Apply revalidates approval, source/target hashes, unsaved buffers, and current policy/instructions before each write. A conflict invalidates the affected proposal and requires a new review. Research is preserved; a batch ledger records applied changes without treating inbox content as policy.

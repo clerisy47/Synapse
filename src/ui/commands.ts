@@ -5,7 +5,7 @@
 
 import { CHAT } from "./strings/en";
 
-export type CommandId = "open-chat" | "run-health-check" | "cancel-job" | "debug-list-recent";
+export type CommandId = "open-chat" | "run-health-check" | "cancel-job" | "debug-list-recent" | "capture-research-selection";
 
 export type CommandDef = {
   id: CommandId;

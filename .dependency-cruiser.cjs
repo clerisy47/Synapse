@@ -36,10 +36,10 @@ module.exports = {
       from: {
         path: "^src/",
         pathNot:
-          "^src/main\\.ts$|^src/(config|state|policy|instructions|changes|evidence|jobs|llm|corpus|tools|agent|core|adapters|ui)/",
+          "^src/main\\.ts$|^src/(config|state|policy|instructions|research|changes|evidence|jobs|llm|corpus|tools|agent|core|adapters|ui)/",
       },
       to: {
-        path: "^src/(config|state|policy|instructions|changes|evidence|jobs|llm|corpus|tools|agent|core|adapters|ui)/",
+        path: "^src/(config|state|policy|instructions|research|changes|evidence|jobs|llm|corpus|tools|agent|core|adapters|ui)/",
         pathNot: "/index\\.(ts|tsx|js)$",
       },
     },
@@ -88,6 +88,13 @@ module.exports = {
       severity: "error",
       from: { path: "^src/instructions/" },
       to: { path: "^src/", pathNot: "^(src/core/|src/policy/|src/instructions/|src/constants\\.ts$)" },
+    },
+    {
+      name: "research-deps",
+      comment: "research uses public feature contracts and injected I/O; never state or adapters",
+      severity: "error",
+      from: { path: "^src/research/" },
+      to: { path: "^src/", pathNot: "^(src/core/|src/instructions/|src/policy/|src/evidence/|src/agent/|src/llm/|src/jobs/|src/research/|src/constants\\.ts$)" },
     },
     {
       name: "changes-deps",

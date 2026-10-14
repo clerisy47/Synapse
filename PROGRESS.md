@@ -2,16 +2,16 @@
 
 ## Current focus
 
-Completed **R2-T03**: recipient-specific runtime access, masked evidence projections, provider retry gates, current-generation history and synchronous stale-response invalidation. Next task is **R3-T01**, research inbox batches and provenance.
+Completed **R3-T01**: explicit saved inbox selection capture, stable batch identity, provenance/processing history, conservative sync and stale snapshot detection. Next task is **R3-T02**, bounded note-change proposal generation.
 Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must + Should completion; **Phase B = local Ollama**, after validation.
 
 ## Last session
 
-- Delivered R2-T03 through deterministic recipient read sessions, access-bound tools, private evidence/safe prompt projections, model request guards and host/UI lifecycle wiring. Details: [runtime access audit](docs/r2-t03-access-audit.md).
-- All eight tools filter denied notes before results/limits and suppress hidden graph counts. Cloud retrieval intersects internal and remote permission; external contexts require query capability. Raw path-bearing tools deny masks they cannot safely represent; remote/external evidence projections support the frozen field/literal actions.
-- Original citation text and offsets remain private for verification. All model phases, physical provider retries and late responses check current access. Trace arguments/global counts are suppressed; status counts use permitted internal reads.
-- Source/metadata/control/exclusion changes invalidate pending work and clear chat. Dirty or mismatched metadata/cache snapshots deny reads. Provenanced history retains at most three current-generation Q/A pairs; old buttons and late UI events retain no authority.
-- Verification: **611 tests pass; one optional live test skipped**. Typecheck, lint (zero errors, eight existing warnings), boundaries (178 modules), network/write/schema checks, production build, whitespace and production-bundle injected-host smoke pass. No live model, real-vault write or real Obsidian UI pass was performed.
+- Delivered R3-T01 in sequential slices: core ledger contracts, typed state parsing/merge/persistence, research capture service, pure command presentation, plugin wiring/integration and docs. Details: [research capture audit](docs/r3-t01-research-audit.md).
+- Capture requires an explicit nonempty selection in the configured inbox and a saved editor buffer. Source/content hashes and UTF-16 ranges bind an immutable in-memory snapshot; inbox/editor edits and lifecycle rebuilds invalidate it.
+- Stable identity follows configured source path and selected content rather than complete inbox hash. Recapture retains prior processing outcomes after unrelated inbox appends; neither research text nor persisted outcomes confer policy, approval or write authority.
+- Persisted ledger contains bounded metadata only. Conservative sync unions outcomes, detects conflicts and blocks malformed/overflowing history. Save failure stays visible and can be retried; all model and vault-write behavior remains unchanged.
+- Verification: **652 tests pass; one optional live test skipped**. Typecheck, lint (zero errors, eight existing warnings), boundaries (185 modules), network/write/schema checks, production build, whitespace and production-bundle injected-host smoke pass. No live model request, real-vault write or real Obsidian UI pass was performed.
 
 ## Known issues
 

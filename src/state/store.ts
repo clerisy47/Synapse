@@ -4,6 +4,7 @@
 
 import { STATE_WRITE_DEBOUNCE_MS } from "../constants";
 import type { Clock, Disposable, StoragePort } from "../core";
+import { cloneResearchLedger, emptyResearchLedger } from "./research-ledger";
 import { mergeState } from "./merge";
 import {
   defaultPersistedState,
@@ -54,6 +55,7 @@ function cloneState(state: PersistedState): PersistedState {
     // Retired keys must not survive cloning or clearing.
     "dismissals",
     "touchLog",
+    "researchLedger",
     "resurface",
   ]);
   const settings = state.settings;
@@ -67,6 +69,7 @@ function cloneState(state: PersistedState): PersistedState {
     },
     settingsUpdatedAt: state.settingsUpdatedAt,
     touchLog: { ...state.touchLog },
+    researchLedger: cloneResearchLedger(state.researchLedger),
   };
   for (const [key, value] of Object.entries(state)) {
     if (!known.has(key)) out[key] = value;
@@ -87,6 +90,7 @@ function clearUnknownKeys(state: PersistedState): void {
     // Retired keys must not survive cloning or clearing.
     "dismissals",
     "touchLog",
+    "researchLedger",
     "resurface",
   ]);
   for (const key of Object.keys(state)) {
@@ -125,7 +129,8 @@ export function createStateStore(opts: CreateStateStoreOptions): StateStore {
     }
     cancelDebounce = schedule(() => {
       cancelDebounce = null;
-      saveChain = saveChain.then(() => persist());
+      saveChain = saveChain.catch(() => undefined).then(() => persist());
+      void saveChain.catch(() => undefined);
     }, debounceMs);
   };
 
@@ -149,7 +154,7 @@ export function createStateStore(opts: CreateStateStoreOptions): StateStore {
         cancelDebounce();
         cancelDebounce = null;
       }
-      saveChain = saveChain.then(() => persist());
+      saveChain = saveChain.catch(() => undefined).then(() => persist());
       await saveChain;
     },
 
@@ -169,6 +174,7 @@ export function createStateStore(opts: CreateStateStoreOptions): StateStore {
       current.settings = keptSettings;
       current.settingsUpdatedAt = keptAt;
       current.touchLog = {};
+      current.researchLedger = emptyResearchLedger();
       await store.flush();
     },
 

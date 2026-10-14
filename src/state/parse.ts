@@ -5,13 +5,16 @@
 
 import { DEFAULT_SETTINGS, parseSettings, type Settings } from "../config";
 import { STATE_SCHEMA_VERSION } from "../constants";
-import { asVaultPath, type VaultPath } from "../core";
+import { asVaultPath, type ResearchLedger, type VaultPath } from "../core";
+
+import { emptyResearchLedger, parseResearchLedger } from "./research-ledger";
 
 export interface PersistedState {
   schemaVersion: number;
   settings: Settings;
   settingsUpdatedAt: number;
   touchLog: Record<VaultPath, number>;
+  researchLedger: ResearchLedger;
   [unknown: string]: unknown;
 }
 
@@ -27,6 +30,7 @@ const KNOWN_KEYS = new Set([
   // Retired keys are recognized only to drop them rather than preserve as unknown.
   "dismissals",
   "touchLog",
+  "researchLedger",
   "resurface",
 ]);
 
@@ -50,6 +54,7 @@ export function defaultPersistedState(): PersistedState {
     settings: cloneSettings(DEFAULT_SETTINGS),
     settingsUpdatedAt: 0,
     touchLog: {},
+    researchLedger: emptyResearchLedger(),
   };
 }
 
@@ -116,7 +121,10 @@ export function parsePersisted(raw: unknown): ParsePersistedResult {
     settings: parseSettings(raw.settings ?? DEFAULT_SETTINGS),
     settingsUpdatedAt: parseSettingsUpdatedAt(raw.settingsUpdatedAt, warnings),
     touchLog: parseTouchLog(raw.touchLog, warnings),
+    researchLedger: parseResearchLedger(raw.researchLedger),
   };
+
+  if (state.researchLedger.blocked) warnings.push("researchLedger unavailable; research processing blocked");
 
   for (const [key, value] of Object.entries(raw)) {
     if (!KNOWN_KEYS.has(key)) {
