@@ -36,10 +36,10 @@ module.exports = {
       from: {
         path: "^src/",
         pathNot:
-          "^src/main\\.ts$|^src/(config|state|policy|evidence|jobs|llm|corpus|tools|agent|core|adapters|ui)/",
+          "^src/main\\.ts$|^src/(config|state|policy|instructions|changes|evidence|jobs|llm|corpus|tools|agent|core|adapters|ui)/",
       },
       to: {
-        path: "^src/(config|state|policy|evidence|jobs|llm|corpus|tools|agent|core|adapters|ui)/",
+        path: "^src/(config|state|policy|instructions|changes|evidence|jobs|llm|corpus|tools|agent|core|adapters|ui)/",
         pathNot: "/index\\.(ts|tsx|js)$",
       },
     },
@@ -79,8 +79,22 @@ module.exports = {
       from: { path: "^src/policy/" },
       to: {
         path: "^src/",
-        pathNot: "^(src/core/|src/config/|src/policy/)",
+        pathNot: "^(src/core/|src/config/|src/policy/|src/constants\\.ts$)",
       },
+    },
+    {
+      name: "instructions-deps",
+      comment: "instructions may import core, policy and shared tunables",
+      severity: "error",
+      from: { path: "^src/instructions/" },
+      to: { path: "^src/", pathNot: "^(src/core/|src/policy/|src/instructions/|src/constants\\.ts$)" },
+    },
+    {
+      name: "changes-deps",
+      comment: "changes contracts may import core, policy, instructions, state and shared tunables",
+      severity: "error",
+      from: { path: "^src/changes/" },
+      to: { path: "^src/", pathNot: "^(src/core/|src/policy/|src/instructions/|src/state/|src/changes/|src/constants\\.ts$)" },
     },
     {
       name: "evidence-deps",

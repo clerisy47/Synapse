@@ -78,3 +78,17 @@ export const STATE_SCHEMA_VERSION = 1 as const;
 
 /** Debounce for StateStore writes to `data.json` (ms). DESIGN §4.3. */
 export const STATE_WRITE_DEBOUNCE_MS = 30_000;
+
+/** Provisional bounds for user-editable control contracts; not model-output schemas. */
+export const CONTROL_LIMITS = {
+  changes: 64,
+  markdownChars: 200_000,
+  evidenceIds: 64,
+  rules: 128,
+  masks: 32,
+  destinations: 64,
+  identifierChars: 64,
+  pathChars: 1024,
+  literalChars: 1024,
+  headingChars: 200,
+} as const;
