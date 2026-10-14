@@ -20,3 +20,5 @@ Validation: typecheck, lint (0 errors, 6 existing warnings), boundaries, network
 Manual follow-up in a synthetic Obsidian vault: reload the three plugin artifacts, open chat via command/ribbon, confirm Markdown-only retrieval and exclusion behavior, click a verified passage and confirm exact selection/scrolling (including a stale passage), and check unload/reload. Live provider latency/availability was not measured for this cleanup; the optional live test was left opt-in and no alternate model was used.
 
 Delivery validation: all automated checks were rerun successfully (399 tests; one optional live test skipped). Historical snapshots retain their original Markdown whitespace byte-for-byte; diff whitespace validation excludes only those archived documents. Real Obsidian smoke evidence remains pending.
+
+Operator evidence (2026-10-14): the user confirmed that real Obsidian load/unload, chat command/ribbon, Markdown retrieval/exclusions, and exact/stale passage citation behavior pass in response to the delivery smoke checklist.
