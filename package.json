@@ -6,7 +6,7 @@
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
-    "build": "node esbuild.config.mjs production",
+    "build": "node scripts/generate-control-starters.mjs && node esbuild.config.mjs production",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "eslint src",
@@ -35,6 +35,7 @@
     "vitest": "^3.0.9"
   },
   "dependencies": {
+    "yaml": "^2.9.1",
     "zod": "^4.6.5"
   }
 }

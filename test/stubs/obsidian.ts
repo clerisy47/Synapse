@@ -237,3 +237,10 @@ export class Setting implements Chain {
     return this;
   }
 }
+
+export class Modal {
+  contentEl = typeof document === "undefined" ? {} as HTMLElement : document.createElement("div");
+  constructor(_app: App) {}
+  open(): void {}
+  close(): void {}
+}

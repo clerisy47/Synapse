@@ -2,17 +2,16 @@
 
 ## Current focus
 
-Completed **R2-T01**: version 1 control-file, recipient-policy, routing, proposal and approval-binding contracts are frozen. Next task is **R2-T02**, editable file loaders and reviewed setup. Runtime research, note writes, MCP and Ollama remain later work.
-
+Completed **R2-T02**: editable control loaders, immutable exact-text snapshots, edit invalidation, configurable paths, ordinary-corpus exclusion, daily calendar routing and review-only starter setup. Next task is **R2-T03**, recipient enforcement and masking across runtime disclosure paths.
 Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must + Should completion; **Phase B = local Ollama**, after validation.
 
 ## Last session
 
-- Delivered the previously uncommitted scope revision and R1 cleanup in prerequisite PR #112. The user confirmed real Obsidian load/unload, chat command/ribbon, Markdown retrieval/exclusions, and exact/stale passage navigation on 2026-10-14; recorded in the R1 audit.
-- Added strict Zod Security/Instructions/proposal/binding schemas, canonical control paths, readonly core contracts, pure recipient decision reference, explicit-date daily routing, and full SHA-256 snapshot/approval hashing. Added repository-only starter assets with internal-read-only policy and UTC daily routing.
-- Frozen details and future integration obligations: [control contracts](docs/control-contracts.md). No existing chat enforcement, control-file setup, approval issuance, note-write adapter or MCP transport was added. Four model-output schemas, vault-write/network bans and OpenRouter defaults remain unchanged.
-- Verification: **494 tests pass; one optional live test skipped**. Typecheck, lint (zero errors; six existing warnings), boundaries (160 modules), network/write/schema checks, production build and diff whitespace checks pass. Source-host integration and production-bundle injected-host smoke pass for legacy data, no-key loading, chat command/ribbon, visible model failure and unload. No live model request was required for this contract task.
-- The original checkout was backed up before delivery; scope/R1 changes were transferred into an isolated branch without importing the retired PDF probe. No real vault content or credentials were included.
+- Implemented R2-T02 in three reviewable slices: loader/routing, configuration/exclusion, and host review/lifecycle wiring. Details and validation: [loader audit](docs/r2-t02-loader-audit.md).
+- Strict YAML parsing rejects duplicate keys, aliases and unsupported tags. Missing, invalid, conflicting and unavailable files expose redacted status; prose-only edits change full SHA-256 hashes. Edits/rename/deletion invalidate synchronously, and stale asynchronous reads cannot restore prior snapshots.
+- Settings configure all three canonical distinct Markdown paths. Control files and Research.md are excluded at ordinary corpus ingest, while loaders read controls explicitly. Commands expose status and exact missing starter contents through inert DOM. Setup creates nothing; the restricted creation adapter remains R3-T04.
+- Daily routing handles configured timezone midnight, DST calendar shifts, leap days and year changes. Ambiguous dates fail explicitly. Only numeric UTC instants, exact relative tokens, or explicit ISO calendar dates are accepted.
+- Verification: **522 tests pass; one optional live test skipped**. Typecheck, lint (zero errors, eight warnings), boundaries (167 modules), network/write/schema checks, production build and diff whitespace pass. Source-host chat integration and production-bundle injected-host smoke verify load, status, exact starter review, edit invalidation and unload. No live model request or real-vault write was needed.
 
 ## Known issues
 

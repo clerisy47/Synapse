@@ -5,7 +5,7 @@
 
 import { z } from "zod";
 
-import type { LogLevel } from "../core";
+import { validateControlPaths, type ControlPaths, type LogLevel } from "../core";
 import { DEFAULT_SETTINGS } from "./defaults";
 import { migrateSettings } from "./migrate";
 
@@ -19,6 +19,7 @@ export interface QaSettings {
 }
 
 export interface Settings {
+  controlPaths: ControlPaths;
   endpoint: string;
   provider: ProviderId;
   apiKey: string | null;
@@ -46,6 +47,12 @@ const logLevelSchema = z.enum(["debug", "info", "warn", "error"]);
 
 /** Strict schema for a fully normalized Settings object. */
 export const settingsSchema: z.ZodType<Settings> = z.object({
+  controlPaths: z.object({ instructions: z.string(), security: z.string(), research: z.string() }).transform((value, ctx) => {
+    const parsed = validateControlPaths(value);
+    if (parsed.ok) return parsed.value;
+    ctx.addIssue({ code: "custom", message: "Invalid control paths" });
+    return z.NEVER;
+  }),
   endpoint: z.string(),
   provider: providerSchema,
   apiKey: z.string().nullable(),
@@ -66,6 +73,12 @@ export const settingsSchema: z.ZodType<Settings> = z.object({
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseControlPaths(value: unknown, defaults: ControlPaths): ControlPaths {
+  if (!isPlainObject(value) || typeof value.instructions !== "string" || typeof value.security !== "string" || typeof value.research !== "string") return { ...defaults };
+  const parsed = validateControlPaths({ instructions: value.instructions, security: value.security, research: value.research });
+  return parsed.ok ? parsed.value : { ...defaults };
 }
 
 function parseFiniteInt(value: unknown): number | null {
@@ -143,6 +156,7 @@ export function parseSettings(raw: unknown): Settings {
   const qaRaw = isPlainObject(migrated.qa) ? migrated.qa : {};
 
   const parsed: Settings = {
+    controlPaths: parseControlPaths(migrated.controlPaths, d.controlPaths),
     endpoint: parseEndpoint(migrated.endpoint, d.endpoint),
     provider: parseEnum(migrated.provider, ["openrouter", "ollama"], d.provider),
     apiKey: parseNullableString(migrated.apiKey, d.apiKey),
@@ -194,6 +208,7 @@ export function parseSettings(raw: unknown): Settings {
 function cloneSettings(settings: Settings): Settings {
   return {
     ...settings,
+    controlPaths: { ...settings.controlPaths },
     excludedFolders: [...settings.excludedFolders],
     excludedTags: [...settings.excludedTags],
     qa: { ...settings.qa },

@@ -164,3 +164,10 @@ describe("createConfigStore", () => {
     expect(cb).toHaveBeenCalledTimes(1);
   });
 });
+
+it("normalizes configured control paths and safely migrates absent/invalid paths", () => {
+  expect(parseSettings({}).controlPaths).toEqual(DEFAULT_SETTINGS.controlPaths);
+  expect(parseSettings({ controlPaths: { instructions: "Config\\Style.md", security: "Config/Rules.md", research: "Inbox.md" } }).controlPaths).toEqual({ instructions: "Config/Style.md", security: "Config/Rules.md", research: "Inbox.md" });
+  expect(parseSettings({ controlPaths: { instructions: "Same.md", security: "same.md", research: "Inbox.md" } }).controlPaths).toEqual(DEFAULT_SETTINGS.controlPaths);
+  expect(parseSettings({ controlPaths: { instructions: "../Style.md", security: "Rules.md", research: "Inbox.md" } }).controlPaths).toEqual(DEFAULT_SETTINGS.controlPaths);
+});

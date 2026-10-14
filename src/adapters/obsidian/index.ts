@@ -63,3 +63,5 @@ export {
 } from "./active-note";
 
 export { createObsidianNavigation, createObsidianNavigationFromApp, type NavigationSurface, type ResolveNavigationQuote } from "./navigation";
+
+export { showControlReview } from "./control-review";

@@ -38,3 +38,9 @@ describe("repository-only starter templates", () => {
     expect(AccessContextSchema.safeParse({ ...context, approved: true }).success).toBe(false);
   });
 });
+
+it("bundles the exact repository starter contents", async () => {
+  const { CONTROL_STARTERS } = await import("../../src/instructions");
+  expect(CONTROL_STARTERS.instructions).toBe(readFileSync(new URL("../../assets/control-files/Instructions.md", import.meta.url), "utf8"));
+  expect(CONTROL_STARTERS.security).toBe(readFileSync(new URL("../../assets/control-files/Security.md", import.meta.url), "utf8"));
+});

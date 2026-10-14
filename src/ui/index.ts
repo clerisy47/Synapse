@@ -70,3 +70,5 @@ export {
 } from "./commands";
 
 export { createChatController, type ChatRunner, type ChatController } from "./chat-controller";
+
+export { CONTROLS } from "./strings/en";

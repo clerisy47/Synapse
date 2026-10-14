@@ -9,6 +9,8 @@ export type ExclusionDecision = "allowed" | "excluded";
 
 export interface ExclusionRules {
   folders: readonly string[];
+  /** Privileged loader paths; case-folded to avoid filesystem aliases. */
+  controlPaths?: readonly string[];
   tags: readonly string[];
   /** Injected at compose time (EXCLUSION_FRONTMATTER_KEY). */
   frontmatterKey: string;
@@ -80,6 +82,7 @@ export function createExclusionPolicy(rules: ExclusionRules): ExclusionPolicy {
 
   return {
     decide(path, tags, frontmatter): ExclusionDecision {
+      if (rules.controlPaths?.some((control) => normalizePath(control).toLowerCase() === normalizePath(path).toLowerCase())) return "excluded";
 
       for (const folder of rules.folders) {
         if (matchesFolder(path, folder)) {

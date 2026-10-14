@@ -198,3 +198,18 @@ describe("mountSettingsPanel", () => {
     expect(acknowledgeEndpoint).toHaveBeenCalled();
   });
 });
+
+it("rejects conflicting control paths visibly and applies canonical paths", () => {
+  const host = createFakeHost();
+  const store = createObservable<Settings>({ ...DEFAULT_SETTINGS });
+  const applyPatch = vi.fn();
+  const invalidControlPaths = vi.fn();
+  const dispose = mountSettingsPanel({ host, settings: store, actions: { applyPatch, invalidControlPaths } });
+  const field = host.fields.find((value) => value.key === "instructions")!;
+  field.onChange("synapse/security.md");
+  expect(invalidControlPaths).toHaveBeenCalledOnce();
+  expect(applyPatch).not.toHaveBeenCalled();
+  field.onChange("Config\\Style.md");
+  expect(applyPatch).toHaveBeenCalledWith({ controlPaths: { ...DEFAULT_SETTINGS.controlPaths, instructions: "Config/Style.md" } });
+  dispose();
+});

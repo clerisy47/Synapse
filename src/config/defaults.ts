@@ -6,10 +6,16 @@
 import {
   DEFAULT_OPENROUTER_BASE_URL,
   DEFAULT_OPENROUTER_MODEL,
+  DEFAULT_CONTROL_PATHS,
 } from "../constants";
+import { validateControlPaths } from "../core";
 import type { Settings } from "./settings";
 
+const paths = validateControlPaths(DEFAULT_CONTROL_PATHS);
+if (!paths.ok) throw new Error("Invalid built-in control paths");
+
 export const DEFAULT_SETTINGS: Settings = {
+  controlPaths: paths.value,
   endpoint: DEFAULT_OPENROUTER_BASE_URL,
   provider: "openrouter",
   apiKey: null,

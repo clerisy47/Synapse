@@ -1,8 +1,9 @@
 # Control and proposal contracts (R2-T01)
 
-This freezes version 1 data contracts. It does not enable control-file loading,
-recipient enforcement in existing chat, research generation, approval issuance,
-note writes, or MCP. Those integrations remain R2-T02/R2-T03 and R3/R4 tasks.
+Version 1 data contracts are frozen. R2-T02 adds editable control-file loading,
+version invalidation, deterministic daily routing and review-only starter proposals.
+Recipient enforcement in existing chat, research generation, approval issuance,
+note writes and MCP remain R2-T03 and R3/R4 tasks.
 
 ## Control documents
 
@@ -16,7 +17,7 @@ encoding is decoded. Paths remain case-sensitive for matching; collision and
 control-target checks conservatively ignore case. A future adapter must also
 check the actual configurable Obsidian config directory and filesystem state.
 
-Frontmatter is parsed by the future loader, then validated as an object using
+Frontmatter is parsed from exact file text by the privileged loader, then validated as an object using
 strict Zod schemas. Unknown fields, unsupported versions and malformed rules
 invalidate the document; prose never supplies grants. The repository templates
 in `assets/control-files/` use JSON flow syntax, which is valid YAML frontmatter.
@@ -88,8 +89,12 @@ from ordinary destinations; heading is one Markdown heading line. The starter
 uses UTC, `Daily`, and `## Log`. `resolveDailyDestination` accepts only an
 explicit valid Gregorian `YYYY-MM-DD` date (years 0001–9999), then constructs a
 canonical path. It never interprets model paths, locale-dependent dates, or
-relative prose. R2-T02 resolves timestamps/relative dates in the configured
-zone and invalidates snapshots at file edits; ambiguous choices block approval.
+relative prose. R2-T02 resolves numeric UTC instants and the exact tokens `today`, `yesterday`,
+and `tomorrow` against an injected current instant in the configured zone. Relative
+days shift the calendar date, not a fixed 24-hour duration. Explicit ISO dates
+retain their calendar meaning. Other strings, including offset-free timestamps
+and locale-dependent dates, return `AMBIGUOUS_DATE`; invalid dates block routing.
+Vault edits invalidate snapshots synchronously before reload.
 Control-file/inbox targets are independently rejected by proposal validation.
 
 ## Snapshots, proposals and approval
