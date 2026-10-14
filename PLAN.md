@@ -5,7 +5,7 @@ This revision supersedes the old backlog, including the in-progress PDF probe M4
 
 ## Execution rules
 
-Current task is IN_PROGRESS; otherwise choose the lowest-ID TODO with all dependencies DONE. User-directed scope revisions take precedence over ordinary backlog selection. Status exists only here. R1-T01 and R2-T01 through R2-T03 are complete; no task is IN_PROGRESS.
+Current task is IN_PROGRESS; otherwise choose the lowest-ID TODO with all dependencies DONE. User-directed scope revisions take precedence over ordinary backlog selection. Status exists only here. R1-T01 and R2-T01 through R2-T03 are complete; R3-T01 is IN_PROGRESS.
 
 Keep tasks small (normally 1–5 files); split cross-cutting cleanup into reviewable substeps before editing. Do not disable tests or delete meaningful failing coverage. Every implementation slice must build and load. Do not start Phase B until all Must + Should features and Phase A validation are complete.
 
@@ -60,7 +60,7 @@ Keep tasks small (normally 1–5 files); split cross-cutting cleanup into review
 - **Dependencies:** R2-T03
 - **Acceptance criteria:** SPEC F5/F11; external input never grants permissions; edited batches invalidate snapshots.
 - **How to verify:** Synthetic inbox, injection, duplicate and edited-batch tests.
-- **Status:** TODO
+- **Status:** IN_PROGRESS
 
 ### R3-T02 — Generate bounded note-change proposals
 

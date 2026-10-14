@@ -116,3 +116,20 @@ export interface Approval {
   readonly bindingHash: ContentHash;
   readonly issuedBy: "local-ui";
 }
+
+/** Approval-free plugin state; outcomes describe history, never write authority. */
+export type ResearchProcessingState = "captured" | "proposed" | "rejected" | "partially-applied" | "applied";
+export interface ResearchLedgerRecord {
+  readonly batch: ResearchBatch;
+  readonly firstCapturedAt: number;
+  readonly lastCapturedAt: number;
+  /** Monotone history makes sync merging preserve prior application evidence. */
+  readonly outcomes: readonly ResearchProcessingState[];
+  readonly conflicted: boolean;
+}
+export interface ResearchLedger {
+  readonly version: 1;
+  /** Malformed or overflowing histories fail closed rather than enable replay. */
+  readonly blocked: boolean;
+  readonly records: readonly ResearchLedgerRecord[];
+}
