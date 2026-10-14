@@ -122,3 +122,15 @@ describe("chat pane", () => {
     dispose(); el.remove();
   });
 });
+
+it("refuses a detached citation retained after state invalidation", () => {
+  const running = reduceChat(initialChatState(), { type: "submit", question: "Q" });
+  const { el, state, actions, dispose } = setup(reduceChat(running, { type: "complete", id: 1, result: {
+    status: "answered", trace: [], claims: [{ text: "Answer", sourced: true, citations: [{ excerpt, status: "sourced" }] }],
+  } }));
+  const button = el.querySelector<HTMLButtonElement>(".syn-chat-citation")!;
+  state.set(initialChatState());
+  button.click();
+  expect(actions.openCitation).not.toHaveBeenCalled();
+  dispose(); el.remove();
+});

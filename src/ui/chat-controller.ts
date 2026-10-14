@@ -7,7 +7,7 @@ import {
 } from "./viewmodels/chat";
 
 export type ChatRunner = (
-  input: { question: string; history: { question: string; answer: string }[] },
+  input: { question: string; history: { question: string; answer: string; accessVersion?: string }[] },
   ctx: JobContext,
   emit: (event: { type: "stage"; stage: ChatStage } | { type: "hop"; hop: ChatHop }) => void,
 ) => Promise<Result<ChatResult>>;
@@ -16,6 +16,7 @@ export type ChatController = {
   state: Observable<ChatState>;
   submit(question: string): void;
   cancel(id: number): void;
+  invalidate(): void;
   dispose(): void;
 };
 
@@ -38,7 +39,7 @@ export function createChatController(jobs: JobQueue, run: ChatRunner): ChatContr
       if (disposed || !question.trim() || state.get().activeId !== null) return;
       // Publish before queue submission: even a cold/busy provider gets immediate UI progress.
       const history = state.get().messages.filter((m) => m.status === "answered")
-        .map((m) => ({ question: m.question, answer: m.claims.map((c) => c.text).join("\n") }));
+        .map((m) => ({ question: m.question, answer: m.claims.map((c) => c.text).join("\n"), ...(m.accessVersion ? { accessVersion: m.accessVersion } : {}) }));
       dispatch({ type: "submit", question });
       const id = state.get().activeId;
       if (id === null) return;
@@ -57,6 +58,11 @@ export function createChatController(jobs: JobQueue, run: ChatRunner): ChatContr
       });
     },
     cancel,
+    invalidate() {
+      const id = state.get().activeId;
+      if (id !== null) cancel(id);
+      if (!disposed) state.set({ ...initialChatState(), nextId: state.get().nextId });
+    },
     dispose() {
       if (disposed) return;
       const id = state.get().activeId;

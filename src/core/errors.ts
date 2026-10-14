@@ -15,6 +15,7 @@ export type ErrorCode =
   | "CONTEXT_OVERFLOW"
   | "MODEL_TIMEOUT"
   | "MODEL_HTTP_ERROR"
+  | "ACCESS_DENIED"
   | "ENDPOINT_BLOCKED"
   | "CANCELLED"
   | "TOOL_ARGS_INVALID"
@@ -44,6 +45,7 @@ const DEFAULT_RETRYABLE: Record<ErrorCode, boolean> = {
   CONTEXT_OVERFLOW: true,
   MODEL_TIMEOUT: false,
   MODEL_HTTP_ERROR: false,
+  ACCESS_DENIED: false,
   ENDPOINT_BLOCKED: false,
   CANCELLED: false,
   TOOL_ARGS_INVALID: false,

@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, expect, it, vi } from "vitest";
-import type { App, PluginManifest } from "obsidian";
+import { TFile, type App, type PluginManifest } from "obsidian";
+import { CONTROL_STARTERS } from "../../src/instructions";
 import VaultSynapsePlugin from "../../src/main";
 import { VIEW_TYPE_CHAT } from "../../src/constants";
 
@@ -27,7 +28,7 @@ vi.mock("obsidian", async (importOriginal) => ({
 }));
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); host.commands.clear(); host.views.clear(); });
 
-it("loads without a key, opens chat by command/ribbon, reports model failure, and unloads cleanly", async () => {
+it.each(["ready", "missing", "invalid"] as const)("loads without a key, opens chat, respects %s policy and unloads cleanly", async (policyState) => {
   vi.stubEnv("OPENROUTER_API_KEY", "");
   const consoleError = vi.spyOn(console, "error");
   const contentEl = document.createElement("div");
@@ -42,8 +43,13 @@ it("loads without a key, opens chat by command/ribbon, reports model failure, an
   };
   const revealLeaf = vi.fn(async () => {});
   const offref = vi.fn();
+  const policyFile = Object.assign(new TFile(), { path: "Synapse/Security.md", extension: "md" });
+  const files = policyState === "missing" ? [] : [policyFile];
   const app = {
-    vault: { adapter: {}, getFiles: () => [], getMarkdownFiles: () => [], on: () => ({}), offref },
+    vault: { adapter: {}, getFiles: () => files, getMarkdownFiles: () => files,
+      getAbstractFileByPath: (path: string) => files.find((file) => file.path === path) ?? null,
+      read: async () => policyState === "ready" ? CONTROL_STARTERS.security : "malformed rules",
+      on: () => ({}), offref },
     metadataCache: { getCache: () => null, resolvedLinks: {}, on: () => ({}), offref },
     workspace: {
       on: () => ({}), offref, onLayoutReady: (callback: () => void) => callback(),
@@ -62,7 +68,7 @@ it("loads without a key, opens chat by command/ribbon, reports model failure, an
   const question = contentEl.querySelector("textarea")!;
   question.value = "What is in my vault?";
   contentEl.querySelector("form")!.dispatchEvent(new Event("submit", { cancelable: true }));
-  await vi.waitFor(() => expect(contentEl.querySelector(".syn-chat-answer")?.textContent).toBe("The model request failed. You can retry."));
+  await vi.waitFor(() => expect(contentEl.querySelector(".syn-chat-answer")?.textContent).toBe(policyState === "ready" ? "The model request failed. You can retry." : "Access is unavailable or changed. Check Security.md and retry."));
   plugin.onunload();
   expect(contentEl.childElementCount).toBe(0);
   expect(host.ribbonRemoved).toBe(true);

@@ -144,7 +144,7 @@ describe("createSelector / TopKSelector", () => {
 });
 
 describe("prompts", () => {
-  it("plan prompt caps history at 3 turns and forbids paths", () => {
+  it("plan prompt caps history at 3 Q/A pairs and forbids paths", () => {
     const history = [
       { role: "user" as const, text: "t0" },
       { role: "assistant" as const, text: "a0" },
@@ -152,6 +152,8 @@ describe("prompts", () => {
       { role: "assistant" as const, text: "a1" },
       { role: "user" as const, text: "t2" },
       { role: "assistant" as const, text: "a2" },
+      { role: "user" as const, text: "t3" },
+      { role: "assistant" as const, text: "a3" },
     ];
     const { instructions, input } = buildPlanPrompt("What changed?", history);
     expect(instructions).toMatch(/ledger IDs|Never name vault paths/i);
@@ -159,7 +161,10 @@ describe("prompts", () => {
     expect(input).toContain("Question: What changed?");
     expect(input).not.toContain("t0");
     expect(input).not.toContain("a0");
-    // Last 3 turns only: a1, t2, a2
+    // Last three complete Q/A pairs: t1/a1, t2/a2, t3/a3
+    expect(input).toContain("user: t1");
+    expect(input).toContain("user: t3");
+    expect(input).toContain("assistant: a3");
     expect(input).toContain("assistant: a1");
     expect(input).toContain("user: t2");
     expect(input).toContain("assistant: a2");

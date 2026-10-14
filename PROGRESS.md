@@ -2,16 +2,16 @@
 
 ## Current focus
 
-Completed **R2-T02**: editable control loaders, immutable exact-text snapshots, edit invalidation, configurable paths, ordinary-corpus exclusion, daily calendar routing and review-only starter setup. Next task is **R2-T03**, recipient enforcement and masking across runtime disclosure paths.
+Completed **R2-T03**: recipient-specific runtime access, masked evidence projections, provider retry gates, current-generation history and synchronous stale-response invalidation. Next task is **R3-T01**, research inbox batches and provenance.
 Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must + Should completion; **Phase B = local Ollama**, after validation.
 
 ## Last session
 
-- Implemented R2-T02 in three reviewable slices: loader/routing, configuration/exclusion, and host review/lifecycle wiring. Details and validation: [loader audit](docs/r2-t02-loader-audit.md).
-- Strict YAML parsing rejects duplicate keys, aliases and unsupported tags. Missing, invalid, conflicting and unavailable files expose redacted status; prose-only edits change full SHA-256 hashes. Edits/rename/deletion invalidate synchronously, and stale asynchronous reads cannot restore prior snapshots.
-- Settings configure all three canonical distinct Markdown paths. Control files and Research.md are excluded at ordinary corpus ingest, while loaders read controls explicitly. Commands expose status and exact missing starter contents through inert DOM. Setup creates nothing; the restricted creation adapter remains R3-T04.
-- Daily routing handles configured timezone midnight, DST calendar shifts, leap days and year changes. Ambiguous dates fail explicitly. Only numeric UTC instants, exact relative tokens, or explicit ISO calendar dates are accepted.
-- Verification: **522 tests pass; one optional live test skipped**. Typecheck, lint (zero errors, eight warnings), boundaries (167 modules), network/write/schema checks, production build and diff whitespace pass. Source-host chat integration and production-bundle injected-host smoke verify load, status, exact starter review, edit invalidation and unload. No live model request or real-vault write was needed.
+- Delivered R2-T03 through deterministic recipient read sessions, access-bound tools, private evidence/safe prompt projections, model request guards and host/UI lifecycle wiring. Details: [runtime access audit](docs/r2-t03-access-audit.md).
+- All eight tools filter denied notes before results/limits and suppress hidden graph counts. Cloud retrieval intersects internal and remote permission; external contexts require query capability. Raw path-bearing tools deny masks they cannot safely represent; remote/external evidence projections support the frozen field/literal actions.
+- Original citation text and offsets remain private for verification. All model phases, physical provider retries and late responses check current access. Trace arguments/global counts are suppressed; status counts use permitted internal reads.
+- Source/metadata/control/exclusion changes invalidate pending work and clear chat. Dirty or mismatched metadata/cache snapshots deny reads. Provenanced history retains at most three current-generation Q/A pairs; old buttons and late UI events retain no authority.
+- Verification: **611 tests pass; one optional live test skipped**. Typecheck, lint (zero errors, eight existing warnings), boundaries (178 modules), network/write/schema checks, production build, whitespace and production-bundle injected-host smoke pass. No live model, real-vault write or real Obsidian UI pass was performed.
 
 ## Known issues
 

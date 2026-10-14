@@ -2,8 +2,8 @@
 
 Version 1 data contracts are frozen. R2-T02 adds editable control-file loading,
 version invalidation, deterministic daily routing and review-only starter proposals.
-Recipient enforcement in existing chat, research generation, approval issuance,
-note writes and MCP remain R2-T03 and R3/R4 tasks.
+R2-T03 adds recipient enforcement to retrieval and existing chat. Research generation,
+approval issuance, note writes and MCP remain R3/R4 tasks.
 
 ## Control documents
 
@@ -54,10 +54,10 @@ regex, executable expressions, or inherited fields.
 Decision order: available/current policy → exclusions/control-file restrictions
 → available metadata → recipient capabilities → matching deny rules → matching
 allow rule or read default → matching mask actions. Deny always wins. Masks never
-grant access. Missing metadata fails closed. Missing/invalid policy disables
-remote disclosure, MCP operations and note application; existing ordinary
-internal search continues through its current exclusion checks until R2-T03.
-The pure reference evaluator denies any request without a validated snapshot.
+grant access. Missing metadata fails closed. Missing/invalid policy disables all access-bound reads, remote disclosure, MCP
+operations and note application. Plugin loading, control diagnostics and starter
+review remain available. The shared evaluator denies any request without a
+validated snapshot.
 
 A mask rule requires a nonempty `masks` array and `operation: read`; other effects
 must omit it. Actions are `{kind: "remove-field", field}` with field `title`,
@@ -160,3 +160,54 @@ objects. Codes include `CONTROL_SCHEMA_INVALID`, `INVALID_VAULT_PATH`,
 `DUPLICATE_TARGET`, `INVALID_CHANGE_INDEX`, `RESTRICTED_PROPOSAL_PATH`, and
 `APPROVAL_BINDING_INVALID`. Diagnostics must not log control text or paths;
 existing SHA-1 diagnostic path pseudonyms remain unchanged.
+
+## Runtime enforcement (R2-T03)
+
+Trusted composition opens recipient-bound `ReadSession` instances from the validated
+policy. Context parsing alone grants no authority. Cloud Q&A intersects internal
+raw-tool permission with remote-model permission; an external-client session also
+requires its trusted query capability. Write operations retain the separate
+contract evaluator and gain no runtime write path here.
+
+All eight tool handlers receive access-filtered dependencies. Denied notes are
+removed before ranking, limits and result counts; graph endpoints are filtered
+and unresolved counts are suppressed. Direct denied reads match missing-note
+errors. Raw path-based tools cannot safely transform every mask while preserving
+source references/offsets, so **any matching mask denies that raw representation**.
+This includes internal masked notes and raw external-client tools. These tools
+are not an external API.
+
+The evidence representation supports all five field removals and ordered literal
+replacements. It has only a title, optional heading and text, with plugin-owned
+ledger IDs supplied by the renderer; no navigable path, raw offsets or source hash
+is disclosed. Removed field values are conservatively removed across known
+strings (case-folded); path removal also hides basename, folder and derived title.
+Frontmatter is omitted from source windows when removing frontmatter, tags or
+aliases. Literal actions remain case-sensitive and execute once in declared order.
+Known removed values are scrubbed after replacements as well, preventing a
+replacement from reintroducing them. Removed values from other known masked notes
+are also scrubbed. Free-text questions, history, retry IDs and generated claim text
+receive the recipient's literal actions conservatively across all read-mask rules,
+which can over-mask text outside a selector.
+
+Only permitted evidence is retained privately. Original text/paths/offsets/hashes
+remain in the private ledger for quote-first verification and internal citation
+navigation. Masked projections are built before prompt token budgeting. `QaResult`
+is an **internal UI result**: its private citation excerpts must never be forwarded
+to an MCP client. The later MCP facade must use fresh external-client projections
+and safe references rather than serialize this result.
+
+`createQaPipeline` requires an explicit trusted disclosure boundary and fails
+closed if an untyped caller omits it. Every model phase and response is gated;
+`StructuredRequest.isCurrent` additionally gates each physical provider request,
+including HTTP and schema retries, without changing provider wire schemas.
+
+Runtime versions bind policy hash and an in-memory source/metadata generation.
+Vault edits, metadata changes, controls and exclusions invalidate pending results
+and clear retained chat state synchronously. Dirty files remain unavailable until
+metadata refresh, and metadata/cache disagreement blocks reads until corpus
+publication catches up. This deliberately invalidates all chat on any vault change.
+Only history from the exact current generation can be reused, at most three full
+Q/A pairs; legacy/unprovenanced turns are omitted. Trace arguments and global index
+counts are not disclosed; local index counts reflect permitted raw internal reads.
+Old/detached citation buttons cannot retain navigation authority.

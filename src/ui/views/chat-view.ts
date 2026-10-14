@@ -83,7 +83,7 @@ export function mountChatView({ el, state, actions, navigation, onNavigationErro
           button.disabled = !sourced || !actions.openCitation && !navigation;
           button.title = sourced ? CHAT.located : CHAT.unverified;
           button.addEventListener("click", () => {
-            if (disposed || !sourced) return;
+            if (disposed || !sourced || !state.get().messages.some((m) => m.id === message.id && m.claims.some((c) => c.citations.includes(citation)))) return;
             if (navigation) {
               const { excerpt } = citation;
               void navigation.openAt({ path: excerpt.ref.path, ...excerpt.locator, quote: excerpt.text })

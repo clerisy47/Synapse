@@ -14,7 +14,6 @@ import {
 } from "../core";
 import {
   EvidenceLedger,
-  titleFromPath,
 } from "../evidence";
 import type { JobContext } from "../jobs";
 import {
@@ -113,7 +112,16 @@ export type QaEvent =
   | { type: "stage"; stage: QaStage }
   | { type: "hop"; hop: TraceHop };
 
+export interface QaDisclosureAccess {
+  readonly version: string;
+  current(): boolean;
+  project(excerpt: Excerpt): { title: string; text: string; heading?: string } | null;
+  sanitize(text: string): string;
+}
+
 export type QaResult = {
+  /** Internal UI result; never forward private citations to an external client. */
+  accessVersion: string;
   status: "answered" | "insufficient";
   claims: AnswerClaim[];
   trace: TraceHop[];
@@ -137,6 +145,8 @@ export interface QaPipeline {
 }
 
 export type CreateQaPipelineOpts = {
+  /** Required trusted runtime boundary; absence never grants disclosure. */
+  access: QaDisclosureAccess;
   model: ModelPort;
   tools: ToolRegistry;
   readText: ResolveNoteText;
@@ -190,9 +200,6 @@ const ZERO_USAGE: ModelUsage = {
 export function createQaPipeline(opts: CreateQaPipelineOpts): QaPipeline {
   const multiTurn = opts.multiTurn ?? false;
   const numCtx = opts.numCtx ?? DEFAULT_NUM_CTX;
-  const selector =
-    opts.selector ??
-    createSelector(opts.selectorStrategy ?? "model", opts.model);
 
   return {
     async run(input, ctx, emit) {
@@ -204,9 +211,11 @@ export function createQaPipeline(opts: CreateQaPipelineOpts): QaPipeline {
         tools: opts.tools,
         readText: opts.readText,
         multiTurn,
-        selector,
+        ...(opts.selector ? { selector: opts.selector } : {}),
+        selectorStrategy: opts.selectorStrategy ?? "model",
         budget: createRunBudget(opts.budget),
         numCtx,
+        access: opts.access,
       };
       if (opts.indexStatus !== undefined) {
         runArgs.indexStatus = opts.indexStatus;
@@ -224,14 +233,34 @@ type RunArgs = {
   tools: ToolRegistry;
   readText: ResolveNoteText;
   multiTurn: boolean;
-  selector: EvidenceSelector;
+  selector?: EvidenceSelector;
+  selectorStrategy: SelectorStrategy;
   budget: RunBudget;
   indexStatus?: QaIndexStatus;
   numCtx: number;
+  access: QaDisclosureAccess;
 };
 
 async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
-  const { input, ctx, emit, budget } = args;
+  const { input, ctx, budget } = args;
+  const access = args.access;
+  const denied = () => err(synapseError(ctx.signal.aborted ? { code: "CANCELLED", message: "Q&A cancelled" } : { code: "ACCESS_DENIED", message: "Access unavailable or changed" }));
+  const current = () => !ctx.signal.aborted && (access?.current() ?? false);
+  if (!current()) return denied();
+  // Events are recipient outputs too: raw tool arguments never leave the private run.
+  const emit = (event: QaEvent) => {
+    if (!current()) return;
+    args.emit(event.type === "hop" ? { ...event, hop: { ...event.hop, args: {} } } : event);
+  };
+  const question = () => access.sanitize(input.question);
+  const model: ModelPort = {
+    async generate(request, signal) {
+      if (!current()) return denied();
+      const result = await args.model.generate({ ...request, isCurrent: current }, signal);
+      return current() ? result : denied();
+    },
+  };
+  const selector = args.selector ?? createSelector(args.selectorStrategy, model);
   const stage = (s: QaStage) => {
     emit({ type: "stage", stage: s });
     ctx.progress({ stage: s });
@@ -278,14 +307,16 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
   };
 
   const finish = (): Result<QaResult> => {
+    if (!current()) return denied();
     const status: QaResult["status"] =
       state.phase === "DONE" && lastAnswer?.status === "answered"
         ? "answered"
         : "insufficient";
     const result: QaResult = {
       status,
-      claims: status === "insufficient" ? [] : claims,
-      trace,
+      claims: status === "insufficient" ? [] : claims.map((claim) => ({ ...claim, text: access.sanitize(claim.text) })),
+      trace: trace.map((hop) => ({ ...hop, args: {} })),
+      accessVersion: access.version,
       stats: {
         modelCalls,
         hops: state.hops,
@@ -295,9 +326,6 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
         outputTokens,
       },
     };
-    if (args.indexStatus !== undefined) {
-      result.indexStatus = args.indexStatus;
-    }
     return ok(result);
   };
 
@@ -310,9 +338,9 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
   // --- PLAN ---
   {
     const planResult = await ctx.step("qa:plan", async () => {
-      const history = historyForPrompt(input, args.multiTurn);
-      const prompt = buildPlanPrompt(input.question, history);
-      return args.model.generate<PlanOutput>(
+      const history = historyForPrompt(input, args.multiTurn, access);
+      const prompt = buildPlanPrompt(question(), history);
+      return model.generate<PlanOutput>(
         {
           kind: "qa.plan",
           instructions: prompt.instructions,
@@ -348,6 +376,7 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
 
   // Main phase loop
   while (state.phase !== "DONE" && state.phase !== "INSUFFICIENT") {
+    if (!current()) return denied();
     const aborted = checkAbort(ctx);
     if (aborted) {
       return err(aborted);
@@ -496,24 +525,23 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
         if (ex === undefined) {
           continue;
         }
+        const view = access.project(ex);
+        if (!view) continue;
         const line: CompactSelectLine = {
-          id: c.id,
-          title: titleFromPath(ex.ref.path),
-          snippet: ex.text.slice(0, 160),
+          id: c.id, title: view.title, snippet: view.text.slice(0, 160),
+          ...(view.heading ? { heading: view.heading } : {}),
         };
-        if (ex.locator.heading) {
-          line.heading = ex.locator.heading;
-        }
         lines.push(line);
       }
       const selectBudget = maxPromptTokens(args.numCtx, QA_NUM_PREDICT.select);
       const compact = formatCompactSelectLines(lines, selectBudget);
 
+      if (!current()) return denied();
       const selectResult = await ctx.step(
         `qa:select:${state.modelCalls}`,
         () =>
-          args.selector.select({
-            question: input.question,
+          selector.select({
+            question: question(),
             candidateIds:
               compact.included.length > 0 ? compact.included : candidateIds,
             compactRender: compact.text,
@@ -521,6 +549,7 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
             signal: ctx.signal,
           }),
       );
+      if (!current()) return denied();
       if (!selectResult.ok) {
         return err(selectResult.error);
       }
@@ -608,10 +637,11 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
       const rendered = ledger.renderForPrompt(
         ordered.length > 0 ? ordered : "all",
         answerBudget,
+        (excerpt) => access.project(excerpt),
       );
-      const prompt = buildAnswerPrompt(input.question, rendered.text, {
+      const prompt = buildAnswerPrompt(question(), rendered.text, {
         ...(unknownForRetry !== undefined
-          ? { unknownIds: unknownForRetry }
+          ? { unknownIds: unknownForRetry.map((id) => access.sanitize(id)) }
           : {}),
       });
       unknownForRetry = undefined;
@@ -619,7 +649,7 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
       const answerResult = await ctx.step(
         `qa:answer:${state.modelCalls}:${state.verifyRetries}`,
         () =>
-          args.model.generate<AnswerOutput>(
+          model.generate<AnswerOutput>(
             {
               kind: "qa.answer",
               instructions: prompt.instructions,

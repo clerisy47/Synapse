@@ -108,3 +108,28 @@ describe("queued chat controller", () => {
     jobs.dispose();
   });
 });
+
+it("clears provenance, retained results and pending late events on access invalidation", async () => {
+  const jobs = createJobQueue({ clock: new FakeClock(), abortable: false });
+  const pending = deferred<Result<ChatResult>>();
+  let late: Parameters<ChatRunner>[2] = () => {};
+  const run = vi.fn<ChatRunner>().mockResolvedValueOnce(ok({ ...answered, accessVersion: "v1" }))
+    .mockImplementationOnce((_input, _ctx, emit) => { late = emit; return pending.promise; })
+    .mockResolvedValueOnce(ok({ ...answered, accessVersion: "v2" }));
+  const chat = createChatController(jobs, run);
+  chat.submit("first");
+  await vi.waitFor(() => expect(chat.state.get().activeId).toBeNull());
+  chat.submit("second");
+  expect(run.mock.calls[1]?.[0].history).toEqual([{ question: "first", answer: "Answer", accessVersion: "v1" }]);
+  chat.invalidate();
+  expect(chat.state.get().messages).toEqual([]);
+  chat.submit("third");
+  late({ type: "hop", hop: { n: 1, tool: "read_note", args: { path: "STALE.md" }, resultCount: 1, ms: 0 } });
+  pending.resolve(ok(answered));
+  await vi.waitFor(() => expect(chat.state.get().activeId).toBeNull());
+  expect(chat.state.get().messages).toHaveLength(1);
+  expect(chat.state.get().messages[0]?.question).toBe("third");
+  expect(JSON.stringify(chat.state.get())).not.toContain("STALE.md");
+  expect(run.mock.calls[2]?.[0].history).toEqual([]);
+  chat.dispose(); jobs.dispose();
+});

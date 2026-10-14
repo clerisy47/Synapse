@@ -68,7 +68,8 @@ import {
   type HealthChecker,
   type HealthReport,
 } from "./llm";
-import { createEndpointPolicy, createExclusionPolicy } from "./policy";
+import { bindToolAccess, guardToolRegistry, createPermittedTextReader, type ToolReadAccess } from "./tools";
+import { createAccessRuntime, createEndpointPolicy, createExclusionPolicy, guardNavigation, intersectReadSessions, type AccessRuntime } from "./policy";
 import { loadStateStore, type StateStore } from "./state";
 import {
   SEARCH_TEXT_BUDGET_MS,
@@ -322,8 +323,9 @@ function buildCoreToolDeps(
   };
 }
 
-function buildToolRegistry(deps: CoreToolDeps): ToolRegistry {
-  return createToolRegistry({
+function buildToolRegistry(raw: CoreToolDeps, access: ToolReadAccess): ToolRegistry {
+  const deps = bindToolAccess(raw, access);
+  return guardToolRegistry(createToolRegistry({
     handlers: {
       search_text: createSearchTextHandler(deps),
       search_by_title: createSearchByTitleHandler(deps),
@@ -334,7 +336,7 @@ function buildToolRegistry(deps: CoreToolDeps): ToolRegistry {
       list_recent: createListRecentHandler(deps),
       read_note: createReadNoteHandler(deps),
     },
-  });
+  }), access);
 }
 
 /** Composition root only — wiring lands here. Keep load cheap and throw-free (AC-M1.3). */
@@ -348,7 +350,10 @@ export default class VaultSynapsePlugin extends Plugin {
   private vault: VaultPort | null = null;
   private controls: ControlStore | null = null;
   private corpus: CorpusStore | null = null;
-  private tools: ToolRegistry | null = null;
+  private toolDeps: CoreToolDeps | null = null;
+  private access: AccessRuntime | null = null;
+  private accessUnsub: Disposable | null = null;
+  private invalidateChat: (() => void) | null = null;
   private warmAbort: AbortController | null = null;
   /** Stable forwarder so status bar survives corpus rebuilds. */
   private readonly indexStatus: MutableObservable<CorpusStatus> =
@@ -388,7 +393,11 @@ export default class VaultSynapsePlugin extends Plugin {
     this.controls?.dispose();
     this.controls = null;
     this.corpus = null;
-    this.tools = null;
+    this.accessUnsub?.();
+    this.accessUnsub = null;
+    this.access?.dispose();
+    this.access = null;
+    this.toolDeps = null;
     this.vault = null;
     try {
       this.jobs?.dispose();
@@ -476,13 +485,27 @@ export default class VaultSynapsePlugin extends Plugin {
       sliceMs: SLICE_MS,
     });
     this.corpus = corpus;
-    this.indexStatus.set(corpus.status.get());
-    this.indexStatusUnsub = corpus.status.subscribe((s) => {
-      this.indexStatus.set(s);
+    this.toolDeps = buildCoreToolDeps(corpus, vault, this.clock, () => this.state?.get().touchLog ?? {});
+    this.accessUnsub?.();
+    this.access?.dispose();
+    const controls = this.controls!;
+    this.access = createAccessRuntime({ vault, metadata, paths: settings.controlPaths,
+      exclusion: exclusionFromSettings(settings),
+      getDoc: (path) => corpus.reader().get(path),
+      getFrontmatter: (path) => corpus.getFrontmatter(path),
+      listDocs: () => corpus.reader().list(),
+      policy: () => { const state = controls.status.get().security; return state.status === "ready" ? state.snapshot : null; },
+      subscribePolicy: (callback) => controls.status.subscribe(callback),
     });
-    this.tools = buildToolRegistry(
-      buildCoreToolDeps(corpus, vault, this.clock, () => this.state?.get().touchLog ?? {}),
-    );
+    const access = this.access;
+    const updateIndexStatus = () => {
+      const count = access.internalCount();
+      this.indexStatus.set({ phase: corpus.status.get().phase, indexedNotes: count, totalNotes: count, bytesCached: 0 });
+    };
+    updateIndexStatus();
+    this.indexStatusUnsub = corpus.status.subscribe(updateIndexStatus);
+    this.invalidateChat?.();
+    this.accessUnsub = access.changes.subscribe(() => { updateIndexStatus(); this.invalidateChat?.(); });
   }
 
   private onUserActivity(path: VaultPath): void {
@@ -614,17 +637,22 @@ export default class VaultSynapsePlugin extends Plugin {
   }
 
   private async debugListRecent(): Promise<void> {
-    const tools = this.tools;
-    if (!tools) {
+    const deps = this.toolDeps;
+    const runtime = this.access;
+    const security = this.controls?.status.get().security;
+    if (!deps || !runtime || security?.status !== "ready") {
       new Notice(`${PLUGIN_NAME}: tools not ready.`);
       return;
     }
+    const access = runtime.open({ recipient: "internal", purpose: "search", policyHash: security.snapshot.hash }, "raw-tools");
+    const tools = buildToolRegistry(deps, access);
     const ac = new AbortController();
     const outcome = await tools.invoke(
       "list_recent",
       { by: "mtime", days: 30, limit: 20 },
       { signal: ac.signal },
     );
+    if (!access.current()) return;
     if (!outcome.ok) {
       new Notice(`${PLUGIN_NAME}: list_recent failed (${outcome.error.code}).`);
       return;
@@ -694,25 +722,40 @@ export default class VaultSynapsePlugin extends Plugin {
   private mountChat(jobs: JobQueue): () => Promise<void> {
     const chat = createChatController(jobs, (input, ctx, emit) => {
       const lane = this.lane;
-      const tools = this.tools;
+      const deps = this.toolDeps;
+      const runtime = this.access;
+      const security = this.controls?.status.get().security;
       const corpus = this.corpus;
       const vault = this.vault;
       const settings = this.config?.get();
-      if (!lane || !tools || !corpus || !vault || !settings) {
+      if (!lane || !deps || !runtime || !corpus || !vault || !settings) {
         return Promise.resolve(err(synapseError({ code: "INTERNAL", message: "Q&A unavailable" })));
       }
+      if (security?.status !== "ready") return Promise.resolve(err(synapseError({ code: "ACCESS_DENIED", message: "Security policy unavailable" })));
+      const internal = runtime.open({ recipient: "internal", purpose: "chat", policyHash: security.snapshot.hash }, "raw-tools");
+      const remote = runtime.open({ recipient: "remote-model", purpose: "chat", policyHash: security.snapshot.hash }, "evidence");
+      const access = intersectReadSessions(internal, remote);
+      const tools = buildToolRegistry(deps, access);
       return createQaPipeline({
+        access,
         model: lane.client,
         tools,
-        readText: async (path) => corpus.reader().get(path) ? vault.readText(path) : null,
+        readText: createPermittedTextReader(deps, access),
         multiTurn: settings.qa.multiTurn,
         budget: { maxHops: settings.qa.maxHops, wallClockMs: settings.qa.wallClockSec * 1000 },
         numCtx: settings.numCtx,
         indexStatus: corpus.status.get(),
       }).run(input, ctx, emit);
     });
-    const navigation = createObsidianNavigationFromApp(this.app, (text, quote, hintStart) =>
+    this.invalidateChat = () => chat.invalidate();
+    const rawNavigation = createObsidianNavigationFromApp(this.app, (text, quote, hintStart) =>
       resolveAnchor(text, { quote, hintStart, hintLine: 0, textHash: "" }));
+    const navigation = guardNavigation(rawNavigation, () => {
+      const runtime = this.access;
+      const security = this.controls?.status.get().security;
+      if (!runtime || security?.status !== "ready") return null;
+      return runtime.open({ recipient: "internal", purpose: "chat", policyHash: security.snapshot.hash }, "raw-tools");
+    });
     this.registerView(VIEW_TYPE_CHAT, createChatItemViewFactory({
       viewType: VIEW_TYPE_CHAT,
       displayText: CHAT.title,
@@ -725,6 +768,7 @@ export default class VaultSynapsePlugin extends Plugin {
       void openChat().catch(() => presentObsidianNotice({ message: CHAT.openFailed }));
     });
     this.disposables.push(() => {
+      this.invalidateChat = null;
       chat.dispose();
       this.app.workspace.detachLeavesOfType(VIEW_TYPE_CHAT);
       ribbon.remove();

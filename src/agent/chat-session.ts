@@ -9,6 +9,8 @@ import type { ChatTurn as PromptChatTurn } from "./prompts";
 export type ChatTurn = {
   question: string;
   answer: string;
+  /** Plugin-owned generation; legacy/unprovenanced turns are not disclosed. */
+  accessVersion?: string;
 };
 
 export type QaInput = {
@@ -27,15 +29,16 @@ const MAX_HISTORY_TURNS = 3;
 export function historyForPrompt(
   input: QaInput,
   multiTurn: boolean,
+  access?: { version: string; sanitize(text: string): string },
 ): PromptChatTurn[] {
   if (!multiTurn || input.history.length === 0) {
     return [];
   }
-  const recent = input.history.slice(-MAX_HISTORY_TURNS);
+  const recent = input.history.filter((turn) => !access || turn.accessVersion === access.version).slice(-MAX_HISTORY_TURNS);
   const out: PromptChatTurn[] = [];
   for (const turn of recent) {
-    out.push({ role: "user", text: turn.question });
-    out.push({ role: "assistant", text: turn.answer });
+    out.push({ role: "user", text: access ? access.sanitize(turn.question) : turn.question });
+    out.push({ role: "assistant", text: access ? access.sanitize(turn.answer) : turn.answer });
   }
   return out;
 }
