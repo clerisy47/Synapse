@@ -92,3 +92,5 @@ export const CONTROL_LIMITS = {
   literalChars: 1024,
   headingChars: 200,
 } as const;
+
+export const DEFAULT_CONTROL_PATHS = { instructions: "Synapse/Instructions.md", security: "Synapse/Security.md", research: "Research.md" } as const;
