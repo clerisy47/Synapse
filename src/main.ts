@@ -48,6 +48,7 @@ import {
   synapseError,
   ok,
   type Clock,
+  type ActiveNotePort,
   type Disposable,
   type MutableObservable,
   type Transport,
@@ -70,7 +71,8 @@ import {
 } from "./llm";
 import { bindToolAccess, guardToolRegistry, createPermittedTextReader, type ToolReadAccess } from "./tools";
 import { createAccessRuntime, createEndpointPolicy, createExclusionPolicy, guardNavigation, intersectReadSessions, type AccessRuntime } from "./policy";
-import { loadStateStore, type StateStore } from "./state";
+import { createResearchInbox, type ResearchInbox } from "./research";
+import { loadStateStore, mergeResearchLedgers, type StateStore } from "./state";
 import {
   SEARCH_TEXT_BUDGET_MS,
   createGetBacklinksHandler,
@@ -91,6 +93,7 @@ import {
   CHAT,
   createChatController,
   createM3Commands,
+  createResearchCaptureCommand,
   mountChatView,
   mountSettingsPanel,
   mountStatusBar,
@@ -349,6 +352,8 @@ export default class VaultSynapsePlugin extends Plugin {
   private lane: AiLane | null = null;
   private vault: VaultPort | null = null;
   private controls: ControlStore | null = null;
+  private research: ResearchInbox | null = null;
+  private activeNote: ActiveNotePort | null = null;
   private corpus: CorpusStore | null = null;
   private toolDeps: CoreToolDeps | null = null;
   private access: AccessRuntime | null = null;
@@ -390,6 +395,9 @@ export default class VaultSynapsePlugin extends Plugin {
     } catch {
       // ignore
     }
+    this.research?.dispose();
+    this.research = null;
+    this.activeNote = null;
     this.controls?.dispose();
     this.controls = null;
     this.corpus = null;
@@ -438,6 +446,7 @@ export default class VaultSynapsePlugin extends Plugin {
     const metadata = createObsidianMetadataFromApp(this.app);
     const activeNote = createObsidianActiveNoteFromApp(this.app);
     this.vault = vault;
+    this.activeNote = activeNote;
 
     this.installControls(vault, config.get());
     this.installCorpus(vault, metadata, config.get());
@@ -467,6 +476,17 @@ export default class VaultSynapsePlugin extends Plugin {
     this.controls?.dispose();
     this.controls = createControlStore({ vault, paths: settings.controlPaths, starters: CONTROL_STARTERS });
     void this.controls.reload();
+    this.research?.dispose();
+    const state = this.state;
+    const activeNote = this.activeNote;
+    this.research = state && activeNote ? createResearchInbox({
+      vault, activeNote, clock: this.clock, paths: settings.controlPaths,
+      readLedger: () => state.get().researchLedger,
+      saveLedger: async (ledger) => {
+        state.update((s) => { s.researchLedger = mergeResearchLedgers(s.researchLedger, ledger); });
+        await state.flush();
+      },
+    }) : null;
   }
 
   private installCorpus(
@@ -789,6 +809,8 @@ export default class VaultSynapsePlugin extends Plugin {
           showControlReview(this.app, CONTROLS.setupHeading, changes.length ? CONTROLS.setupPending : CONTROLS.noMissing, changes);
         }).catch(() => presentObsidianNotice({ message: CONTROLS.failed }));
       } });
+      const researchCommand = createResearchCaptureCommand({ service: () => this.research, notice: (message) => presentObsidianNotice({ message }) });
+      this.addCommand(researchCommand);
       const defs = createM3Commands({
         openChat,
         runHealthCheck: () => {
