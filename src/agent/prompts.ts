@@ -55,7 +55,7 @@ export function buildPlanPrompt(
   ].join(" ");
 
   const parts: string[] = [];
-  const recent = history.slice(-MAX_HISTORY_TURNS);
+  const recent = history.slice(-MAX_HISTORY_TURNS * 2);
   if (recent.length > 0) {
     parts.push("Prior turns:");
     for (const turn of recent) {

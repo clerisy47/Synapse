@@ -1,3 +1,4 @@
+import { fixtureDisclosureAccess } from "../fakes";
 import { afterEach, describe, expect, it } from "vitest";
 import { NodeHttpTransport } from "../../src/adapters/node";
 import { createQaPipeline, type QaEvent } from "../../src/agent";
@@ -73,6 +74,7 @@ async function run(outputs: unknown[]) {
     if (new URL(url).origin !== server.origin) throw new Error("Unexpected test endpoint");
   } });
   const pipeline = createQaPipeline({
+    access: fixtureDisclosureAccess(),
     model: new OpenRouterClient({ transport, endpoint: server.endpoint, model: "openrouter/free", apiKey: "synthetic-test-key" }),
     tools, readText: (path) => vault.readText(path),
   });

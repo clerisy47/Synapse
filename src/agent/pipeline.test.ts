@@ -1,3 +1,4 @@
+import { fixtureDisclosureAccess } from "../../test/fakes";
 import { describe, expect, it } from "vitest";
 import { JobContextImpl } from "../jobs";
 import type { ModelPort, StructuredRequest } from "../llm";
@@ -131,6 +132,7 @@ describe("QaPipeline.run", () => {
     ctx.beginAttempt();
 
     const pipeline = createQaPipeline({
+      access: fixtureDisclosureAccess(),
       model,
       tools: fullRegistry(corpus),
       readText: (path) => corpus.vault.readText(path),
@@ -199,6 +201,7 @@ describe("QaPipeline.run", () => {
     const ctx = new JobContextImpl(clock);
     ctx.beginAttempt();
     const pipeline = createQaPipeline({
+      access: fixtureDisclosureAccess(),
       model,
       tools: fullRegistry(corpus),
       readText: (path) => corpus.vault.readText(path),
@@ -261,6 +264,7 @@ describe("QaPipeline.run", () => {
     const ctx = new JobContextImpl(clock);
     ctx.beginAttempt();
     const pipeline = createQaPipeline({
+      access: fixtureDisclosureAccess(),
       model,
       tools: fullRegistry(corpus),
       readText: (path) => corpus.vault.readText(path),
@@ -315,6 +319,7 @@ describe("QaPipeline.run", () => {
     const ctx = new JobContextImpl(clock);
     ctx.beginAttempt();
     const pipeline = createQaPipeline({
+      access: fixtureDisclosureAccess(),
       model,
       tools: fullRegistry(corpus),
       readText: (path) => corpus.vault.readText(path),
@@ -368,6 +373,7 @@ describe("QaPipeline.run", () => {
     const ctx = new JobContextImpl(clock);
     ctx.beginAttempt();
     const pipeline = createQaPipeline({
+      access: fixtureDisclosureAccess(),
       model,
       tools: fullRegistry(corpus),
       readText: (path) => corpus.vault.readText(path),
@@ -427,6 +433,7 @@ describe("QaPipeline.run", () => {
     const ctx = new JobContextImpl(clock);
     ctx.beginAttempt();
     const pipeline = createQaPipeline({
+      access: fixtureDisclosureAccess(),
       model: wrapped,
       tools: fullRegistry(corpus),
       readText: (path) => corpus.vault.readText(path),
@@ -488,6 +495,7 @@ describe("QaPipeline.run", () => {
     const ctx = new JobContextImpl(clock);
     ctx.beginAttempt();
     const pipeline = createQaPipeline({
+      access: fixtureDisclosureAccess(),
       model: wrapped,
       tools: fullRegistry(corpus),
       readText: (path) => corpus.vault.readText(path),
@@ -496,7 +504,7 @@ describe("QaPipeline.run", () => {
     await pipeline.run(
       {
         question: "now",
-        history: [{ question: "prior q", answer: "prior a" }],
+        history: [{ question: "prior q", answer: "prior a", accessVersion: "fixture" }],
       },
       ctx,
       () => undefined,
@@ -515,6 +523,7 @@ describe("QaPipeline.run", () => {
     ctx.abort({ kind: "cancelled" });
 
     const pipeline = createQaPipeline({
+      access: fixtureDisclosureAccess(),
       model,
       tools: fullRegistry(corpus),
       readText: (path) => corpus.vault.readText(path),
@@ -552,6 +561,7 @@ describe("QaPipeline.run", () => {
     const ctx = new JobContextImpl(clock);
     ctx.beginAttempt();
     const pipeline = createQaPipeline({
+      access: fixtureDisclosureAccess(),
       model,
       tools: fullRegistry(corpus),
       readText: (path) => corpus.vault.readText(path),
@@ -566,4 +576,27 @@ describe("QaPipeline.run", () => {
     expect(result.value.status).toBe("insufficient");
     expect(result.value.claims).toEqual([]);
   });
+});
+
+it("filters unprovenanced/stale history and keeps exactly the latest three valid pairs", () => {
+  const input = { question: "now", history: [
+    { question: "legacy", answer: "legacy answer" },
+    { question: "stale", answer: "stale answer", accessVersion: "old" },
+    ...[1, 2, 3, 4].map((n) => ({ question: `question-${n}`, answer: `answer-${n}`, accessVersion: "fixture" })),
+  ] };
+  const history = historyForPrompt(input, true, fixtureDisclosureAccess());
+  expect(history).toHaveLength(6);
+  expect(history.map((turn) => turn.text)).toEqual(["question-2", "answer-2", "question-3", "answer-3", "question-4", "answer-4"]);
+});
+
+it("fails closed without a disclosure boundary even for an untyped caller", async () => {
+  const corpus = fixtureCorpus();
+  const model = new ScriptedModel();
+  model.enqueue({ kind: "qa.plan", value: { searches: [], expand_graph: false } });
+  const ctx = new JobContextImpl(corpus.clock);
+  ctx.beginAttempt();
+  const result = await createQaPipeline({ access: undefined as never, model, tools: fullRegistry(corpus), readText: (path) => corpus.vault.readText(path) })
+    .run({ question: "private", history: [] }, ctx, () => {});
+  expect(result).toMatchObject({ ok: false, error: { code: "ACCESS_DENIED" } });
+  expect(model.remaining()).toBe(1);
 });

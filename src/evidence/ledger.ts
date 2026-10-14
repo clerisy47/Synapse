@@ -8,6 +8,8 @@ import {
   type ExcerptId,
 } from "../core";
 
+export type PromptProjection = (excerpt: Excerpt) => { title: string; text: string; heading?: string } | null;
+
 export interface PromptRenderResult {
   text: string;
   included: ExcerptId[];
@@ -47,6 +49,7 @@ export class EvidenceLedger {
   renderForPrompt(
     ids: ExcerptId[] | "all",
     maxTokens: number,
+    project?: PromptProjection,
   ): PromptRenderResult {
     const ordered = ids === "all" ? this.allIds() : ids;
     const included: ExcerptId[] = [];
@@ -60,7 +63,9 @@ export class EvidenceLedger {
         dropped.push(id);
         continue;
       }
-      const block = formatBlock(id, excerpt);
+      const view = project?.(excerpt);
+      if (project && !view) { dropped.push(id); continue; }
+      const block = view ? `[${id}] ${view.title}${view.heading ? ` › ${view.heading}` : ""}\n${view.text}` : formatBlock(id, excerpt);
       const sepCost = parts.length > 0 ? estimateTokens("\n") : 0;
       const cost = sepCost + estimateTokens(block);
       if (used + cost > maxTokens) {

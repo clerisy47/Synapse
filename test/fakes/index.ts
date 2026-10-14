@@ -36,3 +36,5 @@ export {
   type LogEvent,
   type RingBufferLoggerOptions,
 } from "./ring-buffer-logger";
+
+export { fixtureDisclosureAccess } from "./disclosure-access";

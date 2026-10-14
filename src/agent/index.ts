@@ -46,6 +46,7 @@ export { initialState, isRejected, next } from "./machine";
 
 export type {
   CreateQaPipelineOpts,
+  QaDisclosureAccess,
   QaEvent,
   QaIndexStatus,
   QaPipeline,

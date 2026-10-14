@@ -9,10 +9,12 @@ export type ChatHop = {
 export type ChatCitation = { excerpt: Excerpt; status: "sourced" | "unverified" };
 export type ChatClaim = { text: string; sourced: boolean; citations: ChatCitation[] };
 export type ChatResult = {
+  accessVersion?: string;
   status: "answered" | "insufficient"; claims: ChatClaim[]; trace: ChatHop[];
   indexStatus?: { phase: "warming" | "ready"; indexedNotes: number; totalNotes: number };
 };
 export type ChatMessage = {
+  accessVersion?: string;
   id: number; question: string; status: "running" | "answered" | "insufficient" | "failed" | "cancelled";
   stage: ChatStage; trace: ChatHop[]; claims: ChatClaim[];
   errorCode?: SynapseError["code"];
@@ -50,7 +52,7 @@ export function reduceChat(state: ChatState, event: ChatEvent): ChatState {
       switch (event.type) {
         case "stage": return { ...message, stage: event.stage };
         case "hop": return { ...message, trace: [...message.trace, event.hop] };
-        case "complete": return { ...message, status: event.result.status, claims: event.result.status === "insufficient" ? [] : event.result.claims, trace: event.result.trace, indexStatus: event.result.indexStatus };
+        case "complete": return { ...message, status: event.result.status, ...(event.result.accessVersion ? { accessVersion: event.result.accessVersion } : {}), claims: event.result.status === "insufficient" ? [] : event.result.claims, trace: event.result.trace, indexStatus: event.result.indexStatus };
         case "fail": return { ...message, status: event.error.code === "CANCELLED" ? "cancelled" : "failed", errorCode: event.error.code };
         case "cancel": return { ...message, status: "cancelled" };
       }
