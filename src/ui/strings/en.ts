@@ -104,6 +104,7 @@ export const ERROR_NOTICES: Record<ErrorCode, string> = {
   CONTEXT_OVERFLOW: "The prompt was too large. Try a narrower question.",
   MODEL_TIMEOUT: "The model timed out. You can retry.",
   MODEL_HTTP_ERROR: "The model request failed. You can retry.",
+  ACCESS_DENIED: "Access is unavailable or changed. Check Security.md and retry.",
   ENDPOINT_BLOCKED: "That endpoint is blocked. Confirm it in settings.",
   CANCELLED: "",
   TOOL_ARGS_INVALID: "A tool call was rejected.",

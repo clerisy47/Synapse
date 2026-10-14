@@ -43,6 +43,8 @@ export type StructuredResponse<T> = {
 };
 
 export type StructuredRequest<T> = {
+  /** Trusted callback checked before every physical request, including retries. */
+  isCurrent?: () => boolean;
   kind: PromptKind;
   instructions: string;
   input: string;
@@ -155,6 +157,7 @@ export class OpenRouterClient implements ModelPort {
     signal: AbortSignal,
     validationFeedback?: string,
   ): Promise<Result<{ value: T; usage: ModelUsage }>> {
+    if (req.isCurrent && !req.isCurrent()) return err(accessError());
     const buildArgs: Parameters<typeof buildOpenRouterChatRequest>[0] = {
       model: this.model,
       instructions: req.instructions,
@@ -168,8 +171,9 @@ export class OpenRouterClient implements ModelPort {
 
     let responseBody: unknown;
     try {
-      responseBody = await this.postChat(url, body, headers, signal, true);
+      responseBody = await this.postChat(url, body, headers, signal, true, req.isCurrent);
     } catch (cause) {
+      if (req.isCurrent && !req.isCurrent()) return err(accessError());
       return err(mapTransportFailure(cause));
     }
 
@@ -177,6 +181,7 @@ export class OpenRouterClient implements ModelPort {
       return err(cancelledError());
     }
 
+    if (req.isCurrent && !req.isCurrent()) return err(accessError());
     const content = extractChatContent(responseBody);
     if (content === null) {
       return err(
@@ -213,7 +218,9 @@ export class OpenRouterClient implements ModelPort {
     headers: Record<string, string>,
     signal: AbortSignal,
     allowHttpRetry: boolean,
+    isCurrent?: () => boolean,
   ): Promise<unknown> {
+    if (isCurrent && !isCurrent()) throw new TransportError({ kind: "blocked", message: "Access changed" });
     try {
       return await collectLastChunk(
         this.transport.postStream(url, body, {
@@ -233,7 +240,7 @@ export class OpenRouterClient implements ModelPort {
         cause.status < 600 &&
         !signal.aborted
       ) {
-        return this.postChat(url, body, headers, signal, false);
+        return this.postChat(url, body, headers, signal, false, isCurrent);
       }
       throw cause;
     }
@@ -334,6 +341,10 @@ export function mapTransportFailure(cause: unknown): SynapseError {
     remediation: "model_http_error",
     cause,
   });
+}
+
+function accessError(): SynapseError {
+  return synapseError({ code: "ACCESS_DENIED", message: "Access unavailable or changed" });
 }
 
 function cancelledError(): SynapseError {
