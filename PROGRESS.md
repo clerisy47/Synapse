@@ -2,18 +2,17 @@
 
 ## Current focus
 
-Completed **R1-T01**: implementation now matches the Markdown-only cleanup scope. Next task is **R2-T01**, contract design; no research/MCP implementation or local Ollama work was started.
+Completed **R2-T01**: version 1 control-file, recipient-policy, routing, proposal and approval-binding contracts are frozen. Next task is **R2-T02**, editable file loaders and reviewed setup. Runtime research, note writes, MCP and Ollama remain later work.
 
-Provider stance: **Phase A = OpenRouter `openrouter/free`** through all revised Must + Should features; **Phase B = final local Ollama switch**, after feature completion and validation.
+Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must + Should completion; **Phase B = local Ollama**, after validation.
 
 ## Last session
 
-- Completed the reference audit and cleanup in four review groups: probe/tooling; schemas/config/state; Markdown retrieval/citations; regression coverage/docs. Details and retained-reference rationale: [R1 cleanup audit](docs/r1-cleanup-audit.md).
-- Removed the PDF probe adapter/export, standalone build entry/manifest/fixture generator/runbook, binary port/fakes, PDF source metadata/counts, page arguments/navigation/citation labels/errors, and obsolete dependency rules. Removed claim extraction/comparison/relevance schemas, retired queue kinds, settings/constants, dismissal/daily-run persistence, and unused date-field resolver scaffolding. Tag/title coverage remains in metadata-indexes.test.ts; user activity/touch history remains for list_recent.
-- Older settings/state load without mutation, discard retired feature data, preserve search/provider configuration and unrelated future state, and do not resurrect retired data during merge/flush. Chat answer claims, citation verification, exclusion tests and queue preemption/cancellation coverage remain. Q&A now takes priority over health checks. Default/live model remains openrouter/free.
-- Verification: **399 tests pass; 1 optional live test skipped**. Typecheck, lint (0 errors, 6 existing warnings), boundaries (147 modules), network/write checks, exact four-operation schema-subset check, production build and git diff --check pass. Source-host chat smoke covers command/ribbon, missing-key failure and unload. Production bundle injected-host smoke loads legacy state without a key, mounts chat, confirms obsolete-command absence and unloads cleanly. Built bundle contains retired names only as state migration suppression keys.
-- README, manifest, active M1 checklist and audit updated. Original Phase 0 engineering research archived intact under docs/history with a root pointer. Existing uncommitted scope/provider changes and historical snapshots retained; no commit or reset.
-- Real Obsidian validation remains manual: reload plugin, open sidebar via command/ribbon, exercise Markdown retrieval/exclusions, click exact/stale passage citations, and unload/reload. No live provider latency/availability measurement was needed for cleanup; optional live testing remains openrouter/free only. Historical pre-revision session narratives remain in [the archived progress log](docs/history/2026-10-14-scope-revision/PROGRESS.md).
+- Delivered the previously uncommitted scope revision and R1 cleanup in prerequisite PR #112. The user confirmed real Obsidian load/unload, chat command/ribbon, Markdown retrieval/exclusions, and exact/stale passage navigation on 2026-10-14; recorded in the R1 audit.
+- Added strict Zod Security/Instructions/proposal/binding schemas, canonical control paths, readonly core contracts, pure recipient decision reference, explicit-date daily routing, and full SHA-256 snapshot/approval hashing. Added repository-only starter assets with internal-read-only policy and UTC daily routing.
+- Frozen details and future integration obligations: [control contracts](docs/control-contracts.md). No existing chat enforcement, control-file setup, approval issuance, note-write adapter or MCP transport was added. Four model-output schemas, vault-write/network bans and OpenRouter defaults remain unchanged.
+- Verification: **494 tests pass; one optional live test skipped**. Typecheck, lint (zero errors; six existing warnings), boundaries (160 modules), network/write/schema checks, production build and diff whitespace checks pass. Source-host integration and production-bundle injected-host smoke pass for legacy data, no-key loading, chat command/ribbon, visible model failure and unload. No live model request was required for this contract task.
+- The original checkout was backed up before delivery; scope/R1 changes were transferred into an isolated branch without importing the retired PDF probe. No real vault content or credentials were included.
 
 ## Known issues
 
