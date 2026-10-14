@@ -113,3 +113,6 @@ export { clipFrontmatterValue, createGetFrontmatterHandler } from "./frontmatter
 
 export type { ListRecentItem, ListRecentResult } from "./list-recent";
 export { createListRecentHandler } from "./list-recent";
+
+export { bindToolAccess, guardToolRegistry, createPermittedTextReader } from "./access";
+export type { ToolReadAccess } from "./access";

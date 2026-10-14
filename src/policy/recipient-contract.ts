@@ -27,7 +27,7 @@ function matches(selector: PolicySelector, request: AccessContractRequest): bool
     && (frontmatter === undefined || (Object.prototype.hasOwnProperty.call(request.frontmatter!, frontmatter.key) && request.frontmatter![frontmatter.key] === frontmatter.value));
 }
 
-/** Pure contract reference decision. Runtime integrations land in R2-T03. */
+/** Shared deterministic decision used by runtime read sessions and later write gates. */
 export function evaluateAccessContract(policy: PolicySnapshot | null, request: AccessContractRequest): AccessDecision {
   const deny = (reason: Extract<AccessDecision, { effect: "deny" }>["reason"]): AccessDecision => ({ effect: "deny", reason });
   if (policy === null) return deny("policy-unavailable");
