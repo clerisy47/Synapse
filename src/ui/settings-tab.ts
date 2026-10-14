@@ -5,7 +5,7 @@
 
 import type { Settings } from "../config";
 import { CSS_PREFIX } from "../constants";
-import type { Disposable, Observable } from "../core";
+import { validateControlPaths, type Disposable, type Observable } from "../core";
 import {
   type SettingsFieldKey,
   type SettingsVm,
@@ -41,6 +41,7 @@ export interface SettingsTabHost {
 
 export interface SettingsPanelActions {
   /** Apply a partial settings update (persist + notify left to caller). */
+  invalidControlPaths?: () => void;
   applyPatch: (patch: SettingsPatch) => void;
   /**
    * Acknowledge the current endpoint hostname for Phase B non-loopback use.
@@ -86,8 +87,15 @@ function applyFieldChange(
   key: SettingsFieldKey,
   value: string,
   applyPatch: (patch: SettingsPatch) => void,
+  settings: Settings,
+  invalidControlPaths?: () => void,
 ): void {
   switch (key) {
+    case "instructions": case "security": case "research": {
+      const paths = validateControlPaths({ ...settings.controlPaths, [key]: value });
+      if (paths.ok) applyPatch({ controlPaths: paths.value }); else invalidControlPaths?.();
+      return;
+    }
     case "endpoint":
       applyPatch({ endpoint: value });
       return;
@@ -161,7 +169,7 @@ function render(
         value: field.value,
         options: field.options,
         onChange: (value) => {
-          applyFieldChange(field.key, value, actions.applyPatch);
+          applyFieldChange(field.key, value, actions.applyPatch, settings, actions.invalidControlPaths);
         },
       });
     } else {
@@ -171,7 +179,7 @@ function render(
         description: field.description,
         value: field.value,
         onChange: (value) => {
-          applyFieldChange(field.key, value, actions.applyPatch);
+          applyFieldChange(field.key, value, actions.applyPatch, settings, actions.invalidControlPaths);
         },
       });
     }
@@ -200,7 +208,7 @@ function render(
       value: transport.value,
       options: transport.options,
       onChange: (value) => {
-        applyFieldChange(transport.key, value, actions.applyPatch);
+        applyFieldChange(transport.key, value, actions.applyPatch, settings, actions.invalidControlPaths);
       },
     });
   }
@@ -215,7 +223,7 @@ function render(
       description: field.description,
       value: field.value,
       onChange: (value) => {
-        applyFieldChange(field.key, value, actions.applyPatch);
+        applyFieldChange(field.key, value, actions.applyPatch, settings, actions.invalidControlPaths);
       },
     });
   }

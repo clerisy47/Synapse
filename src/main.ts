@@ -10,6 +10,7 @@ import {
   type EndpointChecker as NodeEndpointChecker,
 } from "./adapters/node";
 import {
+  showControlReview,
   RequestUrlTransport,
   createChatItemViewFactory,
   createChatOpener,
@@ -24,6 +25,7 @@ import {
   registerSettingsTab,
   type EndpointChecker as RequestUrlEndpointChecker,
 } from "./adapters/obsidian";
+import { createControlStore, CONTROL_STARTERS, type ControlStore } from "./instructions";
 import { createQaPipeline } from "./agent";
 import {
   createConfigStore,
@@ -84,6 +86,7 @@ import {
   type ToolRegistry,
 } from "./tools";
 import {
+  CONTROLS,
   CHAT,
   createChatController,
   createM3Commands,
@@ -237,6 +240,7 @@ function shouldRebuildAi(changedKeys: readonly string[]): boolean {
 
 function shouldRebuildCorpus(changedKeys: readonly string[]): boolean {
   return (
+    changedKeys.includes("controlPaths") ||
     changedKeys.includes("excludedFolders") ||
     changedKeys.includes("excludedTags")
   );
@@ -257,6 +261,7 @@ function presentObsidianNotice(p: NoticePresentation): void {
 function exclusionFromSettings(settings: Settings) {
   return createExclusionPolicy({
     folders: settings.excludedFolders,
+    controlPaths: Object.values(settings.controlPaths),
     tags: settings.excludedTags,
     frontmatterKey: EXCLUSION_FRONTMATTER_KEY,
     frontmatterValue: EXCLUSION_FRONTMATTER_VALUE,
@@ -341,6 +346,7 @@ export default class VaultSynapsePlugin extends Plugin {
   private jobs: JobQueue | null = null;
   private lane: AiLane | null = null;
   private vault: VaultPort | null = null;
+  private controls: ControlStore | null = null;
   private corpus: CorpusStore | null = null;
   private tools: ToolRegistry | null = null;
   private warmAbort: AbortController | null = null;
@@ -379,6 +385,8 @@ export default class VaultSynapsePlugin extends Plugin {
     } catch {
       // ignore
     }
+    this.controls?.dispose();
+    this.controls = null;
     this.corpus = null;
     this.tools = null;
     this.vault = null;
@@ -422,6 +430,7 @@ export default class VaultSynapsePlugin extends Plugin {
     const activeNote = createObsidianActiveNoteFromApp(this.app);
     this.vault = vault;
 
+    this.installControls(vault, config.get());
     this.installCorpus(vault, metadata, config.get());
 
     this.disposables.push(
@@ -443,6 +452,12 @@ export default class VaultSynapsePlugin extends Plugin {
       void this.runQuickHealth();
     });
     this.disposables.push(layoutDispose);
+  }
+
+  private installControls(vault: VaultPort, settings: Settings): void {
+    this.controls?.dispose();
+    this.controls = createControlStore({ vault, paths: settings.controlPaths, starters: CONTROL_STARTERS });
+    void this.controls.reload();
   }
 
   private installCorpus(
@@ -519,6 +534,7 @@ export default class VaultSynapsePlugin extends Plugin {
       if (
         shouldRebuildCorpus(
           [
+            ...(JSON.stringify(prev.controlPaths) !== JSON.stringify(next.controlPaths) ? ["controlPaths"] : []),
             ...(prev.excludedFolders.join("\0") !==
             next.excludedFolders.join("\0")
               ? (["excludedFolders"] as const)
@@ -546,6 +562,7 @@ export default class VaultSynapsePlugin extends Plugin {
       return;
     }
     const metadata = createObsidianMetadataFromApp(this.app);
+    this.installControls(vault, settings);
     this.installCorpus(vault, metadata, settings);
     void this.startWarm();
   }
@@ -659,6 +676,7 @@ export default class VaultSynapsePlugin extends Plugin {
               host,
               settings: config,
               actions: {
+                invalidControlPaths: () => presentObsidianNotice({ message: CONTROLS.invalidPaths }),
                 applyPatch: (p) => {
                   this.applySettingsPatch(p);
                 },
@@ -716,6 +734,17 @@ export default class VaultSynapsePlugin extends Plugin {
 
   private registerCommands(jobs: JobQueue, openChat: () => Promise<void>): void {
     try {
+      this.addCommand({ id: "control-file-status", name: CONTROLS.statusCommand, callback: () => {
+        const state = this.controls?.status.get();
+        if (state) presentObsidianNotice({ message: CONTROLS.status(state.instructions.status, state.security.status) });
+      } });
+      this.addCommand({ id: "review-control-setup", name: CONTROLS.setupCommand, callback: () => {
+        const controls = this.controls;
+        void controls?.proposeSetup().then((changes) => {
+          if (this.controls !== controls) return;
+          showControlReview(this.app, CONTROLS.setupHeading, changes.length ? CONTROLS.setupPending : CONTROLS.noMissing, changes);
+        }).catch(() => presentObsidianNotice({ message: CONTROLS.failed }));
+      } });
       const defs = createM3Commands({
         openChat,
         runHealthCheck: () => {

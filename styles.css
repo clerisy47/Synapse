@@ -76,3 +76,5 @@
 .syn-chat-citation { margin: 0.25em; }
 .syn-chat-quote { margin: 0.5em 0; padding-left: 0.75em; border-left: 2px solid var(--background-modifier-border); }
 .syn-chat-trace-summary { cursor: pointer; }
+
+.syn-control-starter { white-space: pre-wrap; overflow-wrap: anywhere; }

@@ -6,7 +6,7 @@
 
 import type { Settings, TransportMode } from "../../config";
 import { createEndpointPolicy } from "../../policy";
-import { ACTIONS, SETTINGS } from "../strings/en";
+import { ACTIONS, SETTINGS, CONTROLS } from "../strings/en";
 
 /** Keys whose change must invalidate health (DESIGN §4.5). */
 export const HEALTH_INVALIDATING_KEYS = [
@@ -18,6 +18,7 @@ export const HEALTH_INVALIDATING_KEYS = [
 export type HealthInvalidatingKey = (typeof HEALTH_INVALIDATING_KEYS)[number];
 
 export type SettingsFieldKey =
+  | "instructions" | "security" | "research"
   | "endpoint"
   | "apiKey"
   | "model"
@@ -142,6 +143,7 @@ export function toSettingsVm(settings: Settings): SettingsVm {
   }
 
   const fields: SettingsFieldVm[] = [
+    ...(["instructions", "security", "research"] as const).map((key) => ({ key, label: CONTROLS.labels[key], description: CONTROLS.description, value: settings.controlPaths[key] })),
     {
       key: "endpoint",
       label: SETTINGS.endpoint,

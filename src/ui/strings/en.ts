@@ -127,3 +127,16 @@ export const REMEDIATION: Record<string, string> = {
   model_not_found: "Pull or select a different model.",
   endpoint_unreachable: "Cannot reach the model endpoint.",
 };
+
+export const CONTROLS = {
+  statusCommand: "Control file status",
+  setupCommand: "Review missing starter files",
+  setupHeading: "Starter file proposal (review only)",
+  setupPending: "Creation requires the restricted setup adapter planned in R3-T04. You can create these files manually using the exact contents below.",
+  noMissing: "No missing control files. Existing files are preserved.",
+  failed: "Unable to inspect control files.",
+  invalidPaths: "Control paths must be distinct canonical Markdown paths.",
+  status: (instructions: string, security: string) => `Instructions: ${instructions}. Security: ${security}.`,
+  labels: { instructions: "Instructions file", security: "Security file", research: "Research inbox" },
+  description: "Vault-relative Markdown path. Control files and the inbox are excluded from ordinary search.",
+} as const;
