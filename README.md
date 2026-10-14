@@ -6,7 +6,7 @@ A desktop Obsidian assistant for agentic Markdown vault search and cited chat. T
 
 ## Current implementation and roadmap
 
-OpenRouter runtime, vault tools, evidence, and sidebar chat are implemented with automated tests. Research updates, control-file policy, diff approval, and MCP are planned. R1-T01 cleanup is complete: ingestion and citations are Markdown-only, and older settings/state drop retired feature data. PDF search/page citations, contradiction finding, and daily resurfacing are outside the revised release scope. See [SPEC.md](SPEC.md), [DESIGN.md](DESIGN.md), and [PLAN.md](PLAN.md).
+OpenRouter runtime, vault tools, evidence, and sidebar chat are implemented with automated tests. Editable control files and recipient policy enforcement are implemented. Research updates, diff approval, and MCP are planned. R1-T01 cleanup is complete: ingestion and citations are Markdown-only, and older settings/state drop retired feature data. PDF search/page citations, contradiction finding, and daily resurfacing are outside the revised release scope. See [SPEC.md](SPEC.md), [DESIGN.md](DESIGN.md), and [PLAN.md](PLAN.md).
 
 ## Provider phases
 
@@ -31,3 +31,19 @@ Synapse will show note-change diffs for local approval. External MCP clients can
 - No telemetry, analytics, or update pings. Exclude notes with `vault-synapse: ignore` frontmatter or configured folder/tag rules.
 - Current implementation does not edit notes. Planned writes require a restricted adapter and approval, except explicitly authorized MCP inbox appends.
 - Plugin state stays in the plugin folder. Future proposal/recovery records may contain note text and be synced with that folder; retention and clear-data controls are required before shipping them.
+
+## Runtime security controls
+
+Create the reviewed starter files manually using the control-file commands; setup
+still writes nothing. A valid Security.md is required for access-bound search/chat.
+The starter permits internal reads and denies remote/client disclosure. Explicit
+remote read permission is needed to include note evidence in OpenRouter prompts.
+Deny rules win; missing/invalid rules fail closed. Provider consent and exclusions
+remain independent restrictions.
+
+Remote evidence supports deterministic field/literal masking. Raw path-based tools
+deny masked notes when they cannot enforce the projection safely. Policy, source,
+metadata or exclusion changes cancel pending chat and clear retained history;
+repeat the question after the controls/index refresh. Chat retains at most three
+current-policy Q/A pairs when multi-turn is enabled. Details and representation
+limits are in [control contracts](docs/control-contracts.md).
