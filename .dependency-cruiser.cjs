@@ -36,10 +36,10 @@ module.exports = {
       from: {
         path: "^src/",
         pathNot:
-          "^src/main\\.ts$|^src/(config|state|policy|evidence|jobs|llm|pdf|corpus|tools|compare|agent|contradiction|resurface|core|adapters|ui)/",
+          "^src/main\\.ts$|^src/(config|state|policy|evidence|jobs|llm|corpus|tools|agent|core|adapters|ui)/",
       },
       to: {
-        path: "^src/(config|state|policy|evidence|jobs|llm|pdf|corpus|tools|compare|agent|contradiction|resurface|core|adapters|ui)/",
+        path: "^src/(config|state|policy|evidence|jobs|llm|corpus|tools|agent|core|adapters|ui)/",
         pathNot: "/index\\.(ts|tsx|js)$",
       },
     },
@@ -107,14 +107,6 @@ module.exports = {
       },
     },
     {
-      name: "pdf-deps",
-      from: { path: "^src/pdf/" },
-      to: {
-        path: "^src/",
-        pathNot: "^(src/core/|src/pdf/)",
-      },
-    },
-    {
       name: "corpus-deps",
       from: { path: "^src/corpus/" },
       to: {
@@ -131,38 +123,12 @@ module.exports = {
       },
     },
     {
-      name: "compare-deps",
-      from: { path: "^src/compare/" },
-      to: {
-        path: "^src/",
-        pathNot: "^(src/core/|src/evidence/|src/llm/|src/compare/)",
-      },
-    },
-    {
       name: "agent-deps",
       from: { path: "^src/agent/" },
       to: {
         path: "^src/",
         pathNot:
           "^(src/core/|src/evidence/|src/tools/|src/llm/|src/jobs/|src/agent/)",
-      },
-    },
-    {
-      name: "contradiction-deps",
-      from: { path: "^src/contradiction/" },
-      to: {
-        path: "^src/",
-        pathNot:
-          "^(src/core/|src/evidence/|src/tools/|src/compare/|src/state/|src/contradiction/)",
-      },
-    },
-    {
-      name: "resurface-deps",
-      from: { path: "^src/resurface/" },
-      to: {
-        path: "^src/",
-        pathNot:
-          "^(src/core/|src/evidence/|src/compare/|src/state/|src/resurface/)",
       },
     },
     {

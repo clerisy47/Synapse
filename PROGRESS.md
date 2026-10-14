@@ -2,30 +2,23 @@
 
 ## Current focus
 
-Next PLAN task: **M4-T01** (Gate B PDF extraction + navigation probe). **M1-T17** Gate A bake-off stays deferred (AGENTS: no Phase B Gate A before Must+Should complete; M1 exit does not require it).
+Completed **R1-T01**: implementation now matches the Markdown-only cleanup scope. Next task is **R2-T01**, contract design; no research/MCP implementation or local Ollama work was started.
 
-Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only after feature-complete** (SPEC §0 / ADR-21).
+Provider stance: **Phase A = OpenRouter `openrouter/free`** through all revised Must + Should features; **Phase B = final local Ollama switch**, after feature completion and validation.
 
 ## Last session
 
-- Completed **M3-T09**: queued Q&A runs through real Node HTTP + OpenRouterClient against a loopback mock using `openrouter/free`, with FakeVault warmed through the real corpus and tool registry. Three integration scenarios cover sourced answers and hop traces, insufficient evidence, and a single forged-ID retry ending unverified. Excluded note content is absent from requests/results/traces. 406 tests pass; optional live probe remains skipped. Typecheck, lint, boundaries, privacy/schema checks, build, and automated plugin-host load smoke pass. Real Obsidian UI validation remains pending.
-
-- Completed **M3-T08**: sourced citations use NavigationPort; Obsidian opens the exact note in source mode and selects/scrolls the full quote resolved against the live editor buffer. Stale quotes open without unrelated highlighting. PDF page targets are supported pending M4 validation. Adapter and DOM tests cover edited/duplicate/stale passages, invalid offsets, PDF dispatch, sourced-only routing, disposal, and navigation failure. Automated plugin load smoke and build pass; real Obsidian citation clicks and PDF viewer behavior remain unverified manually.
-
-- Completed **M3-T07**: open-chat command and ribbon share a coalesced sidebar reveal/reuse adapter; an in-memory controller submits Q&A through the shared JobQueue with immediate queued progress, per-run cancellation, stale-event guards, and unload cleanup. Composition builds the pipeline from current settings/corpus when each job starts. Automated plugin-host smoke covers load without a key, command/ribbon, missing-key failure, and unload; DOM/queue tests cover cold/queued progress and non-abortable cancellation. 397 tests pass; typecheck/lint/boundaries/privacy/schema/build pass. Live OpenRouter and real Obsidian UI stopwatch checks were not run. Citation navigation remains M3-T08.
-
-- Completed **M3-T06**: immutable chat state with run-ID stale-event guards, safe DOM pane with stages/citations/collapsible traces, and injected ItemView lifecycle adapter. Added happy-dom for DOM tests; 389 tests pass, typecheck/lint/boundaries/privacy/schema/build pass. Live pane opening awaits M3-T07; citation navigation awaits M3-T08.
-
-- Completed **M3-T05**: `QaPipeline.run` orchestrates plan→search→select→read→answer→verify with citation retry, duplicate hop counting (AC-M2.5), ScriptedModel/FakeCorpus tests (AC-M3.4–3.6), multi-turn last-3 default off; `chat-session` + `answer` helpers.
-- Prior **M3-T04**: `ModelSelector` + `TopKSelector` via `createSelector('model'|'top-k')`; plan/select/answer prompt builders + compact SELECT lines; ScriptedModel tests; ledger-ID-only instructions (M1-T17 still deferred — provisional `QA_NUM_PREDICT`).
-- Prior **M3-T03**: pure `src/agent/` — `next(state,event)` (PLAN→…→DONE/INSUFFICIENT), `RunBudget` + wall-clock fractions, hop/read/model counters, token-cap helper; exhaustive AC-M2.3–2.6 tests (provisional numbers local to `budget.ts`).
-- Prior **M3-T02**: quote-first `resolveAnchor` (exact match; `hintStart` disambiguates duplicates; missing quote → `null`).
-- Prior **M3-T01**: pure `src/evidence/` — paragraph `segment`, `displayQuote` (≤300), `EvidenceLedger` (`E1…`, dedupe, forged → undefined, token-budget `renderForPrompt`).
+- Completed the reference audit and cleanup in four review groups: probe/tooling; schemas/config/state; Markdown retrieval/citations; regression coverage/docs. Details and retained-reference rationale: [R1 cleanup audit](docs/r1-cleanup-audit.md).
+- Removed the PDF probe adapter/export, standalone build entry/manifest/fixture generator/runbook, binary port/fakes, PDF source metadata/counts, page arguments/navigation/citation labels/errors, and obsolete dependency rules. Removed claim extraction/comparison/relevance schemas, retired queue kinds, settings/constants, dismissal/daily-run persistence, and unused date-field resolver scaffolding. Tag/title coverage remains in metadata-indexes.test.ts; user activity/touch history remains for list_recent.
+- Older settings/state load without mutation, discard retired feature data, preserve search/provider configuration and unrelated future state, and do not resurrect retired data during merge/flush. Chat answer claims, citation verification, exclusion tests and queue preemption/cancellation coverage remain. Q&A now takes priority over health checks. Default/live model remains openrouter/free.
+- Verification: **399 tests pass; 1 optional live test skipped**. Typecheck, lint (0 errors, 6 existing warnings), boundaries (147 modules), network/write checks, exact four-operation schema-subset check, production build and git diff --check pass. Source-host chat smoke covers command/ribbon, missing-key failure and unload. Production bundle injected-host smoke loads legacy state without a key, mounts chat, confirms obsolete-command absence and unloads cleanly. Built bundle contains retired names only as state migration suppression keys.
+- README, manifest, active M1 checklist and audit updated. Original Phase 0 engineering research archived intact under docs/history with a root pointer. Existing uncommitted scope/provider changes and historical snapshots retained; no commit or reset.
+- Real Obsidian validation remains manual: reload plugin, open sidebar via command/ribbon, exercise Markdown retrieval/exclusions, click exact/stale passage citations, and unload/reload. No live provider latency/availability measurement was needed for cleanup; optional live testing remains openrouter/free only. Historical pre-revision session narratives remain in [the archived progress log](docs/history/2026-10-14-scope-revision/PROGRESS.md).
 
 ## Known issues
 
 - `.env` previously had a trailing space in the key name and quoted value — normalized; keep `OPENROUTER_API_KEY=...` unquoted.
-- `openrouter/free` can route to thinking-heavy models; prefer pinned `:free` IDs for schema work.
+- Use `openrouter/free` for all live tests and the default model (user decision 2026-10-13). The retired Qwen default returned HTTP 404; the `openrouter/free` live health probe failed with `FORMAT_IGNORED` on 2026-10-13. Automated checks pass (398 tests); no alternate live model will be used.
 - `npm run lint` targets `src` only. Supplemental `npx eslint src test` currently fails on pre-existing `@typescript-eslint/no-this-alias` at `test/fakes/fake-corpus.ts:210`; M3-T06 does not change that fake.
 - ESLint warns that `PluginSettingTab` lacks `getSettingDefinitions()` (Obsidian 1.13+ settings search); declarative settings deferred.
 
@@ -47,8 +40,8 @@ Provider stance: **Phase A = OpenRouter free models**; **Phase B = Ollama only a
 - M1-T15: settings panel uses injectable `SettingsTabHost` (no `obsidian` in `ui/`). Avoided `requestUrl (` in UI strings so `check-no-network` `\brequestUrl\s*\(` stays green.
 - M1-T16: `PluginSettingTab` lives in adapters with injected `mount` callback (adapters-deps forbid importing ui). HealthChecker rebuilt on settings invalidate rather than adding a reset API. System `Clock` inlined in `main.ts`. `minAppVersion` 1.8.7 for `Notice.messageEl`.
 - M1-T18: checklist marks automated CI/build rows done; Obsidian UI rows left for optional clean-vault operator pass (PLAN allows).
-- M2-T02: inject `sliceMs` into `createCorpusStore` (corpus must not import `constants.ts` per dependency-cruiser); PDFs enter DocTable as `pending` without binary read.
-- M2-T03: `bytesCached` is folded-length sum only (F-26 cap open); PDF page arrays deferred to M4. (Indexes now also maintained by CorpusStore as of M2-T10.)
+- M2-T02: inject `sliceMs` into `createCorpusStore` (corpus must not import `constants.ts` per dependency-cruiser).
+- M2-T03: `bytesCached` is folded-length sum only; cache cap remains provisional. Indexes are maintained by CorpusStore.
 - M2-T04: `store.test.ts` keeps local TestMetadata stub for older cases; unique targets only (`count > 0` gates edges).
 - M2-T05: combined NoteDate tests to stay in file budget; title search trims query; date-only ISO uses UTC midnight.
 - M2-T06: tool arg/result caps live as named constants in `args.ts` (tools-deps forbids `constants.ts`); duplicate checks stay outside `invoke` via `createDuplicateTracker`; registry `canonicalKey` returns `null` on invalid args.

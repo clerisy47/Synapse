@@ -1,10 +1,9 @@
 /**
- * TagIndex, TitleIndex, and NoteDateResolver (M2-T05 / DESIGN §4.2 / F-16).
+ * TagIndex and TitleIndex.
  */
 
 import { describe, expect, it } from "vitest";
 import { asVaultPath } from "../core";
-import { createNoteDateResolver, parseFrontmatterDate, resolveNoteDate } from "./note-dates";
 import { createTagIndex } from "./tag-index";
 import { createTitleIndex } from "./title-index";
 
@@ -108,76 +107,5 @@ describe("TitleIndex", () => {
     idx.upsert(A, "Hello", []);
     expect(idx.search("")).toEqual([]);
     expect(idx.search("   ")).toEqual([]);
-  });
-});
-
-describe("NoteDateResolver", () => {
-  it("parseFrontmatterDate accepts ISO date, datetime, and epoch ms", () => {
-    expect(parseFrontmatterDate("2020-01-15")).toBe(Date.UTC(2020, 0, 15));
-    expect(parseFrontmatterDate("2020-01-15T12:00:00Z")).toBe(
-      Date.parse("2020-01-15T12:00:00Z"),
-    );
-    expect(parseFrontmatterDate(1_600_000_000_000)).toBe(1_600_000_000_000);
-  });
-
-  it("parseFrontmatterDate rejects invalid values", () => {
-    expect(parseFrontmatterDate(null)).toBeNull();
-    expect(parseFrontmatterDate(undefined)).toBeNull();
-    expect(parseFrontmatterDate("")).toBeNull();
-    expect(parseFrontmatterDate("not-a-date")).toBeNull();
-    expect(parseFrontmatterDate("2020-13-40")).toBeNull();
-    expect(parseFrontmatterDate(Number.NaN)).toBeNull();
-    expect(parseFrontmatterDate({})).toBeNull();
-  });
-
-  it("mtime mode returns mtime", () => {
-    expect(
-      resolveNoteDate({
-        mtime: 100,
-        frontmatter: { created: "2020-01-01" },
-        mode: "mtime",
-      }),
-    ).toBe(100);
-  });
-
-  it("field mode parses frontmatter date case-insensitively", () => {
-    expect(
-      resolveNoteDate({
-        mtime: 100,
-        frontmatter: { Created: "2020-06-01" },
-        mode: { field: "created" },
-      }),
-    ).toBe(Date.UTC(2020, 5, 1));
-  });
-
-  it("field mode returns null when missing or invalid", () => {
-    expect(
-      resolveNoteDate({
-        mtime: 100,
-        frontmatter: {},
-        mode: { field: "created" },
-      }),
-    ).toBeNull();
-    expect(
-      resolveNoteDate({
-        mtime: 100,
-        frontmatter: { created: "nope" },
-        mode: { field: "created" },
-      }),
-    ).toBeNull();
-    expect(
-      resolveNoteDate({
-        mtime: 100,
-        frontmatter: { created: "2020-01-01" },
-        mode: { field: "" },
-      }),
-    ).toBeNull();
-  });
-
-  it("createNoteDateResolver returns resolveNoteDate", () => {
-    const resolve = createNoteDateResolver();
-    expect(
-      resolve({ mtime: 42, frontmatter: {}, mode: "mtime" }),
-    ).toBe(42);
   });
 });

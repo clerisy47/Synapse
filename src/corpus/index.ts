@@ -37,14 +37,3 @@ export type {
   TitleSearchHit,
 } from "./title-index";
 export { createTitleIndex } from "./title-index";
-
-export type {
-  NoteDateMode,
-  NoteDateResolver,
-  ResolveNoteDateInput,
-} from "./note-dates";
-export {
-  createNoteDateResolver,
-  parseFrontmatterDate,
-  resolveNoteDate,
-} from "./note-dates";

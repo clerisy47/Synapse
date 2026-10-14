@@ -37,12 +37,6 @@ export interface FakeCorpusNoteSeed {
   frontmatter?: Record<string, unknown>;
 }
 
-export interface FakeCorpusPdfSeed {
-  path: string;
-  title?: string;
-  mtime?: number;
-  ctime?: number;
-}
 
 export interface FakeCorpusOptions {
   clock?: Clock;
@@ -59,13 +53,7 @@ function folderOf(path: VaultPath): string {
 
 function defaultTitle(path: VaultPath): string {
   const base = path.includes("/") ? path.slice(path.lastIndexOf("/") + 1) : path;
-  if (base.toLowerCase().endsWith(".md")) {
-    return base.slice(0, -3);
-  }
-  if (base.toLowerCase().endsWith(".pdf")) {
-    return base.slice(0, -4);
-  }
-  return base;
+  return base.toLowerCase().endsWith(".md") ? base.slice(0, -3) : base;
 }
 
 function normalizePath(path: string): VaultPath {
@@ -141,30 +129,6 @@ export class FakeCorpus {
     }
   }
 
-  addPdf(seed: FakeCorpusPdfSeed): VaultPath {
-    const mtime = seed.mtime ?? this.nextMtime++;
-    const ctime = seed.ctime ?? mtime;
-    const path = this.vault.addPdf({
-      path: seed.path,
-      mtime,
-      ctime,
-    });
-    const title = seed.title ?? defaultTitle(path);
-    const meta: DocMeta = {
-      ref: { path, kind: "pdf" },
-      title,
-      aliases: [],
-      tags: [],
-      folder: folderOf(path),
-      mtime,
-      ctime,
-      size: 0,
-      pdf: { pageCount: 1, status: "pending", emptyPages: [] },
-    };
-    this.docs.set(path, meta);
-    this.titleIndex.upsert(path, title, []);
-    return path;
-  }
 
   /**
    * Rebuild link graph from resolvedLinks; excluded/missing targets become unresolved.
@@ -240,10 +204,6 @@ export class FakeCorpus {
         const p = normalizePath(path);
         if (!corpus.docs.has(p)) {
           return null;
-        }
-        const doc = corpus.docs.get(p);
-        if (doc?.ref.kind === "pdf") {
-          return {};
         }
         return corpus.frontmatterByPath.get(p) ?? {};
       },

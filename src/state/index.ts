@@ -1,9 +1,6 @@
 export type {
-  DismissalKind,
-  DismissalRecord,
   ParsePersistedResult,
   PersistedState,
-  ResurfaceMarker,
 } from "./parse";
 export {
   DEFAULT_PERSISTED_STATE,

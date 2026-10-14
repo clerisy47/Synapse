@@ -1,5 +1,5 @@
 /**
- * Folded-text body index (DESIGN §4.1 / §4.2). Notes only; PDFs are M4.
+ * Folded-text body index (DESIGN §4.1 / §4.2). Markdown only.
  * Originals are not stored — callers re-read and cutSnippet for excerpts.
  */
 

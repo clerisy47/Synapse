@@ -15,7 +15,6 @@ import {
 import {
   GET_BACKLINKS_LIMIT_DEFAULT,
   LIST_RECENT_LIMIT_DEFAULT,
-  READ_NOTE_PAGE_DEFAULT,
   SEARCH_BY_TAG_LIMIT_DEFAULT,
   SEARCH_BY_TAG_NESTED_DEFAULT,
   SEARCH_BY_TITLE_LIMIT_DEFAULT,
@@ -138,9 +137,6 @@ function normalizeListRecent(args: ListRecentArgs): Record<string, unknown> {
 
 function normalizeReadNote(args: ReadNoteArgs): Record<string, unknown> {
   const out: Record<string, unknown> = { path: args.path };
-  if (args.page !== READ_NOTE_PAGE_DEFAULT) {
-    out.page = args.page;
-  }
   if (args.window !== undefined) {
     out.window = { start: args.window.start, maxChars: args.window.maxChars };
   }

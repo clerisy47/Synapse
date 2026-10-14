@@ -7,29 +7,11 @@ import { DEFAULT_SETTINGS, parseSettings, type Settings } from "../config";
 import { STATE_SCHEMA_VERSION } from "../constants";
 import { asVaultPath, type VaultPath } from "../core";
 
-export type DismissalKind = "flag" | "resurface";
-
-export interface DismissalRecord {
-  kind: DismissalKind;
-  at: number;
-  active: boolean;
-  sourcePath?: VaultPath;
-  otherPath?: VaultPath;
-  claimHash?: string;
-  groups?: string[];
-}
-
-export interface ResurfaceMarker {
-  lastRunDay: string | null;
-}
-
 export interface PersistedState {
   schemaVersion: number;
   settings: Settings;
   settingsUpdatedAt: number;
-  dismissals: Record<string, DismissalRecord>;
   touchLog: Record<VaultPath, number>;
-  resurface: ResurfaceMarker;
   [unknown: string]: unknown;
 }
 
@@ -42,12 +24,11 @@ const KNOWN_KEYS = new Set([
   "schemaVersion",
   "settings",
   "settingsUpdatedAt",
+  // Retired keys are recognized only to drop them rather than preserve as unknown.
   "dismissals",
   "touchLog",
   "resurface",
 ]);
-
-const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -59,10 +40,6 @@ function cloneSettings(settings: Settings): Settings {
     excludedFolders: [...settings.excludedFolders],
     excludedTags: [...settings.excludedTags],
     qa: { ...settings.qa },
-    contradiction: {
-      onIdle: { ...settings.contradiction.onIdle },
-    },
-    resurface: { ...settings.resurface },
   };
 }
 
@@ -72,9 +49,7 @@ export function defaultPersistedState(): PersistedState {
     schemaVersion: STATE_SCHEMA_VERSION,
     settings: cloneSettings(DEFAULT_SETTINGS),
     settingsUpdatedAt: 0,
-    dismissals: {},
     touchLog: {},
-    resurface: { lastRunDay: null },
   };
 }
 
@@ -100,95 +75,6 @@ function parseSettingsUpdatedAt(value: unknown, warnings: string[]): number {
   return 0;
 }
 
-function parseOptionalPath(
-  value: unknown,
-  field: string,
-  warnings: string[],
-): VaultPath | undefined {
-  if (value === undefined) return undefined;
-  if (typeof value === "string" && value.length > 0) {
-    return asVaultPath(value);
-  }
-  warnings.push(`dismissal.${field} invalid; dropped`);
-  return undefined;
-}
-
-function parseDismissalRecord(
-  key: string,
-  raw: unknown,
-  warnings: string[],
-): DismissalRecord | null {
-  if (!isPlainObject(raw)) {
-    warnings.push(`dismissals[${key}] not an object; skipped`);
-    return null;
-  }
-
-  const kind = raw.kind;
-  if (kind !== "flag" && kind !== "resurface") {
-    warnings.push(`dismissals[${key}].kind invalid; skipped`);
-    return null;
-  }
-
-  if (typeof raw.at !== "number" || !Number.isFinite(raw.at)) {
-    warnings.push(`dismissals[${key}].at invalid; skipped`);
-    return null;
-  }
-
-  if (typeof raw.active !== "boolean") {
-    warnings.push(`dismissals[${key}].active invalid; skipped`);
-    return null;
-  }
-
-  const record: DismissalRecord = {
-    kind,
-    at: Math.trunc(raw.at),
-    active: raw.active,
-  };
-
-  const sourcePath = parseOptionalPath(raw.sourcePath, "sourcePath", warnings);
-  if (sourcePath !== undefined) record.sourcePath = sourcePath;
-
-  const otherPath = parseOptionalPath(raw.otherPath, "otherPath", warnings);
-  if (otherPath !== undefined) record.otherPath = otherPath;
-
-  if (raw.claimHash !== undefined) {
-    if (typeof raw.claimHash === "string") {
-      record.claimHash = raw.claimHash;
-    } else {
-      warnings.push(`dismissals[${key}].claimHash invalid; dropped`);
-    }
-  }
-
-  if (raw.groups !== undefined) {
-    if (Array.isArray(raw.groups)) {
-      record.groups = raw.groups.filter(
-        (g): g is string => typeof g === "string",
-      );
-    } else {
-      warnings.push(`dismissals[${key}].groups invalid; dropped`);
-    }
-  }
-
-  return record;
-}
-
-function parseDismissals(
-  raw: unknown,
-  warnings: string[],
-): Record<string, DismissalRecord> {
-  if (raw === undefined) return {};
-  if (!isPlainObject(raw)) {
-    warnings.push("dismissals invalid; using empty map");
-    return {};
-  }
-  const out: Record<string, DismissalRecord> = {};
-  for (const [key, value] of Object.entries(raw)) {
-    const record = parseDismissalRecord(key, value, warnings);
-    if (record !== null) out[key] = record;
-  }
-  return out;
-}
-
 function parseTouchLog(
   raw: unknown,
   warnings: string[],
@@ -207,22 +93,6 @@ function parseTouchLog(
     }
   }
   return out;
-}
-
-function parseLastRunDay(value: unknown, warnings: string[]): string | null {
-  if (value === null || value === undefined) return null;
-  if (typeof value === "string" && DAY_RE.test(value)) return value;
-  warnings.push("resurface.lastRunDay invalid; using null");
-  return null;
-}
-
-function parseResurface(raw: unknown, warnings: string[]): ResurfaceMarker {
-  if (raw === undefined) return { lastRunDay: null };
-  if (!isPlainObject(raw)) {
-    warnings.push("resurface invalid; using defaults");
-    return { lastRunDay: null };
-  }
-  return { lastRunDay: parseLastRunDay(raw.lastRunDay, warnings) };
 }
 
 /**
@@ -245,9 +115,7 @@ export function parsePersisted(raw: unknown): ParsePersistedResult {
     schemaVersion: parseSchemaVersion(raw.schemaVersion, warnings),
     settings: parseSettings(raw.settings ?? DEFAULT_SETTINGS),
     settingsUpdatedAt: parseSettingsUpdatedAt(raw.settingsUpdatedAt, warnings),
-    dismissals: parseDismissals(raw.dismissals, warnings),
     touchLog: parseTouchLog(raw.touchLog, warnings),
-    resurface: parseResurface(raw.resurface, warnings),
   };
 
   for (const [key, value] of Object.entries(raw)) {

@@ -26,10 +26,8 @@ async function flushMicrotasks(): Promise<void> {
 }
 
 describe("PRIORITY", () => {
-  it("orders qa/health before contradiction before resurface", () => {
-    expect(PRIORITY.qa).toBeLessThan(PRIORITY.contradiction);
-    expect(PRIORITY.health).toBe(PRIORITY.qa);
-    expect(PRIORITY.contradiction).toBeLessThan(PRIORITY.resurface);
+  it("prioritizes interactive qa over health checks", () => {
+    expect(PRIORITY.qa).toBeLessThan(PRIORITY.health);
   });
 });
 
@@ -81,7 +79,7 @@ describe("createJobQueue", () => {
     let attempts = 0;
 
     const bg = q.submit({
-      kind: "contradiction",
+      kind: "health",
       label: "Background",
       async run(ctx: JobContext) {
         attempts++;
@@ -138,9 +136,9 @@ describe("createJobQueue", () => {
     let runs = 0;
 
     const first = q.submit({
-      kind: "contradiction",
+      kind: "health",
       label: "First",
-      dedupeKey: "contradiction:note",
+      dedupeKey: "health:check",
       async run() {
         runs++;
         await hold.promise;
@@ -150,9 +148,9 @@ describe("createJobQueue", () => {
 
     await flushMicrotasks();
     const second = q.submit({
-      kind: "contradiction",
+      kind: "health",
       label: "Second",
-      dedupeKey: "contradiction:note",
+      dedupeKey: "health:check",
       async run() {
         runs++;
         return ok(2);
@@ -227,7 +225,7 @@ describe("createJobQueue", () => {
     let attempts = 0;
 
     const bg = q.submit({
-      kind: "contradiction",
+      kind: "health",
       label: "Timed",
       async run(ctx) {
         attempts++;
@@ -303,7 +301,7 @@ describe("createJobQueue", () => {
     const hold = defer();
 
     const a = q.submit({
-      kind: "resurface",
+      kind: "health",
       label: "A",
       async run() {
         await hold.promise;
@@ -311,7 +309,7 @@ describe("createJobQueue", () => {
       },
     });
     const b = q.submit({
-      kind: "resurface",
+      kind: "health",
       label: "B",
       async run() {
         return ok(2);

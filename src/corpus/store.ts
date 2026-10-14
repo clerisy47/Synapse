@@ -50,7 +50,7 @@ export interface CorpusStore {
   reader(): CorpusReader;
   session(): SessionTracker;
   indexes(): CorpusIndexes;
-  /** Frontmatter for an indexed note; `{}` for PDF; null when not indexed. */
+  /** Frontmatter for an indexed note; null when not indexed. */
   getFrontmatter(path: VaultPath): Record<string, unknown> | null;
   /** Unresolved outbound link count (targets not in DocTable). */
   unresolvedCount(path: VaultPath): number;
@@ -103,41 +103,17 @@ function docFromNote(stat: FileStat, meta: NoteMetadata): DocMeta {
   };
 }
 
-function docFromPdf(stat: FileStat): DocMeta {
-  return {
-    ref: { path: stat.path, kind: "pdf" },
-    title: basenameTitle(stat.path),
-    aliases: [],
-    tags: [],
-    folder: parentFolder(stat.path),
-    mtime: stat.mtime,
-    ctime: stat.ctime,
-    size: stat.size,
-    pdf: { pageCount: 0, status: "pending", emptyPages: [] },
-  };
-}
-
 function recount(
   docs: Map<VaultPath, DocMeta>,
-  totals: { totalNotes: number; pdfTotal: number },
+  totals: { totalNotes: number },
   phase: CorpusStatus["phase"],
   bytesCached: number,
 ): CorpusStatus {
-  let indexedNotes = 0;
-  let pdfIndexed = 0;
-  for (const doc of docs.values()) {
-    if (doc.ref.kind === "note") {
-      indexedNotes++;
-    } else {
-      pdfIndexed++;
-    }
-  }
+  const indexedNotes = docs.size;
   return {
     phase,
     indexedNotes,
     totalNotes: totals.totalNotes,
-    pdfIndexed,
-    pdfTotal: totals.pdfTotal,
     bytesCached,
   };
 }
@@ -199,7 +175,7 @@ export function createCorpusStore(
   const statusObs = createObservable(emptyCorpusStatus());
   const reader = createCorpusReader({ docs, status: statusObs });
   const disposables: Disposable[] = [];
-  const totals = { totalNotes: 0, pdfTotal: 0 };
+  const totals = { totalNotes: 0 };
 
   let disposed = false;
   let warmAbort: AbortController | null = null;
@@ -255,35 +231,14 @@ export function createCorpusStore(
     frontmatterByPath.set(key, { ...meta.frontmatter });
   }
 
-  function indexPdf(key: VaultPath, doc: DocMeta): void {
-    textIndex.remove(key);
-    tagIndex.remove(key);
-    frontmatterByPath.delete(key);
-    titleIndex.upsert(key, doc.title, []);
-  }
-
   async function consider(path: VaultPath): Promise<void> {
     if (disposed) {
       return;
     }
     const key = asVaultPath(path);
     const stat = await vault.stat(key);
-    if (!stat) {
+    if (!stat || !key.toLowerCase().endsWith(".md") || stat.kind !== "note") {
       removeDoc(key);
-      return;
-    }
-
-    if (stat.kind === "pdf") {
-      const decision = exclusion.decide(key, null, null, { kind: "pdf" });
-      if (decision === "excluded") {
-        removeDoc(key);
-        return;
-      }
-      const doc = docFromPdf(stat);
-      docs.set(key, doc);
-      indexPdf(key, doc);
-      rebuildLinks();
-      publish();
       return;
     }
 
@@ -310,10 +265,8 @@ export function createCorpusStore(
   }
 
   function adjustTotalsForStat(stat: FileStat, delta: 1 | -1): void {
-    if (stat.kind === "note") {
+    if (stat.kind === "note" && stat.path.toLowerCase().endsWith(".md")) {
       totals.totalNotes = Math.max(0, totals.totalNotes + delta);
-    } else {
-      totals.pdfTotal = Math.max(0, totals.pdfTotal + delta);
     }
   }
 
@@ -327,15 +280,11 @@ export function createCorpusStore(
       if (existing) {
         if (existing.ref.kind === "note") {
           totals.totalNotes = Math.max(0, totals.totalNotes - 1);
-        } else {
-          totals.pdfTotal = Math.max(0, totals.pdfTotal - 1);
         }
       } else {
         const lower = path.toLowerCase();
         if (lower.endsWith(".md")) {
           totals.totalNotes = Math.max(0, totals.totalNotes - 1);
-        } else if (lower.endsWith(".pdf")) {
-          totals.pdfTotal = Math.max(0, totals.pdfTotal - 1);
         }
       }
       removeDoc(path);
@@ -349,10 +298,7 @@ export function createCorpusStore(
       if (was) {
         docs.delete(from);
         clearSecondary(from);
-        if (
-          (was.ref.kind === "note" && !to.toLowerCase().endsWith(".md")) ||
-          (was.ref.kind === "pdf" && !to.toLowerCase().endsWith(".pdf"))
-        ) {
+        if (!to.toLowerCase().endsWith(".md")) {
           adjustTotalsForStat(
             {
               path: from,
@@ -438,9 +384,6 @@ export function createCorpusStore(
       if (!doc) {
         return null;
       }
-      if (doc.ref.kind === "pdf") {
-        return {};
-      }
       return frontmatterByPath.get(key) ?? {};
     },
 
@@ -482,17 +425,9 @@ export function createCorpusStore(
           return;
         }
 
-        let noteTotal = 0;
-        let pdfTotal = 0;
-        for (const f of files) {
-          if (f.kind === "note") {
-            noteTotal++;
-          } else {
-            pdfTotal++;
-          }
-        }
-        totals.totalNotes = noteTotal;
-        totals.pdfTotal = pdfTotal;
+        totals.totalNotes = files.filter(
+          (f) => f.kind === "note" && f.path.toLowerCase().endsWith(".md"),
+        ).length;
         publish();
 
         let lastYield = clock.mono();

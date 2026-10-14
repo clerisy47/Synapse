@@ -1,5 +1,5 @@
 /**
- * Obsidian VaultPort — .md / .pdf only (DESIGN §5.2 / AC-M2.2).
+ * Obsidian VaultPort — Markdown only (DESIGN §5.2 / AC-M2.2).
  */
 
 import { TFile, type App, type TAbstractFile } from "obsidian";
@@ -28,7 +28,6 @@ export type VaultAdapterSurface = {
   getFiles(): VaultFileLike[];
   getAbstractFileByPath(path: string): VaultFileLike | null;
   read(file: VaultFileLike): Promise<string>;
-  readBinary(file: VaultFileLike): Promise<ArrayBuffer>;
   on(
     event: VaultEventName,
     cb: (file: VaultFileLike, oldPath?: string) => void,
@@ -39,9 +38,6 @@ function kindFromExtension(ext: string): SourceKind | null {
   const lower = ext.toLowerCase();
   if (lower === "md") {
     return "note";
-  }
-  if (lower === "pdf") {
-    return "pdf";
   }
   return null;
 }
@@ -107,18 +103,6 @@ export function createObsidianVault(vault: VaultAdapterSurface): VaultPort {
         throw new Error(`ObsidianVault: readText requires a note: ${key}`);
       }
       return vault.read(file);
-    },
-
-    async readBinary(path: VaultPath): Promise<ArrayBuffer> {
-      const key = normalizePath(path);
-      const file = vault.getAbstractFileByPath(key);
-      if (!file) {
-        throw new Error(`ObsidianVault: missing path: ${key}`);
-      }
-      if (kindFromExtension(file.extension) !== "pdf") {
-        throw new Error(`ObsidianVault: readBinary requires a pdf: ${key}`);
-      }
-      return vault.readBinary(file);
     },
 
     onChange(cb: (e: VaultEvent) => void): Disposable {
@@ -189,13 +173,6 @@ export function createObsidianVaultFromApp(app: App): VaultPort {
         throw new Error(`ObsidianVault: missing path: ${file.path}`);
       }
       return v.read(tfile);
-    },
-    readBinary(file: VaultFileLike): Promise<ArrayBuffer> {
-      const tfile = resolveFile(file.path);
-      if (!tfile) {
-        throw new Error(`ObsidianVault: missing path: ${file.path}`);
-      }
-      return v.readBinary(tfile);
     },
     on(event, cb): Disposable {
       // Obsidian overloads create/modify/delete vs rename; widen via cast.

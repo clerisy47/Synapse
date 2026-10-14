@@ -4,7 +4,6 @@ import {
   estimateTokens,
   foldCase,
   hashPathForLog,
-  normalizeClaimText,
   sha1Hex,
   stableStringify,
 } from "./index";
@@ -51,12 +50,6 @@ describe("foldCase", () => {
       const s = randomString(80);
       expect(foldCase(s).length).toBe(s.length);
     }
-  });
-});
-
-describe("normalizeClaimText", () => {
-  it("collapses whitespace and lowercases", () => {
-    expect(normalizeClaimText("  Foo   BAR  ")).toBe("foo bar");
   });
 });
 

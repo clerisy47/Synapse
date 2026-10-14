@@ -56,10 +56,6 @@ export function createGetLinksHandler(deps: CoreToolDeps): ToolHandler<"get_link
       if (!doc) {
         return notFound();
       }
-      if (doc.ref.kind === "pdf") {
-        results.push({ path, outgoing: [], unresolvedCount: 0 });
-        continue;
-      }
       results.push({
         path,
         outgoing: refsFromPaths(deps, deps.outgoing(path)),

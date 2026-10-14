@@ -45,7 +45,6 @@ export const LIST_RECENT_LIMIT_MAX = 20;
 export const LIST_RECENT_LIMIT_DEFAULT = 20;
 
 export const READ_NOTE_MAX_CHARS = 4000;
-export const READ_NOTE_PAGE_DEFAULT = 1;
 
 export const TOOL_NAMES = [
   "search_text",
@@ -113,7 +112,6 @@ export interface ListRecentArgs {
 
 export interface ReadNoteArgs {
   path: VaultPath;
-  page: number;
   window?: { start: number; maxChars: number };
 }
 
@@ -213,7 +211,7 @@ function parsePaths(value: unknown): Result<VaultPath[]> {
 }
 
 function parseSourceKind(value: unknown): Result<SourceKind> {
-  if (value === "note" || value === "pdf") {
+  if (value === "note") {
     return ok(value);
   }
   return err(invalid("invalid source kind"));
@@ -425,14 +423,7 @@ function parseReadNote(rec: Record<string, unknown>): Result<ReadNoteArgs> {
     return err(invalid("missing path"));
   }
   const path = asVaultPath(rec.path.trim());
-  let page = READ_NOTE_PAGE_DEFAULT;
-  if (rec.page !== undefined) {
-    if (typeof rec.page !== "number" || !Number.isInteger(rec.page) || rec.page < 1) {
-      return err(invalid("page must be a positive integer"));
-    }
-    page = rec.page;
-  }
-  const args: ReadNoteArgs = { path, page };
+  const args: ReadNoteArgs = { path };
   if (rec.window !== undefined) {
     if (rec.window === null || typeof rec.window !== "object" || Array.isArray(rec.window)) {
       return err(invalid("window must be an object"));

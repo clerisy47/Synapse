@@ -18,14 +18,12 @@ export type VaultEvent =
   | { type: "create" | "modify" | "delete"; path: VaultPath }
   | { type: "rename"; from: VaultPath; to: VaultPath };
 
-/** `.md` and `.pdf` only. */
+/** Markdown only. */
 export interface VaultPort {
   listFiles(): Promise<FileStat[]>;
   stat(path: VaultPath): Promise<FileStat | null>;
   /** Notes. */
   readText(path: VaultPath): Promise<string>;
-  /** PDFs. */
-  readBinary(path: VaultPath): Promise<ArrayBuffer>;
   onChange(cb: (e: VaultEvent) => void): Disposable;
 }
 
@@ -62,21 +60,8 @@ export interface StoragePort {
   onExternalDataChange(cb: () => void): Disposable;
 }
 
-export interface PdfDocHandle {
-  pageCount: number;
-  pageText(n: number): Promise<string>;
-  destroy(): Promise<void>;
-}
-
-export interface PdfJsPort {
-  version(): string;
-  /** Throws PDF_ENCRYPTED | PDF_CORRUPT | PDFJS_UNAVAILABLE. */
-  open(bytes: ArrayBuffer): Promise<PdfDocHandle>;
-}
-
 export type NavTarget = {
   path: VaultPath;
-  page?: number;
   line?: number;
   start?: number;
   end?: number;

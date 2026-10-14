@@ -20,9 +20,6 @@ export type ErrorCode =
   | "TOOL_ARGS_INVALID"
   | "TOOL_DUPLICATE_CALL"
   | "NOT_FOUND"
-  | "PDF_ENCRYPTED"
-  | "PDF_CORRUPT"
-  | "PDFJS_UNAVAILABLE"
   | "ACTIVE_NOTE_EXCLUDED"
   | "STORAGE_WRITE_FAILED"
   | "INTERNAL";
@@ -52,9 +49,6 @@ const DEFAULT_RETRYABLE: Record<ErrorCode, boolean> = {
   TOOL_ARGS_INVALID: false,
   TOOL_DUPLICATE_CALL: false,
   NOT_FOUND: false,
-  PDF_ENCRYPTED: false,
-  PDF_CORRUPT: false,
-  PDFJS_UNAVAILABLE: false,
   ACTIVE_NOTE_EXCLUDED: false,
   STORAGE_WRITE_FAILED: false,
   INTERNAL: false,

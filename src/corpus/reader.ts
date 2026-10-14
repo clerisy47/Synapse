@@ -8,8 +8,6 @@ export interface CorpusStatus {
   phase: "warming" | "ready";
   indexedNotes: number;
   totalNotes: number;
-  pdfIndexed: number;
-  pdfTotal: number;
   bytesCached: number;
 }
 
@@ -61,8 +59,6 @@ export function emptyCorpusStatus(): CorpusStatus {
     phase: "warming",
     indexedNotes: 0,
     totalNotes: 0,
-    pdfIndexed: 0,
-    pdfTotal: 0,
     bytesCached: 0,
   };
 }

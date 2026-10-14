@@ -36,7 +36,8 @@ describe("OpenRouter live probe", () => {
         },
         new AbortController().signal,
       );
-      expect(r.ok).toBe(true);
+      const failure = r.ok ? undefined : `${r.error.code} (${r.error.remediation ?? "no remediation"})`;
+      expect(r.ok, failure).toBe(true);
     },
     60_000,
   );

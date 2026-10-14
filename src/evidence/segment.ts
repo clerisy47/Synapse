@@ -15,7 +15,6 @@ export const EXCERPT_CHARS_MAX = 600;
 
 export interface SegmentOptions {
   bodyStart: number;
-  page?: number;
   /** Max chars per excerpt; default EXCERPT_CHARS_MAX. */
   maxChars?: number;
   ref: SourceRef;
@@ -28,7 +27,7 @@ interface Span {
 }
 
 /**
- * Segment note/page text into paragraph-aligned excerpts (200–600 chars).
+ * Segment Markdown text into paragraph-aligned excerpts (200–600 chars).
  * Offsets are absolute into `text`; body starts at `o.bodyStart`.
  * Async so each excerpt can carry a SHA-1 `textHash` (DESIGN drift from sync stub).
  */
@@ -58,9 +57,6 @@ export async function segment(text: string, o: SegmentOptions): Promise<Excerpt[
       start: win.start,
       end: win.end,
     };
-    if (o.page !== undefined) {
-      locator.page = o.page;
-    }
     if (heading !== undefined) {
       locator.heading = heading;
     }

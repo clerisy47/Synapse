@@ -2,7 +2,7 @@
  * CorpusStore warm + exclusion-at-ingest (M2-T02).
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   asVaultPath,
   type Clock,
@@ -239,20 +239,16 @@ describe("CorpusStore", () => {
     store.dispose();
   });
 
-  it("PDF folder exclude vs allow-pending", async () => {
-    const { vault, store } = setup({ folders: ["Secret"] });
-    vault.addPdf({ path: "Secret/a.pdf" });
-    vault.addPdf({ path: "Papers/b.pdf" });
-
+  it("rejects non-Markdown file stats before metadata or text ingestion", async () => {
+    const vault = new FakeVault();
+    const read = vi.spyOn(vault, "readText");
+    vi.spyOn(vault, "listFiles").mockResolvedValue([{ path: asVaultPath("Papers/b.pdf"), kind: "note", mtime: 1, ctime: 1, size: 1 }]);
+    vi.spyOn(vault, "stat").mockResolvedValue({ path: asVaultPath("Papers/b.pdf"), kind: "note", mtime: 1, ctime: 1, size: 1 });
+    const store = createCorpusStore({ vault, metadata: new TestMetadata(), clock: new FakeClock(), sliceMs: 10, exclusion: createExclusionPolicy({ folders: [], tags: [], frontmatterKey: EXCLUDE_KEY }) });
     await store.warm();
-    const reader = store.reader();
-    expect(reader.has(asVaultPath("Secret/a.pdf"))).toBe(false);
-    const pdf = reader.get(asVaultPath("Papers/b.pdf"));
-    expect(pdf).not.toBeNull();
-    expect(pdf!.ref.kind).toBe("pdf");
-    expect(pdf!.pdf?.status).toBe("pending");
-    expect(reader.status().pdfTotal).toBe(2);
-    expect(reader.status().pdfIndexed).toBe(1);
+    expect(store.reader().has(asVaultPath("Papers/b.pdf"))).toBe(false);
+    expect(store.status.get().totalNotes).toBe(0);
+    expect(read).not.toHaveBeenCalled();
     store.dispose();
   });
 

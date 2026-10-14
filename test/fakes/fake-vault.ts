@@ -1,5 +1,5 @@
 /**
- * In-memory VaultPort for CI (DESIGN §5.2 / §9). `.md` and `.pdf` only.
+ * In-memory VaultPort for CI (DESIGN §5.2 / §9). Markdown only.
  */
 
 import {
@@ -19,17 +19,10 @@ export interface FakeVaultNoteSeed {
   ctime?: number;
 }
 
-export interface FakeVaultPdfSeed {
-  path: string;
-  bytes?: ArrayBuffer;
-  mtime?: number;
-  ctime?: number;
-}
 
 interface VaultEntry {
   kind: SourceKind;
   text?: string;
-  bytes?: ArrayBuffer;
   mtime: number;
   ctime: number;
 }
@@ -39,21 +32,11 @@ function normalizePath(path: string): VaultPath {
 }
 
 function kindFromPath(path: string): SourceKind | null {
-  const lower = path.toLowerCase();
-  if (lower.endsWith(".md")) {
-    return "note";
-  }
-  if (lower.endsWith(".pdf")) {
-    return "pdf";
-  }
-  return null;
+  return path.toLowerCase().endsWith(".md") ? "note" : null;
 }
 
 function byteLength(entry: VaultEntry): number {
-  if (entry.kind === "note") {
-    return new TextEncoder().encode(entry.text ?? "").byteLength;
-  }
-  return entry.bytes?.byteLength ?? 0;
+  return new TextEncoder().encode(entry.text ?? "").byteLength;
 }
 
 function toStat(path: VaultPath, entry: VaultEntry): FileStat {
@@ -82,21 +65,6 @@ export class FakeVault implements VaultPort {
     return path;
   }
 
-  addPdf(seed: FakeVaultPdfSeed): VaultPath {
-    const path = normalizePath(seed.path);
-    if (kindFromPath(path) !== "pdf") {
-      throw new Error(`FakeVault: pdf path must end with .pdf: ${seed.path}`);
-    }
-    const mtime = seed.mtime ?? this.clock++;
-    const ctime = seed.ctime ?? mtime;
-    this.files.set(path, {
-      kind: "pdf",
-      bytes: seed.bytes ?? new ArrayBuffer(0),
-      mtime,
-      ctime,
-    });
-    return path;
-  }
 
   /** Remove a seeded path without emitting (tests control events explicitly). */
   remove(path: string): void {
@@ -135,17 +103,6 @@ export class FakeVault implements VaultPort {
     return entry.text ?? "";
   }
 
-  async readBinary(path: VaultPath): Promise<ArrayBuffer> {
-    const key = normalizePath(path);
-    const entry = this.files.get(key);
-    if (!entry) {
-      throw new Error(`FakeVault: missing path: ${key}`);
-    }
-    if (entry.kind !== "pdf") {
-      throw new Error(`FakeVault: readBinary requires a pdf: ${key}`);
-    }
-    return entry.bytes ?? new ArrayBuffer(0);
-  }
 
   onChange(cb: (e: VaultEvent) => void): Disposable {
     this.listeners.add(cb);

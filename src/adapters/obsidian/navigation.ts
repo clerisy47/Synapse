@@ -5,17 +5,13 @@ import type { NavigationPort, NavTarget } from "../../core";
 type Range = { start: number; end: number };
 export type NavigationSurface = {
   openNote(path: string): Promise<Pick<Editor, "getValue" | "offsetToPos" | "setSelection" | "scrollIntoView"> | null>;
-  openPdf(path: string, page?: number): Promise<void>;
 };
 export type ResolveNavigationQuote = (text: string, quote: string, hintStart: number) => Range | null;
 
 export function createObsidianNavigation(surface: NavigationSurface, resolve: ResolveNavigationQuote): NavigationPort {
   return {
     async openAt(target: NavTarget): Promise<void> {
-      if (target.path.toLowerCase().endsWith(".pdf")) {
-        await surface.openPdf(target.path, target.page);
-        return;
-      }
+      if (!target.path.toLowerCase().endsWith(".md")) return;
       const editor = await surface.openNote(target.path);
       if (!editor) return;
       const text = editor.getValue();
@@ -41,12 +37,6 @@ export function createObsidianNavigationFromApp(app: App, resolve: ResolveNaviga
       await leaf.openFile(file, { active: true, state: { mode: "source" } });
       if (!(leaf.view instanceof MarkdownView) || leaf.view.file?.path !== path) return null;
       return leaf.view.editor;
-    },
-    async openPdf(path, page) {
-      const file = app.vault.getAbstractFileByPath(path);
-      if (!(file instanceof TFile) || file.extension.toLowerCase() !== "pdf") return;
-      const fragment = page !== undefined && Number.isInteger(page) && page > 0 ? `#page=${page}` : "";
-      await app.workspace.openLinkText(`${path}${fragment}`, "", false);
     },
   }, resolve);
 }
