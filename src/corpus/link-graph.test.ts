@@ -11,7 +11,7 @@ const A = asVaultPath("notes/a.md");
 const B = asVaultPath("notes/b.md");
 const C = asVaultPath("notes/c.md");
 const EX = asVaultPath("private/secret.md");
-const PDF = asVaultPath("docs/spec.pdf");
+const Markdown = asVaultPath("docs/spec.md");
 
 function allowed(...paths: string[]): Set<string> {
   return new Set(paths.map((p) => asVaultPath(p)));
@@ -81,17 +81,17 @@ describe("LinkGraph", () => {
     expect(g.incoming(asVaultPath("missing.md"))).toEqual([]);
   });
 
-  it("includes allowed PDF targets (notes → PDFs)", () => {
+  it("includes allowed Markdown targets (notes → Markdowns)", () => {
     const g = createLinkGraph();
     g.rebuild(
       {
-        [A]: { [PDF]: 1 },
+        [A]: { [Markdown]: 1 },
       },
-      allowed(A, PDF),
+      allowed(A, Markdown),
     );
 
-    expect(g.outgoing(A)).toEqual([PDF]);
-    expect(g.incoming(PDF)).toEqual([A]);
+    expect(g.outgoing(A)).toEqual([Markdown]);
+    expect(g.incoming(Markdown)).toEqual([A]);
   });
 
   it("updateSource replaces outbound and repairs inverse", () => {

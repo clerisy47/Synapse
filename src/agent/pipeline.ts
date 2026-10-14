@@ -88,8 +88,6 @@ export type QaIndexStatus = {
   phase: "warming" | "ready";
   indexedNotes: number;
   totalNotes: number;
-  pdfIndexed: number;
-  pdfTotal: number;
   bytesCached: number;
 };
 
@@ -570,7 +568,6 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
         const maxChars = span + 2 * READ_PAD;
         const rawArgs = {
           path: ex.ref.path,
-          page: 1,
           window: { start, maxChars },
         };
         const hop = await invokeToolHop({

@@ -24,8 +24,6 @@ function baseState(partial: Partial<PersistedState> = {}): PersistedState {
     settings: partial.settings
       ? { ...DEFAULT_SETTINGS, ...partial.settings }
       : defaultPersistedState().settings,
-    resurface: partial.resurface ?? { lastRunDay: null },
-    dismissals: partial.dismissals ?? {},
     touchLog: partial.touchLog ?? {},
   };
 }
@@ -89,7 +87,7 @@ describe("parsePersisted", () => {
     for (const raw of [null, undefined, 42, "x", []]) {
       const { state, warnings } = parsePersisted(raw);
       expect(state.settings.model).toBe(DEFAULT_SETTINGS.model);
-      expect(state.dismissals).toEqual({});
+      expect(state.touchLog).toEqual({});
       if (raw !== null && raw !== undefined) {
         expect(warnings.length).toBeGreaterThan(0);
       }
@@ -120,30 +118,19 @@ describe("parsePersisted", () => {
     expect(state["x-from-a-newer-version"]).toEqual({ kept: true });
   });
 
-  it("parses dismissals and touchLog; skips bad records", () => {
-    const { state, warnings } = parsePersisted({
-      dismissals: {
-        "flag:abc:Notes/A.md": {
-          kind: "flag",
-          at: 100,
-          active: true,
-          sourcePath: "Journal/x.md",
-          otherPath: "Notes/A.md",
-          claimHash: "abc",
-        },
-        bad: { kind: "nope", at: 1, active: true },
-      },
-      touchLog: {
-        "Notes/A.md": 200,
-        bad: "x",
-      },
-      resurface: { lastRunDay: "2026-10-02" },
-    });
-    expect(state.dismissals["flag:abc:Notes/A.md"]?.active).toBe(true);
-    expect(state.dismissals.bad).toBeUndefined();
-    expect(state.touchLog[asVaultPath("Notes/A.md")]).toBe(200);
-    expect(state.resurface.lastRunDay).toBe("2026-10-02");
-    expect(warnings.some((w) => w.includes("dismissals[bad]"))).toBe(true);
+  it("drops retired state and settings while retaining valid activity and future keys", () => {
+    const raw = { dismissals: { obsolete: { kind: "flag", at: 1, active: true } },
+      resurface: { lastRunDay: "2026-10-02" }, settings: { ...DEFAULT_SETTINGS, contradiction: { onIdle: { enabled: true } }, resurface: { enabled: true } },
+      touchLog: { "Notes/A.md": 200, bad: "x" }, future: { retained: true } };
+    const original = JSON.stringify(raw);
+    const { state, warnings } = parsePersisted(raw);
+    expect(state).not.toHaveProperty("dismissals");
+    expect(state).not.toHaveProperty("resurface");
+    expect(state.settings).toEqual(DEFAULT_SETTINGS);
+    expect(state.touchLog).toEqual({ "Notes/A.md": 200 });
+    expect(state.future).toEqual({ retained: true });
+    expect(warnings).toEqual(["touchLog[bad] invalid; skipped"]);
+    expect(JSON.stringify(raw)).toBe(original);
   });
 
   it("keeps newer schemaVersion without downgrade", () => {
@@ -166,19 +153,13 @@ describe("mergeState", () => {
     expect(mergeState(b, a).settings.model).toBe("b-model");
   });
 
-  it("LWW dismissals on at (tombstones win when later)", () => {
-    const key = "flag:x:Notes/A.md";
-    const a = baseState({
-      dismissals: {
-        [key]: { kind: "flag", at: 100, active: true, claimHash: "x" },
-      },
-    });
-    const b = baseState({
-      dismissals: {
-        [key]: { kind: "flag", at: 200, active: false, claimHash: "x" },
-      },
-    });
-    expect(mergeState(a, b).dismissals[key]?.active).toBe(false);
+  it("does not resurrect retired keys during sync merge", () => {
+    const a = baseState({ dismissals: { old: true }, resurface: { lastRunDay: "2026-01-01" } });
+    const b = baseState({ settingsUpdatedAt: 2, resurface: { lastRunDay: "2026-10-02" } });
+    for (const merged of [mergeState(a, b), mergeState(b, a)]) {
+      expect(merged).not.toHaveProperty("dismissals");
+      expect(merged).not.toHaveProperty("resurface");
+    }
   });
 
   it("touchLog takes max per path", () => {
@@ -188,11 +169,15 @@ describe("mergeState", () => {
     expect(mergeState(a, b).touchLog[p]).toBe(30);
   });
 
-  it("resurface.lastRunDay takes lexicographic max", () => {
-    const a = baseState({ resurface: { lastRunDay: "2026-01-01" } });
-    const b = baseState({ resurface: { lastRunDay: "2026-10-02" } });
-    expect(mergeState(a, b).resurface.lastRunDay).toBe("2026-10-02");
-    expect(mergeState(a, baseState()).resurface.lastRunDay).toBe("2026-01-01");
+  it("clones settings and activity without sharing mutable maps", () => {
+    const a = baseState({ touchLog: { [asVaultPath("A.md")]: 1 } });
+    const merged = mergeState(a, baseState());
+    merged.settings.qa.maxHops = 9;
+    merged.settings.excludedFolders.push("Private");
+    merged.touchLog[asVaultPath("A.md")] = 20;
+    expect(a.settings.qa.maxHops).toBe(DEFAULT_SETTINGS.qa.maxHops);
+    expect(a.settings.excludedFolders).toEqual([]);
+    expect(a.touchLog[asVaultPath("A.md")]).toBe(1);
   });
 
   it("unknown keys LWW on settingsUpdatedAt", () => {
@@ -252,6 +237,8 @@ describe("StateStore", () => {
     await store.flush();
     const saved = storage.data as Record<string, unknown>;
     expect(saved.touchLog).toMatchObject({ "Notes/B.md": 42 });
+    expect(saved).not.toHaveProperty("dismissals");
+    expect(saved).not.toHaveProperty("resurface");
     // No claim/excerpt/body keys in known shape
     const json = JSON.stringify(saved);
     expect(json).not.toMatch(/excerpt|claimText|noteText|"body"/i);
@@ -271,7 +258,7 @@ describe("StateStore", () => {
       schedule: testSchedule,
     });
     store.update((s) => {
-      s.resurface.lastRunDay = "2026-10-07";
+      s.touchLog[asVaultPath("Note.md")] = 7;
     });
     expect(saveSpy).not.toHaveBeenCalled();
     await store.flush();
@@ -309,7 +296,7 @@ describe("StateStore", () => {
     expect(store.get().settings.model).toBe("from-disk");
     expect(store.get().touchLog[asVaultPath("A.md")]).toBe(10);
     expect(store.get().touchLog[asVaultPath("B.md")]).toBe(20);
-    expect(store.get().resurface.lastRunDay).toBe("2026-10-03");
+    expect(store.get()).not.toHaveProperty("resurface");
     store.dispose();
   });
 
@@ -335,13 +322,13 @@ describe("StateStore", () => {
     const s = store.get();
     expect(s.settings.model).toBe("keep-me");
     expect(s.settingsUpdatedAt).toBe(50);
-    expect(s.dismissals).toEqual({});
+    expect(s).not.toHaveProperty("dismissals");
     expect(s.touchLog).toEqual({});
-    expect(s.resurface.lastRunDay).toBeNull();
+    expect(s).not.toHaveProperty("resurface");
     expect(s.extra).toBeUndefined();
     const saved = storage.data as PersistedState;
     expect(saved.settings.model).toBe("keep-me");
-    expect(saved.dismissals).toEqual({});
+    expect(saved).not.toHaveProperty("dismissals");
     store.dispose();
   });
 });
@@ -350,12 +337,7 @@ function randomStates(n: number): PersistedState[] {
   const out: PersistedState[] = [];
   for (let i = 0; i < n; i++) {
     const stamp = (i * 17) % 50;
-    const day =
-      i % 5 === 0
-        ? null
-        : `2026-${String((i % 12) + 1).padStart(2, "0")}-${String((i % 28) + 1).padStart(2, "0")}`;
     const path = asVaultPath(`Notes/n${i % 7}.md`);
-    const key = `flag:${(i % 3).toString(16)}:${path}`;
     const state = baseState({
       schemaVersion: 1 + (i % 2),
       settingsUpdatedAt: stamp,
@@ -364,20 +346,7 @@ function randomStates(n: number): PersistedState[] {
         model: i % 2 === 0 ? "model-a" : "model-b",
         numCtx: 2048 + (i % 3) * 1024,
       },
-      dismissals:
-        i % 4 === 0
-          ? {}
-          : {
-              [key]: {
-                kind: "flag",
-                at: stamp + (i % 5),
-                active: i % 2 === 0,
-                claimHash: (i % 3).toString(16),
-                otherPath: path,
-              },
-            },
       touchLog: { [path]: 1000 + i },
-      resurface: { lastRunDay: day },
     });
     if (i % 3 === 0) state[`ext-${i % 2}`] = { v: i };
     out.push(state);

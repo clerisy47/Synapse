@@ -9,7 +9,7 @@ function setup(text: string) {
     offsetToPos: (offset: number) => ({ line: text.slice(0, offset).split("\n").length - 1, ch: offset - (text.lastIndexOf("\n", offset - 1) + 1) }),
     setSelection: vi.fn(), scrollIntoView: vi.fn(),
   };
-  const surface = { openNote: vi.fn(async () => editor), openPdf: vi.fn(async () => {}) };
+  const surface = { openNote: vi.fn(async () => editor) };
   const navigation = createObsidianNavigation(surface, (current, quote, hintStart) =>
     resolveAnchor(current, { quote, hintStart, hintLine: 0, textHash: "" }));
   return { editor, surface, navigation };
@@ -34,10 +34,9 @@ describe("citation navigation", () => {
     await navigation.openAt({ path: asVaultPath("Note.md"), quote: "vanished", start: 0, end: 8 });
     expect(editor.setSelection).not.toHaveBeenCalled();
   });
-  it("forwards PDF page targets without using a markdown editor", async () => {
+  it("rejects non-Markdown navigation targets", async () => {
     const { navigation, surface } = setup("");
-    await navigation.openAt({ path: asVaultPath("Paper.pdf"), page: 3 });
-    expect(surface.openPdf).toHaveBeenCalledWith("Paper.pdf", 3);
+    for (const path of ["Paper.pdf", "image.png"]) await navigation.openAt({ path: asVaultPath(path) });
     expect(surface.openNote).not.toHaveBeenCalled();
   });
   it("rejects invalid offset ranges", async () => {

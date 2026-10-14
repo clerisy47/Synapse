@@ -79,7 +79,6 @@ export type App = {
     getMarkdownFiles?: () => { path: string; extension: string }[];
     getAbstractFileByPath(_path: string): unknown;
     read(_file: unknown): Promise<string>;
-    readBinary(_file: unknown): Promise<ArrayBuffer>;
     on(_event: string, _cb: (...args: unknown[]) => void): { id: string };
     offref(_ref: { id: string }): void;
   };

@@ -125,8 +125,8 @@ describe("canonicalKey", () => {
     }
   });
 
-  it("drops default page for read_note", () => {
-    const a = canonicalKey("read_note", { path: "n.md", page: 1 });
+  it("ignores retired page arguments for Markdown read_note", () => {
+    const a = canonicalKey("read_note", { path: "n.md", page: 3 });
     const b = canonicalKey("read_note", { path: "n.md" });
     expect(a.ok && b.ok).toBe(true);
     if (a.ok && b.ok) {

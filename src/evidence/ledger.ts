@@ -96,8 +96,7 @@ function mintExcerptId(n: number): ExcerptId {
 }
 
 function dedupeKey(e: Excerpt): string {
-  const page = e.locator.page === undefined ? "" : String(e.locator.page);
-  return `${e.ref.path}\0${page}\0${e.locator.start}\0${e.locator.end}`;
+  return `${e.ref.path}\0${e.locator.start}\0${e.locator.end}`;
 }
 
 function formatBlock(id: ExcerptId, e: Excerpt): string {
@@ -105,9 +104,6 @@ function formatBlock(id: ExcerptId, e: Excerpt): string {
   let header = `[${id}] ${title}`;
   if (e.locator.heading) {
     header += ` › ${e.locator.heading}`;
-  }
-  if (e.locator.page !== undefined) {
-    header += ` (p.${e.locator.page})`;
   }
   return `${header}\n${e.text}`;
 }

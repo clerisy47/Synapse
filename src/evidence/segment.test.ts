@@ -99,19 +99,18 @@ describe("segment", () => {
     }
   });
 
-  it("skips frontmatter via bodyStart and attaches heading + page", async () => {
+  it("skips frontmatter via bodyStart and attaches heading", async () => {
     const body = `# Topic\n\n${para(220)}`;
     const text = `---\ntitle: x\n---\n\n${body}`;
     const bodyStart = text.indexOf("# Topic");
     const excerpts = await segment(text, {
       bodyStart,
-      page: 4,
       ref,
       sourceMtime: 4,
     });
     expect(excerpts.length).toBeGreaterThanOrEqual(1);
     const withBody = excerpts.find((e) => e.text.includes("a".repeat(20)));
-    expect(withBody?.locator.page).toBe(4);
+    expect(withBody?.locator).not.toHaveProperty("page");
     expect(withBody?.locator.heading).toBe("Topic");
     expect(withBody!.locator.start).toBeGreaterThanOrEqual(bodyStart);
   });
@@ -172,7 +171,7 @@ describe("EvidenceLedger", () => {
     expect(ledger.get("E2")?.locator.end).toBe(20);
   });
 
-  it("dedupes by (path, page, start, end)", () => {
+  it("dedupes by (path, start, end)", () => {
     const ledger = new EvidenceLedger();
     const a = excerpt(0, 50, "same");
     const b: Excerpt = {
@@ -198,7 +197,7 @@ describe("EvidenceLedger", () => {
     const ledger = new EvidenceLedger();
     const e1: Excerpt = {
       ref: { path: asVaultPath("Papers/alpha.md"), kind: "note" },
-      locator: { start: 0, end: 10, heading: "Intro", page: 4 },
+      locator: { start: 0, end: 10, heading: "Intro" },
       text: "First excerpt text for the ledger.",
       textHash: "c".repeat(40),
       sourceMtime: 1,
@@ -218,10 +217,10 @@ describe("EvidenceLedger", () => {
     const full = ledger.renderForPrompt("all", 10_000);
     expect(full.included).toEqual(["E1", "E2"]);
     expect(full.dropped).toEqual([]);
-    expect(full.text).toContain("[E1] alpha › Intro (p.4)\nFirst excerpt");
+    expect(full.text).toContain("[E1] alpha › Intro\nFirst excerpt");
     expect(full.text).toContain("[E2] beta\nSecond excerpt");
 
-    const block1 = `[E1] alpha › Intro (p.4)\n${e1.text}`;
+    const block1 = `[E1] alpha › Intro\n${e1.text}`;
     const tight = ledger.renderForPrompt(["E1", "E2"], estimateTokens(block1));
     expect(tight.included).toEqual(["E1"]);
     expect(tight.dropped).toEqual(["E2"]);

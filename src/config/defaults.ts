@@ -25,16 +25,5 @@ export const DEFAULT_SETTINGS: Settings = {
     maxHops: 6,
     wallClockSec: 45,
   },
-  contradiction: {
-    onIdle: {
-      enabled: false,
-      debounceSec: 30,
-    },
-  },
-  resurface: {
-    enabled: true,
-    staleDays: 90,
-    dateField: "created",
-  },
   logLevel: "warn",
 };

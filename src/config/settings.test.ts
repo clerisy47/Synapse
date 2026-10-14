@@ -13,9 +13,10 @@ import {
 } from "../constants";
 
 describe("DEFAULT_SETTINGS", () => {
-  it("uses Phase A OpenRouter endpoint and pinned free model", () => {
+  it("uses Phase A OpenRouter endpoint and free router", () => {
     expect(DEFAULT_SETTINGS.endpoint).toBe(DEFAULT_OPENROUTER_BASE_URL);
     expect(DEFAULT_SETTINGS.model).toBe(DEFAULT_OPENROUTER_MODEL);
+    expect(DEFAULT_OPENROUTER_MODEL).toBe("openrouter/free");
     expect(DEFAULT_SETTINGS.provider).toBe("openrouter");
     expect(DEFAULT_SETTINGS.apiKey).toBeNull();
     expect(DEFAULT_SETTINGS.numCtx).toBe(4096);
@@ -65,17 +66,11 @@ describe("parseSettings", () => {
     const parsed = parseSettings({
       numCtx: 99999,
       qa: { maxHops: 1, wallClockSec: 500 },
-      contradiction: { onIdle: { debounceSec: 10 } },
-      resurface: { staleDays: 3 },
     });
 
     expect(parsed.numCtx).toBe(SETTINGS_BOUNDS.numCtx.max);
     expect(parsed.qa.maxHops).toBe(SETTINGS_BOUNDS.qaMaxHops.min);
     expect(parsed.qa.wallClockSec).toBe(SETTINGS_BOUNDS.qaWallClockSec.max);
-    expect(parsed.contradiction.onIdle.debounceSec).toBe(
-      SETTINGS_BOUNDS.contradictionDebounceSec.min,
-    );
-    expect(parsed.resurface.staleDays).toBe(SETTINGS_BOUNDS.resurfaceStaleDays.min);
   });
 
   it("accepts valid http(s) endpoints and rejects others", () => {
@@ -108,12 +103,9 @@ describe("parseSettings", () => {
       contradiction: { onIdle: { enabled: true } },
     });
     expect(parsed.model).toBe("custom/model:free");
-    expect(parsed.contradiction.onIdle.enabled).toBe(true);
-    expect(parsed.contradiction.onIdle.debounceSec).toBe(
-      DEFAULT_SETTINGS.contradiction.onIdle.debounceSec,
-    );
     expect(parsed.qa).toEqual(DEFAULT_SETTINGS.qa);
-    expect(parsed.resurface).toEqual(DEFAULT_SETTINGS.resurface);
+    expect(parsed).not.toHaveProperty("contradiction");
+    expect(parsed).not.toHaveProperty("resurface");
   });
 
   it("never throws on hostile blobs", () => {
@@ -122,7 +114,25 @@ describe("parseSettings", () => {
 });
 
 describe("migrateSettings", () => {
-  it("is an identity stub", () => {
+  it("drops retired feature settings while preserving search and provider configuration", () => {
+    const raw = { ...DEFAULT_SETTINGS, model: "custom/model", excludedFolders: ["Private"], excludedTags: ["secret"],
+      qa: { multiTurn: true, maxHops: 8, wallClockSec: 60 },
+      contradiction: { onIdle: { enabled: true } }, resurface: { enabled: true, staleDays: 30 } };
+    const snapshot = JSON.stringify(raw);
+    const parsed = parseSettings(raw);
+    expect(parsed).toEqual({ ...DEFAULT_SETTINGS, model: "custom/model", excludedFolders: ["Private"], excludedTags: ["secret"], qa: raw.qa });
+    expect(JSON.stringify(raw)).toBe(snapshot);
+    expect(parseSettings(parsed)).toEqual(parsed);
+  });
+  it("moves the retired OpenRouter default to the free router without mutation", () => {
+    const raw = { provider: "openrouter", model: "qwen/qwen3.8-27b:free", unknown: 42 };
+    expect(migrateSettings(raw)).toEqual({ ...raw, model: "openrouter/free" });
+    expect(raw.model).toBe("qwen/qwen3.8-27b:free");
+    expect(parseSettings(raw).model).toBe("openrouter/free");
+    expect(parseSettings({ model: raw.model }).model).toBe("openrouter/free");
+    expect(migrateSettings({ ...raw, provider: "ollama" })).toEqual({ ...raw, provider: "ollama" });
+  });
+  it("preserves unrelated settings and non-object input", () => {
     const raw = { model: "x" };
     expect(migrateSettings(raw)).toBe(raw);
     expect(migrateSettings(null)).toBeNull();

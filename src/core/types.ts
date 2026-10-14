@@ -2,32 +2,18 @@
  * Core value types (DESIGN §4.1). Pure types — no I/O.
  */
 
-/** Vault-relative, forward slashes: "Projects/idea.md", "Papers/x.pdf". */
+/** Vault-relative, forward slashes: "Projects/idea.md". */
 export type VaultPath = string & { readonly __brand: "VaultPath" };
 
 export function asVaultPath(path: string): VaultPath {
   return path.replace(/\\/g, "/") as VaultPath;
 }
 
-export type SourceKind = "note" | "pdf";
+export type SourceKind = "note";
 
 export interface SourceRef {
   path: VaultPath;
   kind: SourceKind;
-}
-
-export type PdfStatus =
-  | "pending"
-  | "ok"
-  | "partial"
-  | "no_text_layer"
-  | "encrypted"
-  | "corrupt";
-
-export interface PdfMeta {
-  pageCount: number;
-  status: PdfStatus;
-  emptyPages: number[];
 }
 
 /** One per indexed (non-excluded) file. Never contains body text. */
@@ -40,12 +26,10 @@ export interface DocMeta {
   mtime: number;
   ctime: number;
   size: number;
-  pdf?: PdfMeta;
 }
 
-/** Offsets into full file text (notes) or page text (PDFs). */
+/** Offsets into full Markdown file text. */
 export interface Locator {
-  page?: number;
   start: number;
   end: number;
   line?: number;

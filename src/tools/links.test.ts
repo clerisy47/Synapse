@@ -57,13 +57,13 @@ function fixtureCorpus(): FakeCorpus {
       mtime: 50,
     },
   ]);
-  corpus.addPdf({ path: "papers/x.pdf", title: "Paper X", mtime: 300 });
+  corpus.addNote({ text: "Paper note", path: "papers/x.md", title: "Paper X", mtime: 300 });
   corpus.setResolvedLinks({
     "notes/a.md": {
       "notes/b.md": 1,
       "notes/c.md": 1,
       "secret/excluded.md": 1,
-      "papers/x.pdf": 1,
+      "papers/x.md": 1,
     },
     "notes/b.md": {
       "notes/c.md": 2,
@@ -93,9 +93,9 @@ describe("get_links (AC-M2.1 / AC-M2.7)", () => {
     expect(row?.outgoing.map((r) => r.path)).toEqual([
       "notes/b.md",
       "notes/c.md",
-      "papers/x.pdf",
+      "papers/x.md",
     ]);
-    expect(row?.outgoing.map((r) => r.kind)).toEqual(["note", "note", "pdf"]);
+    expect(row?.outgoing.map((r) => r.kind)).toEqual(["note", "note", "note"]);
     expect(row?.unresolvedCount).toBe(1);
     expect(row?.outgoing.some((r) => r.path.includes("excluded"))).toBe(false);
   });
@@ -116,12 +116,12 @@ describe("get_links (AC-M2.1 / AC-M2.7)", () => {
     }
   });
 
-  it("pdf: empty outgoing", async () => {
+  it("note: empty outgoing", async () => {
     const corpus = fixtureCorpus();
     const reg = registryFor(corpus.asDeps());
     const out = await reg.invoke(
       "get_links",
-      { paths: ["papers/x.pdf"] },
+      { paths: ["papers/x.md"] },
       { signal: abortSignal() },
     );
     expect(out.ok).toBe(true);
@@ -155,12 +155,12 @@ describe("get_links (AC-M2.1 / AC-M2.7)", () => {
 });
 
 describe("get_backlinks (AC-M2.1 / AC-M2.7)", () => {
-  it("typical: incoming refs (notes → pdf ok)", async () => {
+  it("typical: incoming refs (notes → notes)", async () => {
     const corpus = fixtureCorpus();
     const reg = registryFor(corpus.asDeps());
     const out = await reg.invoke(
       "get_backlinks",
-      { paths: ["notes/c.md", "papers/x.pdf"] },
+      { paths: ["notes/c.md", "papers/x.md"] },
       { signal: abortSignal() },
     );
     expect(out.ok).toBe(true);

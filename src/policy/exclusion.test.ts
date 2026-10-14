@@ -177,43 +177,16 @@ describe("createExclusionPolicy fail-closed", () => {
   });
 });
 
-describe("createExclusionPolicy PDF (F-22)", () => {
-  it("excludes PDF by folder only; ignores tag and frontmatter", () => {
-    const p = policy({
-      folders: ["Papers"],
-      tags: ["secret"],
-    });
-    expect(
-      p.decide(asVaultPath("Papers/x.pdf"), ["secret"], {
-        "vault-synapse": "ignore",
-      }, { kind: "pdf" }),
-    ).toBe("excluded");
-
-    expect(
-      p.decide(asVaultPath("Other/x.pdf"), ["secret"], {
-        "vault-synapse": "ignore",
-      }, { kind: "pdf" }),
-    ).toBe("allowed");
-  });
-
-  it("allows PDF with null tags/frontmatter outside excluded folders", () => {
-    const p = policy({ folders: ["Papers"], tags: ["secret"] });
-    expect(
-      p.decide(asVaultPath("Other/x.pdf"), null, null, { kind: "pdf" }),
-    ).toBe("allowed");
-  });
-});
-
 describe("exclusion ingest gate (FakeVault integration, DESIGN §6.6 / R6)", () => {
-  it("partitions vault files by folder/tag/frontmatter/unparsed/PDF rules", async () => {
+  it("partitions vault files by folder/tag/frontmatter/unparsed rules", async () => {
     const vault = new FakeVault();
     vault.addNote({ path: "Notes/ok.md", text: "ok" });
     vault.addNote({ path: "Private/secret.md", text: "no" });
     vault.addNote({ path: "Notes/tagged.md", text: "tag" });
     vault.addNote({ path: "Notes/ignored.md", text: "fm" });
     vault.addNote({ path: "Notes/unparsed.md", text: "wait" });
-    vault.addPdf({ path: "Papers/a.pdf" });
-    vault.addPdf({ path: "Other/b.pdf" });
+    vault.addNote({ text: "note", path: "Papers/a.md" });
+    vault.addNote({ text: "note", path: "Other/b.md" });
 
     const meta = new Map<string, MetaEntry>([
       ["Notes/ok.md", { tags: [], frontmatter: {} }],
@@ -224,8 +197,8 @@ describe("exclusion ingest gate (FakeVault integration, DESIGN §6.6 / R6)", () 
         { tags: [], frontmatter: { "vault-synapse": "ignore" } },
       ],
       // Notes/unparsed.md intentionally absent → null fail-closed
-      ["Papers/a.pdf", { tags: ["secret"], frontmatter: { "vault-synapse": "ignore" } }],
-      ["Other/b.pdf", { tags: null, frontmatter: null }],
+      ["Papers/a.md", { tags: ["secret"], frontmatter: { "vault-synapse": "ignore" } }],
+      ["Other/b.md", { tags: [], frontmatter: {} }],
     ]);
 
     const excl = policy({
@@ -235,12 +208,12 @@ describe("exclusion ingest gate (FakeVault integration, DESIGN §6.6 / R6)", () 
 
     const { allowed, excluded } = await ingestDecisions(vault, meta, excl);
 
-    expect([...allowed].sort()).toEqual(["Notes/ok.md", "Other/b.pdf"]);
+    expect([...allowed].sort()).toEqual(["Notes/ok.md", "Other/b.md"]);
     expect([...excluded].sort()).toEqual([
       "Notes/ignored.md",
       "Notes/tagged.md",
       "Notes/unparsed.md",
-      "Papers/a.pdf",
+      "Papers/a.md",
       "Private/secret.md",
     ]);
 
@@ -256,15 +229,15 @@ describe("exclusion ingest gate (FakeVault integration, DESIGN §6.6 / R6)", () 
     for (const p of ["a.md", "Private/b.md", "c.md"]) {
       paths.push(vault.addNote({ path: p, text: "" }));
     }
-    vault.addPdf({ path: "Private/d.pdf" });
-    vault.addPdf({ path: "e.pdf" });
+    vault.addNote({ text: "note", path: "Private/d.md" });
+    vault.addNote({ text: "note", path: "e.md" });
 
     const meta = new Map<string, MetaEntry>([
       ["a.md", { tags: [], frontmatter: {} }],
       ["Private/b.md", { tags: [], frontmatter: {} }],
       ["c.md", { tags: null, frontmatter: null }],
-      ["Private/d.pdf", { tags: null, frontmatter: null }],
-      ["e.pdf", { tags: ["x"], frontmatter: {} }],
+      ["Private/d.md", { tags: null, frontmatter: null }],
+      ["e.md", { tags: ["x"], frontmatter: {} }],
     ]);
 
     const { allowed, excluded } = await ingestDecisions(

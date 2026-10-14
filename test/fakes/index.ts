@@ -6,13 +6,11 @@ export { FakeClock, formatTodayLocal } from "./fake-clock";
 export {
   FakeVault,
   type FakeVaultNoteSeed,
-  type FakeVaultPdfSeed,
 } from "./fake-vault";
 export {
   FakeCorpus,
   type FakeCorpusNoteSeed,
   type FakeCorpusOptions,
-  type FakeCorpusPdfSeed,
 } from "./fake-corpus";
 export { FakeMetadata } from "./fake-metadata";
 export { FakeActiveNote } from "./fake-active-note";

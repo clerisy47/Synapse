@@ -77,8 +77,7 @@ export function mountChatView({ el, state, actions, navigation, onNavigationErro
           const sourced = claim.sourced && citation.status === "sourced";
           const path = citation.excerpt.ref.path;
           const title = path.slice(path.lastIndexOf("/") + 1);
-          const page = citation.excerpt.locator.page;
-          const labelText = page === undefined ? title : `${title} — ${CHAT.page} ${page}`;
+          const labelText = title;
           const button = append(row, "button", "chat-citation", labelText);
           button.type = "button";
           button.disabled = !sourced || !actions.openCitation && !navigation;

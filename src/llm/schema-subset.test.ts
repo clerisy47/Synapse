@@ -17,13 +17,10 @@ const PROMPT_KINDS = [
   "qa.plan",
   "qa.select",
   "qa.answer",
-  "claims.extract",
-  "compare.contradiction",
-  "compare.relevance",
 ] as const;
 
 describe("model-output schemas", () => {
-  it("registers all seven prompt kinds", () => {
+  it("registers only health and Q&A prompt kinds", () => {
     expect(Object.keys(MODEL_OUTPUT_SCHEMAS).sort()).toEqual([...PROMPT_KINDS].sort());
     expect(Object.keys(MODEL_OUTPUT_JSON_SCHEMAS).sort()).toEqual([...PROMPT_KINDS].sort());
   });
@@ -73,22 +70,14 @@ describe("model-output schemas", () => {
     ).toThrow();
   });
 
-  it("rejects claims text over maxLength", () => {
-    expect(() =>
-      MODEL_OUTPUT_SCHEMAS["claims.extract"].parse({
-        claims: [{ text: "x".repeat(161), source: "E0" }],
-      }),
-    ).toThrow();
+  it("rejects answer arrays above the claim cap", () => {
+    expect(() => MODEL_OUTPUT_SCHEMAS["qa.answer"].parse({
+      status: "answered", claims: Array.from({ length: 9 }, () => ({ text: "x", sources: ["E1"] })), followup: null,
+    })).toThrow();
   });
 
-  it("rejects unknown relation enums", () => {
-    expect(() =>
-      MODEL_OUTPUT_SCHEMAS["compare.contradiction"].parse({
-        relation: "maybe",
-        reason: "nope",
-        excerpt_ids: [],
-      }),
-    ).toThrow();
+  it("rejects unknown answer statuses", () => {
+    expect(() => MODEL_OUTPUT_SCHEMAS["qa.answer"].parse({ status: "maybe", claims: [], followup: null })).toThrow();
   });
 });
 

@@ -67,7 +67,7 @@ function fixtureCorpus(): FakeCorpus {
     ],
     { clock },
   );
-  corpus.addPdf({ path: "papers/x.pdf", title: "Paper X", mtime: NOW - 3 * DAY });
+  corpus.addNote({ text: "Paper note", path: "papers/x.md", title: "Paper X", mtime: NOW - 3 * DAY });
   corpus.touch("notes/a.md", NOW - 1 * DAY);
   corpus.touch("notes/b.md", NOW - 40 * DAY);
   return corpus;
@@ -116,12 +116,12 @@ describe("get_frontmatter (AC-M2.1)", () => {
     });
   });
 
-  it("empty: note with no frontmatter and PDF return empty objects", async () => {
+  it("empty: Markdown notes without frontmatter return empty objects", async () => {
     const corpus = fixtureCorpus();
     const reg = registryFor(corpus.asDeps());
     const out = await reg.invoke(
       "get_frontmatter",
-      { paths: ["notes/empty-fm.md", "papers/x.pdf"] },
+      { paths: ["notes/empty-fm.md", "papers/x.md"] },
       { signal: abortSignal() },
     );
     expect(out.ok).toBe(true);
@@ -184,7 +184,7 @@ describe("list_recent (AC-M2.1)", () => {
     expect(data.items.map((i) => i.ref.path)).toEqual([
       "notes/empty-fm.md",
       "notes/a.md",
-      "papers/x.pdf",
+      "papers/x.md",
       "notes/b.md",
     ]);
     expect(data.items[0]?.lastTouched).toBe(NOW - 1 * DAY);

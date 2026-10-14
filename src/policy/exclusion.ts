@@ -79,18 +79,12 @@ export function createExclusionPolicy(rules: ExclusionRules): ExclusionPolicy {
   const frontmatterValue = rules.frontmatterValue ?? "ignore";
 
   return {
-    decide(path, tags, frontmatter, opts): ExclusionDecision {
-      const kind = opts?.kind ?? "note";
+    decide(path, tags, frontmatter): ExclusionDecision {
 
       for (const folder of rules.folders) {
         if (matchesFolder(path, folder)) {
           return "excluded";
         }
-      }
-
-      // PDFs: folder exclusion only (F-22).
-      if (kind === "pdf") {
-        return "allowed";
       }
 
       // Fail-closed until metadata parsed (DESIGN §6.6).

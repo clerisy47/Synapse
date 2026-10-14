@@ -12,9 +12,6 @@ const KINDS: PromptKind[] = [
   "qa.plan",
   "qa.select",
   "qa.answer",
-  "claims.extract",
-  "compare.contradiction",
-  "compare.relevance",
 ];
 
 describe("buildOpenRouterChatRequest", () => {

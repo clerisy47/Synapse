@@ -83,11 +83,6 @@ function skipNewline(text: string, from: number): number {
   return from;
 }
 
-/** For claimHash keys: lower-case and collapse whitespace (DESIGN §4.3). */
-export function normalizeClaimText(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, " ").trim();
-}
-
 function encodeUtf8(input: string): Uint8Array {
   return new TextEncoder().encode(input);
 }

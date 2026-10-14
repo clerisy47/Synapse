@@ -72,12 +72,11 @@ describe("test/fakes smoke (M1-T08)", () => {
   it("exports FakeVault as VaultPort", async () => {
     const vault: VaultPort = new FakeVault();
     (vault as FakeVault).addNote({ path: "Notes/a.md", text: "hello" });
-    (vault as FakeVault).addPdf({ path: "Papers/x.pdf" });
+    (vault as FakeVault).addNote({ text: "Paper note", path: "Papers/x.md" });
 
     const files = await vault.listFiles();
-    expect(files.map((f) => f.path)).toEqual(["Notes/a.md", "Papers/x.pdf"]);
+    expect(files.map((f) => f.path)).toEqual(["Notes/a.md", "Papers/x.md"]);
     expect(await vault.readText(asVaultPath("Notes/a.md"))).toBe("hello");
-    expect((await vault.readBinary(asVaultPath("Papers/x.pdf"))).byteLength).toBe(0);
 
     const events: string[] = [];
     const dispose = vault.onChange((e) => {

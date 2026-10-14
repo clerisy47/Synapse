@@ -5,29 +5,17 @@
 
 import type { Settings } from "../config";
 import { stableStringify, type VaultPath } from "../core";
-import type { DismissalRecord, PersistedState } from "./parse";
+import type { PersistedState } from "./parse";
 
 const KNOWN_KEYS = new Set([
   "schemaVersion",
   "settings",
   "settingsUpdatedAt",
+  // Retired keys are recognized only to drop them rather than preserve as unknown.
   "dismissals",
   "touchLog",
   "resurface",
 ]);
-
-function cloneDismissal(record: DismissalRecord): DismissalRecord {
-  const out: DismissalRecord = {
-    kind: record.kind,
-    at: record.at,
-    active: record.active,
-  };
-  if (record.sourcePath !== undefined) out.sourcePath = record.sourcePath;
-  if (record.otherPath !== undefined) out.otherPath = record.otherPath;
-  if (record.claimHash !== undefined) out.claimHash = record.claimHash;
-  if (record.groups !== undefined) out.groups = [...record.groups];
-  return out;
-}
 
 function pickByStamp<T>(
   aVal: T,
@@ -39,28 +27,6 @@ function pickByStamp<T>(
   if (bStamp > aStamp) return bVal;
   // Tie: deterministic total order on serialized value.
   return stableStringify(aVal) >= stableStringify(bVal) ? aVal : bVal;
-}
-
-function mergeDismissals(
-  a: Record<string, DismissalRecord>,
-  b: Record<string, DismissalRecord>,
-): Record<string, DismissalRecord> {
-  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
-  const out: Record<string, DismissalRecord> = {};
-  for (const key of keys) {
-    const left = a[key];
-    const right = b[key];
-    if (left === undefined && right !== undefined) {
-      out[key] = cloneDismissal(right);
-    } else if (right === undefined && left !== undefined) {
-      out[key] = cloneDismissal(left);
-    } else if (left !== undefined && right !== undefined) {
-      out[key] = cloneDismissal(
-        pickByStamp(left, left.at, right, right.at),
-      );
-    }
-  }
-  return out;
 }
 
 function mergeTouchLog(
@@ -86,12 +52,6 @@ function mergeTouchLog(
   return out;
 }
 
-function mergeLastRunDay(a: string | null, b: string | null): string | null {
-  if (a === null) return b;
-  if (b === null) return a;
-  return a >= b ? a : b;
-}
-
 function unknownKeys(state: PersistedState): string[] {
   return Object.keys(state).filter((k) => !KNOWN_KEYS.has(k));
 }
@@ -102,10 +62,6 @@ function cloneSettings(settings: Settings): Settings {
     excludedFolders: [...settings.excludedFolders],
     excludedTags: [...settings.excludedTags],
     qa: { ...settings.qa },
-    contradiction: {
-      onIdle: { ...settings.contradiction.onIdle },
-    },
-    resurface: { ...settings.resurface },
   };
 }
 
@@ -128,11 +84,7 @@ export function mergeState(a: PersistedState, b: PersistedState): PersistedState
     schemaVersion: Math.max(a.schemaVersion, b.schemaVersion),
     settings,
     settingsUpdatedAt,
-    dismissals: mergeDismissals(a.dismissals, b.dismissals),
     touchLog: mergeTouchLog(a.touchLog, b.touchLog),
-    resurface: {
-      lastRunDay: mergeLastRunDay(a.resurface.lastRunDay, b.resurface.lastRunDay),
-    },
   };
 
   const keys = new Set([...unknownKeys(a), ...unknownKeys(b)]);

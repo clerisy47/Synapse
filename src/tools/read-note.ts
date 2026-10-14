@@ -1,5 +1,5 @@
 /**
- * read_note tool (DESIGN §5.4) — windowed note body; PDF pages deferred to M4.
+ * read_note tool (DESIGN §5.4) — windowed note body.
  */
 
 import { sha1Hex, synapseError, type Excerpt } from "../core";
@@ -11,7 +11,6 @@ export interface ReadNoteResult {
   excerpts: Excerpt[];
   totalChars: number;
   nextStart?: number;
-  pageCount?: number;
 }
 
 export function createReadNoteHandler(deps: CoreToolDeps): ToolHandler<"read_note"> {

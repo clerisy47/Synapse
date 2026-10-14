@@ -4,11 +4,8 @@ export type {
 export { createConfigStore } from "./store";
 
 export type {
-  ContradictionOnIdleSettings,
-  ContradictionSettings,
   ProviderId,
   QaSettings,
-  ResurfaceSettings,
   Settings,
   TransportMode,
 } from "./settings";

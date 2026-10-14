@@ -44,7 +44,7 @@ cp main.js manifest.json styles.css \
 
 - [ ] **Connection** section: API endpoint, OpenRouter API key, model, context window, provider
 - [ ] Default endpoint is OpenRouter base (`https://openrouter.ai/api/v1`)
-- [ ] Default model is a pinned `:free` ID (provisional: `qwen/qwen3.8-27b:free`)
+- [ ] Default model is `openrouter/free`
 - [ ] Egress warning visible: note excerpts leave the machine for OpenRouter
 - [ ] Non-allowlisted / blocked endpoints show policy messaging (not silent)
 - [ ] Transport mode includes Auto / Node HTTP / requestUrl (degraded)
@@ -70,7 +70,7 @@ Requires a local OpenRouter key in plugin settings (or `OPENROUTER_API_KEY` for 
   - **server** — auth / reachability (`GET …/key`)
   - **model** — configured model usable
   - **structured** — production-shaped schema-constrained call returns valid JSON
-- [ ] Prefer pinned `:free` over bare `openrouter/free` for stable JSON
+- [ ] Use `openrouter/free` for every live check; verify structured output
 
 ---
 
@@ -118,10 +118,7 @@ Do **not** require for M1 exit:
 
 - Vault search tools / corpus indexing (M2)
 - Q&A chat sidebar (M3)
-- PDF text layer (M4)
-- Contradiction flags (M5–M6)
-- Resurfacing (M6–M7)
-- Local Ollama / Gate A bake-off (M1-T17 deferred; M9)
+- Local Ollama validation (R6, after revised Must + Should completion)
 - Marking any model as “recommended”
 
 ---
@@ -146,4 +143,4 @@ Do **not** require for M1 exit:
 |-------|--------|
 | Automated CI / build / privacy (this doc §1, §9) | Pass (M1-T18 session) |
 | Obsidian operator path (§§2–8) | Optional; clean vault recommended |
-| M1-T17 Gate A local bake-off | Deferred (AGENTS / PLAN) |
+| Phase B local validation | Deferred (AGENTS / PLAN) |

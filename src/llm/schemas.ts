@@ -10,10 +10,7 @@ export type PromptKind =
   | "health"
   | "qa.plan"
   | "qa.select"
-  | "qa.answer"
-  | "claims.extract"
-  | "compare.contradiction"
-  | "compare.relevance";
+  | "qa.answer";
 
 /** JSON Schema keywords allowed for provider `format` (DESIGN §5.5). */
 export const ALLOWED_JSON_SCHEMA_KEYWORDS = [
@@ -73,43 +70,16 @@ export const answerOutputSchema = z.object({
   followup: followupSchema.nullable(),
 });
 
-const extractedClaimSchema = z.object({
-  text: z.string().max(160),
-  source: excerptIdSchema,
-});
-
-export const claimsOutputSchema = z.object({
-  claims: z.array(extractedClaimSchema).max(5),
-});
-
-export const compareContradictionOutputSchema = z.object({
-  relation: z.enum(["agree", "disagree", "unrelated"]),
-  reason: z.string().max(200),
-  excerpt_ids: z.array(excerptIdSchema).max(2),
-});
-
-export const compareRelevanceOutputSchema = z.object({
-  relation: z.enum(["related", "unrelated"]),
-  reason: z.string(),
-  excerpt_ids: z.array(excerptIdSchema).max(1),
-});
-
 export type HealthOutput = z.infer<typeof healthOutputSchema>;
 export type PlanOutput = z.infer<typeof planOutputSchema>;
 export type SelectOutput = z.infer<typeof selectOutputSchema>;
 export type AnswerOutput = z.infer<typeof answerOutputSchema>;
-export type ClaimsOutput = z.infer<typeof claimsOutputSchema>;
-export type CompareContradictionOutput = z.infer<typeof compareContradictionOutputSchema>;
-export type CompareRelevanceOutput = z.infer<typeof compareRelevanceOutputSchema>;
 
 export const MODEL_OUTPUT_SCHEMAS = {
   health: healthOutputSchema,
   "qa.plan": planOutputSchema,
   "qa.select": selectOutputSchema,
   "qa.answer": answerOutputSchema,
-  "claims.extract": claimsOutputSchema,
-  "compare.contradiction": compareContradictionOutputSchema,
-  "compare.relevance": compareRelevanceOutputSchema,
 } as const satisfies Record<PromptKind, z.ZodType>;
 
 export type ProviderJsonSchema = {
@@ -222,9 +192,6 @@ export const MODEL_OUTPUT_JSON_SCHEMAS: Record<PromptKind, ProviderJsonSchema> =
   "qa.plan": emitProviderJsonSchema(planOutputSchema),
   "qa.select": emitProviderJsonSchema(selectOutputSchema),
   "qa.answer": emitProviderJsonSchema(answerOutputSchema),
-  "claims.extract": emitProviderJsonSchema(claimsOutputSchema),
-  "compare.contradiction": emitProviderJsonSchema(compareContradictionOutputSchema),
-  "compare.relevance": emitProviderJsonSchema(compareRelevanceOutputSchema),
 };
 
 /**

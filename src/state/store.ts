@@ -17,7 +17,7 @@ export interface StateStore {
   update(fn: (s: PersistedState) => void): void;
   flush(): Promise<void>;
   reloadAndMerge(): Promise<void>;
-  /** Clears dismissals, touchLog, resurface, and unknown keys; keeps settings (F-31). */
+  /** Clears activity and unknown state; keeps settings. */
   clearAll(): Promise<void>;
   dispose(): void;
 }
@@ -51,6 +51,7 @@ function cloneState(state: PersistedState): PersistedState {
     "schemaVersion",
     "settings",
     "settingsUpdatedAt",
+    // Retired keys must not survive cloning or clearing.
     "dismissals",
     "touchLog",
     "resurface",
@@ -63,28 +64,9 @@ function cloneState(state: PersistedState): PersistedState {
       excludedFolders: [...settings.excludedFolders],
       excludedTags: [...settings.excludedTags],
       qa: { ...settings.qa },
-      contradiction: {
-        onIdle: { ...settings.contradiction.onIdle },
-      },
-      resurface: { ...settings.resurface },
     },
     settingsUpdatedAt: state.settingsUpdatedAt,
-    dismissals: Object.fromEntries(
-      Object.entries(state.dismissals).map(([k, v]) => {
-        const copy: (typeof state.dismissals)[string] = {
-          kind: v.kind,
-          at: v.at,
-          active: v.active,
-        };
-        if (v.sourcePath !== undefined) copy.sourcePath = v.sourcePath;
-        if (v.otherPath !== undefined) copy.otherPath = v.otherPath;
-        if (v.claimHash !== undefined) copy.claimHash = v.claimHash;
-        if (v.groups !== undefined) copy.groups = [...v.groups];
-        return [k, copy];
-      }),
-    ),
     touchLog: { ...state.touchLog },
-    resurface: { lastRunDay: state.resurface.lastRunDay },
   };
   for (const [key, value] of Object.entries(state)) {
     if (!known.has(key)) out[key] = value;
@@ -102,6 +84,7 @@ function clearUnknownKeys(state: PersistedState): void {
     "schemaVersion",
     "settings",
     "settingsUpdatedAt",
+    // Retired keys must not survive cloning or clearing.
     "dismissals",
     "touchLog",
     "resurface",
@@ -185,9 +168,7 @@ export function createStateStore(opts: CreateStateStoreOptions): StateStore {
       current.schemaVersion = keptVersion;
       current.settings = keptSettings;
       current.settingsUpdatedAt = keptAt;
-      current.dismissals = {};
       current.touchLog = {};
-      current.resurface = { lastRunDay: null };
       await store.flush();
     },
 

@@ -18,21 +18,6 @@ export interface QaSettings {
   wallClockSec: number;
 }
 
-export interface ContradictionOnIdleSettings {
-  enabled: boolean;
-  debounceSec: number;
-}
-
-export interface ContradictionSettings {
-  onIdle: ContradictionOnIdleSettings;
-}
-
-export interface ResurfaceSettings {
-  enabled: boolean;
-  staleDays: number;
-  dateField: string;
-}
-
 export interface Settings {
   endpoint: string;
   provider: ProviderId;
@@ -45,8 +30,6 @@ export interface Settings {
   excludedFolders: string[];
   excludedTags: string[];
   qa: QaSettings;
-  contradiction: ContradictionSettings;
-  resurface: ResurfaceSettings;
   logLevel: LogLevel;
 }
 
@@ -55,8 +38,6 @@ export const SETTINGS_BOUNDS = {
   numCtx: { min: 2048, max: 8192 },
   qaMaxHops: { min: 2, max: 12 },
   qaWallClockSec: { min: 15, max: 180 },
-  contradictionDebounceSec: { min: 30 },
-  resurfaceStaleDays: { min: 7, max: 3650 },
 } as const;
 
 const providerSchema = z.enum(["openrouter", "ollama"]);
@@ -79,17 +60,6 @@ export const settingsSchema: z.ZodType<Settings> = z.object({
     multiTurn: z.boolean(),
     maxHops: z.number().int(),
     wallClockSec: z.number().int(),
-  }),
-  contradiction: z.object({
-    onIdle: z.object({
-      enabled: z.boolean(),
-      debounceSec: z.number().int(),
-    }),
-  }),
-  resurface: z.object({
-    enabled: z.boolean(),
-    staleDays: z.number().int(),
-    dateField: z.string(),
   }),
   logLevel: logLevelSchema,
 });
@@ -171,13 +141,6 @@ export function parseSettings(raw: unknown): Settings {
 
   const d = DEFAULT_SETTINGS;
   const qaRaw = isPlainObject(migrated.qa) ? migrated.qa : {};
-  const contradictionRaw = isPlainObject(migrated.contradiction)
-    ? migrated.contradiction
-    : {};
-  const onIdleRaw = isPlainObject(contradictionRaw.onIdle)
-    ? contradictionRaw.onIdle
-    : {};
-  const resurfaceRaw = isPlainObject(migrated.resurface) ? migrated.resurface : {};
 
   const parsed: Settings = {
     endpoint: parseEndpoint(migrated.endpoint, d.endpoint),
@@ -214,26 +177,6 @@ export function parseSettings(raw: unknown): Settings {
         SETTINGS_BOUNDS.qaWallClockSec.max,
       ),
     },
-    contradiction: {
-      onIdle: {
-        enabled: parseBoolean(onIdleRaw.enabled, d.contradiction.onIdle.enabled),
-        debounceSec: clampInt(
-          onIdleRaw.debounceSec,
-          d.contradiction.onIdle.debounceSec,
-          SETTINGS_BOUNDS.contradictionDebounceSec.min,
-        ),
-      },
-    },
-    resurface: {
-      enabled: parseBoolean(resurfaceRaw.enabled, d.resurface.enabled),
-      staleDays: clampInt(
-        resurfaceRaw.staleDays,
-        d.resurface.staleDays,
-        SETTINGS_BOUNDS.resurfaceStaleDays.min,
-        SETTINGS_BOUNDS.resurfaceStaleDays.max,
-      ),
-      dateField: parseString(resurfaceRaw.dateField, d.resurface.dateField),
-    },
     logLevel: parseEnum(
       migrated.logLevel,
       ["debug", "info", "warn", "error"],
@@ -254,9 +197,5 @@ function cloneSettings(settings: Settings): Settings {
     excludedFolders: [...settings.excludedFolders],
     excludedTags: [...settings.excludedTags],
     qa: { ...settings.qa },
-    contradiction: {
-      onIdle: { ...settings.contradiction.onIdle },
-    },
-    resurface: { ...settings.resurface },
   };
 }

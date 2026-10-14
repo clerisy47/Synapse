@@ -19,10 +19,9 @@ function file(
     ctime?: number;
     size?: number;
     text?: string;
-    bytes?: ArrayBuffer;
   } = {},
-): VaultFileLike & { text?: string; bytes?: ArrayBuffer } {
-  const out: VaultFileLike & { text?: string; bytes?: ArrayBuffer } = {
+): VaultFileLike & { text?: string } {
+  const out: VaultFileLike & { text?: string } = {
     path,
     extension,
     stat: {
@@ -34,16 +33,13 @@ function file(
   if (opts.text !== undefined) {
     out.text = opts.text;
   }
-  if (opts.bytes !== undefined) {
-    out.bytes = opts.bytes;
-  }
   return out;
 }
 
 function memoryVault(
-  seed: Array<VaultFileLike & { text?: string; bytes?: ArrayBuffer }>,
+  seed: Array<VaultFileLike & { text?: string }>,
 ): VaultAdapterSurface & {
-  files: Map<string, VaultFileLike & { text?: string; bytes?: ArrayBuffer }>;
+  files: Map<string, VaultFileLike & { text?: string }>;
   emit: (
     event: "create" | "modify" | "delete" | "rename",
     f: VaultFileLike,
@@ -71,9 +67,6 @@ function memoryVault(
       }
       return hit.text;
     },
-    async readBinary(f) {
-      return files.get(f.path)?.bytes ?? new ArrayBuffer(0);
-    },
     on(event, cb) {
       let set = listeners.get(event);
       if (!set) {
@@ -94,17 +87,17 @@ function memoryVault(
 }
 
 describe("createObsidianVault", () => {
-  it("lists only .md and .pdf files", async () => {
+  it("lists only Markdown files", async () => {
     const surface = memoryVault([
       file("a.md", "md", { text: "hi" }),
-      file("b.pdf", "pdf", { bytes: new ArrayBuffer(4) }),
+      file("b.pdf", "pdf"),
       file("c.txt", "txt", { text: "nope" }),
     ]);
     const port = createObsidianVault(surface);
     const listed = await port.listFiles();
-    expect(listed.map((s) => s.path)).toEqual(["a.md", "b.pdf"]);
+    expect(listed.map((s) => s.path)).toEqual(["a.md"]);
     expect(listed[0]?.kind).toBe("note");
-    expect(listed[1]?.kind).toBe("pdf");
+    expect(await port.stat(asVaultPath("b.pdf"))).toBeNull();
   });
 
   it("stat returns null for missing or non-corpus paths", async () => {
@@ -115,16 +108,14 @@ describe("createObsidianVault", () => {
     expect(await port.stat(asVaultPath("c.txt"))).toBeNull();
   });
 
-  it("readText / readBinary enforce kind", async () => {
+  it("readText enforces Markdown kind", async () => {
     const surface = memoryVault([
       file("a.md", "md", { text: "hello" }),
-      file("b.pdf", "pdf", { bytes: new Uint8Array([1, 2]).buffer }),
+      file("b.pdf", "pdf"),
     ]);
     const port = createObsidianVault(surface);
     expect(await port.readText(asVaultPath("a.md"))).toBe("hello");
     await expect(port.readText(asVaultPath("b.pdf"))).rejects.toThrow(/note/);
-    await expect(port.readBinary(asVaultPath("a.md"))).rejects.toThrow(/pdf/);
-    expect((await port.readBinary(asVaultPath("b.pdf"))).byteLength).toBe(2);
   });
 
   it("onChange filters non-corpus and maps rename", () => {
@@ -137,6 +128,10 @@ describe("createObsidianVault", () => {
 
     surface.emit("create", file("n.md", "md"));
     surface.emit("create", file("skip.txt", "txt"));
+    surface.emit("create", file("skip.pdf", "pdf"));
+    surface.emit("modify", file("skip.pdf", "pdf"));
+    surface.emit("delete", file("skip.pdf", "pdf"));
+    surface.emit("rename", file("renamed.pdf", "pdf"), "skip.pdf");
     surface.emit("modify", file("a.md", "md"));
     surface.emit("delete", file("a.md", "md"));
     surface.emit("rename", file("b.md", "md"), "a.md");
