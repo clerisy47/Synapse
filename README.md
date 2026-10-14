@@ -6,7 +6,7 @@ A desktop Obsidian assistant for agentic Markdown vault search and cited chat. T
 
 ## Current implementation and roadmap
 
-OpenRouter runtime, vault tools, evidence, and sidebar chat are implemented with automated tests. Editable control files and recipient policy enforcement are implemented. Research updates, diff approval, and MCP are planned. R1-T01 cleanup is complete: ingestion and citations are Markdown-only, and older settings/state drop retired feature data. PDF search/page citations, contradiction finding, and daily resurfacing are outside the revised release scope. See [SPEC.md](SPEC.md), [DESIGN.md](DESIGN.md), and [PLAN.md](PLAN.md).
+OpenRouter runtime, vault tools, evidence, and sidebar chat are implemented with automated tests. Editable control files and recipient policy enforcement are implemented. Local research selection capture and its persistent provenance/processing ledger are implemented. Proposal generation, diff approval, note application, and MCP are planned. R1-T01 cleanup is complete: ingestion and citations are Markdown-only, and older settings/state drop retired feature data. PDF search/page citations, contradiction finding, and daily resurfacing are outside the revised release scope. See [SPEC.md](SPEC.md), [DESIGN.md](DESIGN.md), and [PLAN.md](PLAN.md).
 
 ## Provider phases
 
@@ -22,6 +22,8 @@ Phase A uses OpenRouter **`openrouter/free`** for development, testing, and feat
 ## Planned vault workflow
 
 `Synapse/Instructions.md` defines formatting and routing; `Synapse/Security.md` defines enforceable sharing/write rules; `Research.md` holds rough research. Defaults are configurable and user-editable. Starter files require review and never overwrite existing files.
+
+To capture research now, save the configured inbox, select nonempty material, and run **Capture research selection**. Capture preserves the inbox and records hashes and processing metadata in plugin state. It sends no model request and performs no note writes. Repeated unchanged material retains its existing status. See [research capture details](docs/r3-t01-research-audit.md).
 
 Synapse will show note-change diffs for local approval. External MCP clients can request permitted or masked information and submit research using granted capabilities. They cannot directly edit destination notes or approve changes. This protects access through Synapse; it cannot constrain an agent separately granted filesystem access.
 
