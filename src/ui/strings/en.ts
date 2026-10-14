@@ -141,3 +141,22 @@ export const CONTROLS = {
   labels: { instructions: "Instructions file", security: "Security file", research: "Research inbox" },
   description: "Vault-relative Markdown path. Control files and the inbox are excluded from ordinary search.",
 } as const;
+
+export const RESEARCH = {
+  captureCommand: "Capture research selection",
+  captured: "Research selection captured. Proposal generation and review will be available in a later update.",
+  duplicate: (outcome: string) => `This research was already captured (status: ${outcome}). The inbox is preserved.`,
+  errors: {
+    RESEARCH_INVALID_SOURCE: "Open the configured Research.md inbox and select material to capture.",
+    RESEARCH_SELECTION_REQUIRED: "Select nonempty research material before capturing.",
+    RESEARCH_SELECTION_TOO_LARGE: "Select a smaller research batch and retry.",
+    RESEARCH_DIRTY: "Save the research inbox before capturing the selection.",
+    RESEARCH_STALE: "Research changed during capture. Save it, select the material again, and retry.",
+    RESEARCH_MISSING: "The configured research inbox is unavailable.",
+    RESEARCH_LEDGER_BLOCKED: "Research history is unavailable or invalid. Processing is blocked to prevent duplicate application.",
+    RESEARCH_LEDGER_CONFLICT: "Research history contains conflicting outcomes. Processing is blocked.",
+    RESEARCH_LEDGER_FULL: "Research history is full. Processing history was preserved; no new batch was captured.",
+    RESEARCH_STORAGE_FAILED: "Research history could not be saved. Retry the capture.",
+  } as Readonly<Record<string, string>>,
+  unavailable: "Research capture is unavailable. Retry after reopening the inbox.",
+} as const;

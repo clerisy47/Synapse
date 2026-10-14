@@ -72,3 +72,6 @@ export {
 export { createChatController, type ChatRunner, type ChatController } from "./chat-controller";
 
 export { CONTROLS } from "./strings/en";
+
+export { createResearchCaptureCommand, type ResearchCaptureRunner } from "./research-command";
+export { RESEARCH } from "./strings/en";
