@@ -47,3 +47,13 @@ export type {
   VaultPort,
 } from "./ports";
 export { TransportError } from "./ports";
+
+export type {
+  AccessContext, AccessOperation, AccessRecipient, Approval, ApprovalBinding,
+  BatchId, ChangeProposal, ClientCapability, ContentHash, ControlPaths,
+  DestinationId, InstructionSnapshot, MaskAction, PolicySelector, PolicySnapshot,
+  ProposalId, ProposedChange, ResearchBatch, RoutingSettings, SecurityRule,
+  SecurityRules, TargetSnapshot,
+} from "./control-contracts";
+export { validateControlPaths, validateVaultPath } from "./control-paths";
+export { contentHash, hashApprovalBinding } from "./control-hash";

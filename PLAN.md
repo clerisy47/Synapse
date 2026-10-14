@@ -5,7 +5,7 @@ This revision supersedes the old backlog, including the in-progress PDF probe M4
 
 ## Execution rules
 
-Current task is IN_PROGRESS; otherwise choose the lowest-ID TODO with all dependencies DONE. User-directed scope revisions take precedence over ordinary backlog selection. Status exists only here. R1-T01 cleanup is complete; no task is IN_PROGRESS.
+Current task is IN_PROGRESS; otherwise choose the lowest-ID TODO with all dependencies DONE. User-directed scope revisions take precedence over ordinary backlog selection. Status exists only here. R1-T01 and R2-T01 are complete; no task is IN_PROGRESS.
 
 Keep tasks small (normally 1–5 files); split cross-cutting cleanup into reviewable substeps before editing. Do not disable tests or delete meaningful failing coverage. Every implementation slice must build and load. Do not start Phase B until all Must + Should features and Phase A validation are complete.
 
@@ -36,7 +36,7 @@ Keep tasks small (normally 1–5 files); split cross-cutting cleanup into review
 - **Dependencies:** R1-T01
 - **Acceptance criteria:** SPEC F4/F6; deny precedence, missing/invalid rules, safe defaults and path validation specified.
 - **How to verify:** Schema and policy-contract cases; review docs/templates consistency.
-- **Status:** TODO
+- **Status:** DONE
 
 ### R2-T02 — Load editable instruction and security files
 

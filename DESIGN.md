@@ -71,6 +71,10 @@ Security.md uses schema-validated frontmatter for enforceable rules and Markdown
 
 Instructions.md contains versioned routing settings and free-form style examples. Routing is deterministic; model generation follows the style within permitted destinations. The daily-note rule uses the user-configured timezone and rejects ambiguous dates. Security.md cannot be rewritten by the assistant; edits to either control file invalidate dependent proposals and pending disclosures.
 
+### 4.1 Frozen version 1 contracts
+
+R2-T01 defines strict control schemas, canonical paths, recipient/capability decisions, daily routing and SHA-256 approval bindings. The repository starter permits internal reads only; remote/client reads and all writes require explicit policy permission. Full wire shapes, precedence, bounds, diagnostics, templates and later runtime responsibilities are frozen in [control contracts](docs/control-contracts.md). Templates are assets only. Local contract schemas do not change provider-output schemas or enable runtime writes/network. Shared control tunables live in constants; policy, instructions and changes may import those constants alongside their layer dependencies.
+
 ## 5. Runtime workflows
 
 ### 5.1 Search/chat

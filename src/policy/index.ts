@@ -17,3 +17,7 @@ export type {
   ExclusionRules,
 } from "./exclusion";
 export { createExclusionPolicy } from "./exclusion";
+
+export { AccessContextSchema, SecurityRulesSchema, parseSecurityRules } from "./security-contracts";
+export { evaluateAccessContract } from "./recipient-contract";
+export type { AccessContractRequest, AccessDecision } from "./recipient-contract";
