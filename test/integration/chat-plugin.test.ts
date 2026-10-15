@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
+import { get } from "node:http";
 import { afterEach, expect, it, vi } from "vitest";
 import { TFile, type App, type PluginManifest } from "obsidian";
+import type { McpServerPort } from "../../src/core";
 import { CONTROL_STARTERS } from "../../src/instructions";
 import VaultSynapsePlugin from "../../src/main";
 import { VIEW_TYPE_CHAT } from "../../src/constants";
@@ -45,8 +47,14 @@ it.each(["ready", "missing", "invalid"] as const)("loads without a key, opens ch
   const offref = vi.fn();
   const policyFile = Object.assign(new TFile(), { path: "Synapse/Security.md", extension: "md" });
   const files = policyState === "missing" ? [] : [policyFile];
+  const pluginFiles = new Map<string, string>();
   const app = {
-    vault: { adapter: {}, getFiles: () => files, getMarkdownFiles: () => files,
+    vault: { adapter: {
+      exists: async (path: string) => pluginFiles.has(path),
+      read: async (path: string) => pluginFiles.get(path) ?? "",
+      write: async (path: string, text: string) => { pluginFiles.set(path, text); },
+      mkdir: async () => {},
+    }, getFiles: () => files, getMarkdownFiles: () => files,
       getAbstractFileByPath: (path: string) => files.find((file) => file.path === path) ?? null,
       read: async () => policyState === "ready" ? CONTROL_STARTERS.security : "malformed rules",
       on: () => ({}), offref },
@@ -69,7 +77,23 @@ it.each(["ready", "missing", "invalid"] as const)("loads without a key, opens ch
   question.value = "What is in my vault?";
   contentEl.querySelector("form")!.dispatchEvent(new Event("submit", { cancelable: true }));
   await vi.waitFor(() => expect(contentEl.querySelector(".syn-chat-answer")?.textContent).toBe(policyState === "ready" ? "The model request failed. You can retry." : "Access is unavailable or changed. Check Security.md and retry."));
-  plugin.onunload();
+  const mcp = (plugin as unknown as { mcp: McpServerPort }).mcp;
+  expect(mcp.status()).toMatchObject({ enabled: false, failed: false, url: null });
+  await mcp.pair("host synthetic", []);
+  await mcp.enable(); let endpoint = mcp.status().url!;
+  const request = () => new Promise<number | undefined>((resolve, reject) => {
+    const req = get(endpoint, (res) => { res.resume(); res.on("end", () => resolve(res.statusCode)); });
+    req.on("error", reject);
+  });
+  try {
+    expect(await request()).toBe(401);
+    (plugin as unknown as { applySettingsPatch(p: { logLevel: string }): void }).applySettingsPatch({ logLevel: "warn" });
+    expect(mcp.status()).toMatchObject({ enabled: false, url: null });
+    await expect(request()).rejects.toThrow();
+    await mcp.enable(); endpoint = mcp.status().url!;
+  } finally { plugin.onunload(); }
+  expect(mcp.status().url).toBeNull();
+  await expect(request()).rejects.toThrow();
   expect(contentEl.childElementCount).toBe(0);
   expect(host.ribbonRemoved).toBe(true);
   expect(offref).toHaveBeenCalled();
