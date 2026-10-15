@@ -54,6 +54,7 @@ export interface MountSettingsPanelOptions {
   host: SettingsTabHost;
   settings: Observable<Settings>;
   actions: SettingsPanelActions;
+  afterPaint?: () => void;
 }
 
 function parseLines(text: string): string[] {
@@ -240,6 +241,7 @@ export function mountSettingsPanel(
 
   const paint = (snapshot: Settings): void => {
     render(host, toSettingsVm(snapshot), snapshot, actions);
+    opts.afterPaint?.();
   };
 
   paint(settings.get());

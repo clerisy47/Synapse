@@ -80,3 +80,5 @@ export { createReviewController, type ReviewController, type ReviewRunner } from
 export { mountReviewView } from "./views/review-view";
 export { REVIEW } from "./strings/en";
 export { createRecoveryCommand } from "./recovery-command";
+
+export { mountMcpSettings } from "./mcp-settings";
