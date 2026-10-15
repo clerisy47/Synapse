@@ -164,6 +164,7 @@ export const RESEARCH = {
 export const REVIEW = {
   command: "Review research",
   title: "Review research changes",
+  disclosure: "Generating sends selected research, formatting instructions and permitted destination context to your configured OpenRouter model. Review and approval stay local.",
   milestone: "Review and approval only. This version saves no notes. Approval is discarded when this review closes.",
   unavailable: "Research review unavailable. Select saved material in the configured research inbox and check instructions and security rules.",
   destinations: "Choose destinations",

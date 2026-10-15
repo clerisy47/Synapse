@@ -43,6 +43,17 @@ export function createResearchReviewSession(deps: ProposalGeneratorDeps & { subs
     if (!controls || controls.instructions.hash !== reviewed.instructionsHash || controls.policy.hash !== reviewed.policyHash) return false;
     const ledger = deps.inbox.ledgerStatus(captured.batch.id);
     if (!ledger.ok || ledger.value.conflicted || ledger.value.outcome !== "proposed") return false;
+    const files = await deps.vault.listFiles();
+    for (const kind of ["instructions", "security"] as const) {
+      const path = deps.paths[kind];
+      const matches = files.filter((file) => file.path.toLowerCase() === path.toLowerCase());
+      if (matches.length !== 1 || matches[0].path !== path || matches[0].kind !== "note") return false;
+      const text = await deps.vault.readText(path);
+      const hash = await contentHash(text);
+      const expected = kind === "instructions" ? controls.instructions.hash : controls.policy.hash;
+      const editor = deps.activeNote.current();
+      if (!hash.ok || hash.value !== expected || (editor?.path === path && editor.text !== text)) return false;
+    }
     const readable = (path: typeof deps.paths.research, privileged: boolean) => {
       const metadata = deps.metadata.get(path);
       const evaluate = privileged ? evaluateResearchInput : evaluateAccessContract;
@@ -51,7 +62,6 @@ export function createResearchReviewSession(deps: ProposalGeneratorDeps & { subs
         excluded: deps.exclusion.decide(path, metadata?.tags ?? null, metadata?.frontmatter ?? null) === "excluded", controlPaths: deps.paths, maskingSupported: false }).effect === "allow";
     };
     if (!readable(deps.paths.research, true) || !readable(deps.paths.instructions, true)) return false;
-    const files = await deps.vault.listFiles();
     for (const change of reviewed.changes) {
       const matches = files.filter((file) => file.path.toLowerCase() === change.path.toLowerCase());
       if (change.target.exists ? matches.length !== 1 || matches[0].path !== change.path || matches[0].kind !== "note" : matches.length !== 0) return false;

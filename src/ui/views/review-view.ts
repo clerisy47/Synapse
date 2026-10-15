@@ -22,6 +22,7 @@ export function mountReviewView(el: HTMLElement, controller: ReviewController, c
     el.replaceChildren();
     add(el, "h2", REVIEW.title);
     add(el, "p", REVIEW.milestone);
+    add(el, "p", REVIEW.disclosure);
     const status = add(el, "p", REVIEW.phase[state.phase]);
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
