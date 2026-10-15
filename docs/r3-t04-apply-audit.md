@@ -71,7 +71,7 @@ bounded recovery retention and reviewed revert. Those features are not complete.
 
 ## Verification
 
-Verification: 775 tests pass; one optional live OpenRouter test is skipped.
+Verification: 781 tests pass; one optional live OpenRouter test is skipped.
 Typecheck, lint (zero errors, eleven warnings), boundaries (205 modules),
 network/write/five-schema checks, production build and whitespace checks pass.
 Production-bundle capture/review/apply/chat/unload smoke passes.
@@ -85,6 +85,11 @@ response, shared queue) → Approve → Apply → persistence → unload. It che
 actual note adapter call and unchanged inbox. This is not a live provider call or
 a real Obsidian application.
 
-Real Obsidian application evidence is pending via
-[r3-t04-apply-smoke.md](r3-t04-apply-smoke.md). PLAN R3-T04 stays IN_PROGRESS until
-that required check is completed; this document does not waive it.
+The project-local synthetic mini vault adds disk-backed create/update, conflict,
+policy denial, protected-target and scoped-append checks. `npm run test:vault`
+runs 80 headless integration tests without credentials or real vault writes.
+Its host surface does not reproduce Obsidian's locking or editor lifecycle.
+
+Per the revised PLAN validation scope, R3-T04 is complete with headless evidence.
+Real Obsidian application evidence remains required at R5-T03/R5-T04 via
+[r3-t04-apply-smoke.md](r3-t04-apply-smoke.md).

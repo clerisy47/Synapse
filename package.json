@@ -13,7 +13,8 @@
     "boundaries": "node scripts/check-boundaries.mjs",
     "check:network": "node scripts/check-no-network.mjs",
     "check:writes": "node scripts/check-no-writes.mjs",
-    "check:schema": "node scripts/check-schema-subset.mjs"
+    "check:schema": "node scripts/check-schema-subset.mjs",
+    "test:vault": "vitest run test/integration/mini-vault.test.ts test/integration/pipeline-e2e.test.ts test/integration/recipient-pipeline.test.ts test/integration/control-ingest.test.ts test/integration/recipient-tools.test.ts test/integration/research-inbox.test.ts"
   },
   "keywords": [
     "obsidian",

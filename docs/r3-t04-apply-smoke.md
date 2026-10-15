@@ -1,7 +1,8 @@
 # R3-T04 real Obsidian apply smoke
 
-PLAN R3-T04 requires real Obsidian apply evidence. Injected-host tests are
-separate evidence and do not close this check.
+The revised PLAN defers this real Obsidian apply check to R5-T03/R5-T04.
+R3-T04 uses headless validation; injected-host and mini-vault tests do not
+replace this final host check.
 
 Use a disposable synthetic vault and the file/settings fixture from
 [r3-t03-review-smoke.md](r3-t03-review-smoke.md). Install the freshly built
