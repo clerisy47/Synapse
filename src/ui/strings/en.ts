@@ -165,7 +165,7 @@ export const REVIEW = {
   command: "Review research",
   title: "Review research changes",
   disclosure: "Generating sends selected research, formatting instructions and permitted destination context to your configured OpenRouter model. Review and approval stay local.",
-  milestone: "Apply saves only accepted changes after another conflict check. Writes run one at a time; closing cancels remaining writes. Research is preserved.",
+  milestone: "Apply saves only accepted changes after another conflict check. Writes run one at a time; closing cancels remaining writes. Research is preserved. Recovery saves full before/after note text in plugin storage for up to 30 days (unresolved writes retained), subject to a size cap. Sync and backups may copy it.",
   unavailable: "Research review unavailable. Select saved material in the configured research inbox and check instructions and security rules.",
   destinations: "Choose destinations",
   dailyDate: "Daily note date (YYYY-MM-DD)",
@@ -196,4 +196,15 @@ export const REVIEW = {
     error: "Proposal generation failed or was canceled. Close this review and try again; check destinations, date and permissions.",
     canceled: "Review closed. Remaining writes canceled; an operation already committed is preserved.",
   },
+} as const;
+
+export const RECOVERY = {
+  command: "Review recovery and revert",
+  disclosure: "Recovery stores full original and proposed note text in the plugin folder for up to 30 days, with a size cap. Unresolved writes stay retained. Vault sync or backups may copy this data. Clearing recovery loses revert history. Reverts need a fresh review and approval; created notes revert to empty Markdown files without deletion.",
+  pending: "A prior application stopped or has an uncertain outcome. Run Review recovery and revert to inspect reconciled results. No writes were retried.",
+  empty: "No retained application records.",
+  unavailable: "Recovery or revert unavailable. Check current files, editor buffers, policy and storage; uncertain writes are never retried automatically.",
+  record: (id: string, outcomes: readonly string[]) => `${id}: ${outcomes.join(", ")}`,
+  revert: "Review revert diff",
+  close: "Close",
 } as const;

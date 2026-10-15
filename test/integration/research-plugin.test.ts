@@ -30,6 +30,17 @@ vi.mock("obsidian", async (importOriginal) => {
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); host.commands.clear(); host.notices.length = 0; host.data = null; host.saves = 0; });
 
+function pluginFolderAdapter() {
+  const files = new Map<string, string>();
+  const directories = new Set<string>();
+  return {
+    exists: async (path: string) => files.has(path) || directories.has(path),
+    read: async (path: string) => { const text = files.get(path); if (text === undefined) throw Error("missing plugin file"); return text; },
+    write: async (path: string, text: string) => { files.set(path, text); },
+    mkdir: async (path: string) => { directories.add(path); },
+  };
+}
+
 function pluginClass(): typeof VaultSynapsePlugin {
   if (process.env.SYNAPSE_SMOKE_BUNDLE !== "1") return VaultSynapsePlugin;
   const localRequire = createRequire(import.meta.url);
@@ -56,7 +67,7 @@ it("captures selection through the host command, preserves inbox, restarts and u
   const editor = { getValue: () => editorText, getCursor: (which: string) => ({ line: 0, ch: which === "from" ? selection.start : selection.end }), posToOffset: ({ ch }: { ch: number }) => ch };
   const modify = vi.fn(); const create = vi.fn(); const read = vi.fn(async () => text);
   const app = {
-    vault: { adapter: {}, getFiles: () => [file], getMarkdownFiles: () => [file], getAbstractFileByPath: (path: string) => path === file.path ? file : null, read, on, offref, modify, create },
+    vault: { adapter: pluginFolderAdapter(), getFiles: () => [file], getMarkdownFiles: () => [file], getAbstractFileByPath: (path: string) => path === file.path ? file : null, read, on, offref, modify, create },
     metadataCache: { getCache: () => null, resolvedLinks: {}, on, offref },
     workspace: { on, offref, onLayoutReady() {}, getActiveFile: () => file, getActiveViewOfType: () => ({ editor }), getLeavesOfType: () => [], detachLeavesOfType() {} },
   } as unknown as App;
@@ -97,7 +108,7 @@ it("opens the production research review from captured editor selection and clos
   const editor = { getValue: () => texts["Research.md"], getCursor: (which: string) => ({ line: 0, ch: which === "from" ? 0 : texts["Research.md"].length }), posToOffset: ({ ch }: { ch: number }) => ch };
   const modify = vi.fn(); const create = vi.fn();
   const app = {
-    vault: { adapter: {}, getFiles: () => files, getMarkdownFiles: () => files, getAbstractFileByPath: (path: string) => files.find((file) => file.path === path) ?? null, read: async (file: TFile) => texts[file.path], on, offref, modify, create },
+    vault: { adapter: pluginFolderAdapter(), getFiles: () => files, getMarkdownFiles: () => files, getAbstractFileByPath: (path: string) => files.find((file) => file.path === path) ?? null, read: async (file: TFile) => texts[file.path], on, offref, modify, create },
     metadataCache: { getCache: () => ({ frontmatter: {}, tags: [] }), resolvedLinks: {}, on, offref },
     workspace: { on, offref, onLayoutReady() {}, getActiveFile: () => files[0], getActiveViewOfType: () => ({ editor }), getLeavesOfType: () => [], detachLeavesOfType() {} },
   } as unknown as App;
@@ -138,7 +149,7 @@ it("applies a locally approved change through production composition without cha
   });
   const create = vi.fn(); const modify = vi.fn();
   const app = {
-    vault: { adapter: {}, getFiles: () => files, getAllLoadedFiles: () => files, getMarkdownFiles: () => files,
+    vault: { adapter: pluginFolderAdapter(), getFiles: () => files, getAllLoadedFiles: () => files, getMarkdownFiles: () => files,
       getAbstractFileByPath: (path: string) => files.find((file) => file.path === path) ?? null,
       read: async (file: TFile) => texts[file.path], process: processNote, on, offref, modify, create },
     metadataCache: { getCache: () => ({ frontmatter: {}, tags: [] }), resolvedLinks: {}, on, offref },
@@ -168,5 +179,19 @@ it("applies a locally approved change through production composition without cha
   expect(texts["Topic.md"]).toBe("# Updated\nKeep this.\n- Synthetic result.");
   expect(texts["Research.md"]).toBe("Synthetic apply observation."); expect(generated).toHaveBeenCalledOnce();
   expect(parsePersisted(host.data).state.researchLedger.records[0].outcomes).toContain("applied");
+  (open.mock.instances[0] as unknown as obsidian.Modal).close();
+  await host.commands.get("review-recovery")?.callback();
+  expect(open).toHaveBeenCalledTimes(2);
+  const recoveryEl = (open.mock.instances[1] as unknown as obsidian.Modal).contentEl;
+  const revert = Array.from(recoveryEl.querySelectorAll("button")).find((candidate) => candidate.textContent === "Review revert diff")!;
+  revert.click(); await vi.waitFor(() => expect(recoveryEl.querySelector("select")).not.toBeNull());
+  expect(Array.from(recoveryEl.querySelectorAll("pre")).map((pre) => pre.textContent)).toEqual(["# Updated\nKeep this.\n- Synthetic result.", "# Original\nKeep this.\n"]);
+  const decision = recoveryEl.querySelector("select")!; decision.value = "accept"; decision.dispatchEvent(new Event("change"));
+  const recoveryButton = (label: string) => Array.from(recoveryEl.querySelectorAll("button")).find((candidate) => candidate.textContent === label)!;
+  recoveryButton(REVIEW.approve).click(); await vi.waitFor(() => expect(recoveryButton(REVIEW.apply)).toBeDefined());
+  expect(processNote).toHaveBeenCalledOnce(); recoveryButton(REVIEW.apply).click();
+  await vi.waitFor(() => expect(recoveryEl.textContent).toContain("Topic.md: Applied"));
+  expect(processNote).toHaveBeenCalledTimes(2); expect(texts["Topic.md"]).toBe("# Original\nKeep this.\n");
+  expect(texts["Research.md"]).toBe("Synthetic apply observation."); expect(generated).toHaveBeenCalledOnce();
   plugin.onunload(); await vi.waitFor(() => expect(listeners.size).toBe(0));
 });

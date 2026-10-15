@@ -5,7 +5,7 @@ This revision supersedes the old backlog, including the in-progress PDF probe M4
 
 ## Execution rules
 
-Current task is IN_PROGRESS; otherwise choose the lowest-ID TODO with all dependencies DONE. User-directed scope revisions take precedence over ordinary backlog selection. Status exists only here. R1-T01, R2-T01 through R2-T03 and R3-T01 through R3-T04 are complete; R3-T05 is the next eligible task.
+Current task is IN_PROGRESS; otherwise choose the lowest-ID TODO with all dependencies DONE. User-directed scope revisions take precedence over ordinary backlog selection. Status exists only here. R1-T01, R2-T01 through R2-T03 and R3-T01 through R3-T05 are complete; R4-T01 is the next eligible task.
 
 Keep tasks small (normally 1–5 files); split cross-cutting cleanup into reviewable substeps before editing. Do not disable tests or delete meaningful failing coverage. Every implementation slice must build and pass headless backend checks. Per user direction (2026-10-15), use the project mini vault now; defer actual Obsidian UI/load/workflow smoke to the final Phase A gate (R5-T03/R5-T04), with final local smoke at R6-T02. Do not start Phase B until all Must + Should features and Phase A validation are complete.
 
@@ -92,7 +92,7 @@ Keep tasks small (normally 1–5 files); split cross-cutting cleanup into review
 - **Dependencies:** R3-T04
 - **Acceptance criteria:** SPEC F11; exact applied report; preserved research; restart never blindly duplicates a write.
 - **How to verify:** Fault injection between journal/write/completion, restart reconciliation and stale revert tests.
-- **Status:** TODO
+- **Status:** DONE
 
 ### R4-T01 — Design MCP transport and client capability contracts
 

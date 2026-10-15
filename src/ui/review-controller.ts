@@ -4,6 +4,7 @@ import { canApprove, canGenerate, initialReviewState, reduceReview, type ReviewD
 
 /** Structural feature interface keeps UI independent of feature implementations. */
 export interface ReviewRunner {
+  readyProposal?(): ChangeProposal | null;
   prepare(): Promise<Result<RoutingSettings>>;
   generate(destinations: readonly string[], dailyDate?: string): JobHandle<{ readonly proposal: ChangeProposal }> | null;
   approve(decisions: readonly ReviewDecision[]): Promise<Result<Approval>>;
@@ -22,6 +23,11 @@ export interface ReviewController {
 }
 export function createReviewController(runner: ReviewRunner, routing: RoutingSettings): ReviewController {
   const state = createObservable(initialReviewState(routing));
+  const ready = runner.readyProposal?.();
+  if (ready) {
+    const initial = state.get();
+    state.set({ ...initial, phase: "review", proposal: ready, decisions: ready.changes.map(() => "undecided") });
+  }
   let disposed = false;
   let generating = false;
   let token: Approval | null = null;

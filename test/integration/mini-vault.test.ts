@@ -1,7 +1,9 @@
 import { cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, expect, it } from "vitest";
-import { asVaultPath, contentHash, type NoteWriteRequest } from "../../src/core";
+import { asVaultPath, contentHash, type ApprovalBinding, type NoteWriteRequest, type VaultPort } from "../../src/core";
+import { createRecoveryJournal } from "../../src/changes";
+import { MemoryStorage } from "../fakes";
 import { createObsidianNoteWriter, createObsidianResearchAppender, type NoteWriteSurface } from "../../src/adapters/obsidian";
 
 const roots: string[] = [];
@@ -75,4 +77,28 @@ it("appends only to the scoped inbox and refuses revoked or stale submission", a
   expect((await appender.append({ ...request, before: before + request.text })).ok).toBe(false);
   expect(await f.read("Research.md")).toBe(before + request.text);
   expect(await f.read("Topic.md")).toBe(f.request.change.before);
+});
+
+
+it.each(["before-write", "after-write", "conflict"])("reconciles a %s interruption against the project mini vault", async (fault) => {
+  const f = await fixture();
+  const storage = new MemoryStorage();
+  // The real disk supplies every observation; only plugin JSON storage is in memory.
+  const vault: VaultPort = {
+    listFiles: async () => (await readdir(f.root, { recursive: true })).filter((name) => name.endsWith(".md")).map((name) => ({ path: asVaultPath(name), kind: "note", mtime: 1, ctime: 1, size: 0 })),
+    stat: async () => null, readText: f.read, onChange: () => () => {},
+  };
+  const hash = await contentHash(await f.read("Research.md")); if (!hash.ok) throw Error("hash");
+  const binding: ApprovalBinding = { version: 1, proposalId: "mini-recovery" as ApprovalBinding["proposalId"], instructionsHash: hash.value, policyHash: hash.value,
+    batch: { id: "mini-batch" as ApprovalBinding["batch"]["id"], source: f.request.paths.research, sourceHash: hash.value, selectedHash: hash.value, range: { start: 0, end: 5 }, provenance: "local" }, changes: [f.request.change] };
+  const journal = createRecoveryJournal({ storage, vault, now: () => 1 });
+  const started = await journal.begin(binding); if (!started.ok) throw Error("begin");
+  expect((await journal.outcome(started.value, 0, "pending")).ok).toBe(true);
+  if (fault !== "before-write") expect((await f.writer.apply(f.request)).ok).toBe(true);
+  if (fault === "conflict") await writeFile(f.file("Topic.md"), "Concurrent synthetic edit");
+  const restarted = createRecoveryJournal({ storage, vault, now: () => 1 });
+  const reconciled = await restarted.reconcile();
+  expect(reconciled.ok && reconciled.value[0].outcomes).toEqual([fault === "before-write" ? "unchanged" : fault === "after-write" ? "applied" : "conflicted"]);
+  expect((await restarted.begin(binding)).ok).toBe(false);
+  expect(await f.read("Topic.md")).toBe(fault === "before-write" ? f.request.change.before : fault === "after-write" ? f.request.change.after : "Concurrent synthetic edit");
 });
