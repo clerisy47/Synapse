@@ -2,16 +2,15 @@
 
 ## Current focus
 
-R3-T05 adds durable per-file recovery and reviewed revert. Accepted target before/after text is bounded in plugin-folder storage; startup reconciles uncertain outcomes without retries. Reverts require a fresh diff, current policy/source/target checks and local approval. See [recovery audit](docs/r3-t05-recovery-audit.md). Actual Obsidian UI/load/workflow smoke remains deferred to R5-T03/R5-T04; backend validation uses the project mini vault.
+R4-T01 freezes the [MCP v1 contract](docs/contracts/mcp-v1.md): authenticated loopback Streamable HTTP, independent client scopes, strict query/submission shapes, safe references, revocation, limits and lifecycle. R4-T02 implements the adapter; R4-T03 wires semantic operations. Real Obsidian/native-client smoke remains deferred to R5-T03.
 Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must + Should completion; **Phase B = local Ollama**, after validation.
 
 ## Last session
 
-- Added approval-free journal records, mandatory durable intent before each write, ordered outcomes, restart observation and independent batch replay prevention. Persistence failures stop later writes while preserving known results.
-- Added recovery history command and fresh local revert through the existing review controller. Current exclusions, policy, controls, unsaved buffers and target edits refuse content disclosure or stale application. Research is preserved; created-note reverts empty the note without deletion.
-- Recovery limits: 20 records, 4,000,000 serialized characters, 30-day expiry on startup/access; unresolved writes retained. UI discloses full target-text storage and sync/backup copying. Clear-data UX remains R5-T02 release work.
-- Verified 801 tests passing, one optional live-provider test skipped; typecheck, lint (zero errors), boundaries, network/write/schema checks and production build. Production-bundle capture/review/journaled apply/unload smoke and disk-backed mini-vault interruption checks pass. No live provider or real vault was used.
-- Real Obsidian smoke stays at the final Phase A gate. Journal external divergence fails closed; StoragePort does not provide distributed transactions for simultaneous multi-device editing.
+- Selected pinned MCP 2025-11-25 Streamable HTTP with JSON responses, native clients and locally provisioned per-client bearer tokens. No browser access, OAuth discovery, raw resources or apply authority.
+- Documented pairing/revocation, policy/source freshness, masked response projection, serialized durable idempotent inbox append and bounded resource use. Production wiring remains in subsequent tasks.
+- Synthetic loopback spike verifies authentication, forged Host and Origin denial, revocation and listener cleanup. Node fetch does not preserve a forged Host here; the test uses a raw HTTP client for that case.
+- Verified typecheck, full suite (802 passing, one optional live test skipped), 83 mini-vault tests and production build. No live provider or actual Obsidian/client interoperability claimed.
 
 ## Known issues
 
