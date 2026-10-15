@@ -2,16 +2,16 @@
 
 ## Current focus
 
-Delivered the R3-T03 implementation: configured destination/date selection, full literal Markdown review, explicit per-change decisions and in-memory bound local approval. Next task is R3-T04: restricted note writes and conflict-safe application.
+R3-T04 implementation is on the delivery branch: restricted note writes, explicit local Apply, conflict checks and per-file reports. Automated checks and production-bundle apply smoke pass; required real Obsidian apply evidence is pending. See [application audit](docs/r3-t04-apply-audit.md) and [operator checklist](docs/r3-t04-apply-smoke.md). R3-T05 recovery remains subsequent work.
 Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must + Should completion; **Phase B = local Ollama**, after validation.
 
 ## Last session
 
-- Review research captures the saved inbox selection before opening the modal and generates through the shared model lane. Full before/after text, destination, operation, provenance and evidence are shown without interpreting model HTML. See [review implementation and validation](docs/r3-t03-review-audit.md).
-- Approval requires all decisions and at least one acceptance. Its exact subset binding remains in a private, identity-checked single-use registry. Changed source/targets/controls, editor activity, metadata or settings invalidate review and remove proposal text. Disk rechecks detect missed control/source/target events.
-- Approval saves no notes. Closing, cancellation, service rebuild and unload release the review and authority. Bodies/tokens are not persisted; rejection leaves the existing approval-free history available for a fresh review.
-- Verification: **743 tests pass; one optional live test skipped**. Typecheck, lint (zero errors, ten warnings), boundaries (200 modules), network/write/five-schema checks, production build, whitespace and production-bundle injected-host capture/review/chat/unload smoke pass.
-- Real Obsidian evidence (2026-10-15): user reported **Pass** for the synthetic review checklist on their “latest” Obsidian version (numeric version not supplied). Automated real-app access was unavailable because the CLI was disabled; the coding agent made no live provider request and did not write real vault notes.
+- Added Markdown-only create/atomic compare-update adapter with canonical/control-path checks and all-pane editor guards; separately scoped inbox append remains uncomposed pending R4 authentication.
+- Explicit Apply consumes single-use local approval, rechecks current snapshots/policy before each write, flushes a conservative attempt marker, and reports applied/refused/unknown/unattempted files. Research is preserved; writes are never automatically retried.
+- Added concurrent-edit/creation/policy/cancellation/forgery/replay/partial/unknown-outcome tests and production-bundle scripted-provider apply/persistence/unload smoke. No live provider request or real vault write was performed by the coding agent.
+- Verification: 774 tests pass; one optional live test skipped. Typecheck, lint (zero errors, eleven warnings), boundaries, network/write/schema checks, production build and bundle host smoke pass.
+- Real Obsidian apply smoke is pending; this is why PLAN R3-T04 remains IN_PROGRESS. Per-file recovery and reviewed revert are not yet implemented.
 
 ## Known issues
 
