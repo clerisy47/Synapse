@@ -2,17 +2,16 @@
 
 ## Current focus
 
-R3-T04 is complete under the revised headless validation scope: restricted note writes, explicit local Apply, conflict checks and per-file reports. Automated checks and production-bundle apply smoke pass. Per user direction (2026-10-15), backend testing now uses a project-local synthetic mini vault; actual Obsidian UI/load/apply testing is deferred to the final Phase A gate. See [application audit](docs/r3-t04-apply-audit.md) and [operator checklist](docs/r3-t04-apply-smoke.md). R3-T05 recovery remains subsequent work.
+R3-T05 adds durable per-file recovery and reviewed revert. Accepted target before/after text is bounded in plugin-folder storage; startup reconciles uncertain outcomes without retries. Reverts require a fresh diff, current policy/source/target checks and local approval. See [recovery audit](docs/r3-t05-recovery-audit.md). Actual Obsidian UI/load/workflow smoke remains deferred to R5-T03/R5-T04; backend validation uses the project mini vault.
 Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must + Should completion; **Phase B = local Ollama**, after validation.
 
 ## Last session
 
-- Added Markdown-only create/atomic compare-update adapter with canonical/control-path checks and all-pane editor guards; separately scoped inbox append remains uncomposed pending R4 authentication.
-- Explicit Apply consumes single-use local approval, rechecks current snapshots/policy before each write, flushes a conservative attempt marker, and reports applied/refused/unknown/unattempted files. Research is preserved; writes are never automatically retried.
-- Added concurrent-edit/creation/policy/cancellation/forgery/replay/partial/unknown-outcome tests and production-bundle scripted-provider apply/persistence/unload smoke. No live provider request or real vault write was performed by the coding agent.
-- Verification: 781 tests pass; one optional live test skipped. Typecheck, lint (zero errors, eleven warnings), boundaries, network/write/schema checks, production build pass; prior bundle host smoke also passed. The new headless vault command passes 80 tests.
-- Added `test/mini-vault` and `npm run test:vault`: headless backend suite plus disk-backed restricted update/create, concurrent edit, dirty editor, policy denial, protected control target, scoped inbox append, stale submission and revocation cases. Each run copies fixtures into a disposable project-local directory and removes it afterward. MCP transport endpoints do not exist yet; authenticated endpoint tests remain R4 work.
-- Actual Obsidian smoke is deferred to R5-T03/R5-T04 by user direction; the existing operator checklists remain for that final pass. Per-file recovery and reviewed revert are not yet implemented.
+- Added approval-free journal records, mandatory durable intent before each write, ordered outcomes, restart observation and independent batch replay prevention. Persistence failures stop later writes while preserving known results.
+- Added recovery history command and fresh local revert through the existing review controller. Current exclusions, policy, controls, unsaved buffers and target edits refuse content disclosure or stale application. Research is preserved; created-note reverts empty the note without deletion.
+- Recovery limits: 20 records, 4,000,000 serialized characters, 30-day expiry on startup/access; unresolved writes retained. UI discloses full target-text storage and sync/backup copying. Clear-data UX remains R5-T02 release work.
+- Verified 801 tests passing, one optional live-provider test skipped; typecheck, lint (zero errors), boundaries, network/write/schema checks and production build. Production-bundle capture/review/journaled apply/unload smoke and disk-backed mini-vault interruption checks pass. No live provider or real vault was used.
+- Real Obsidian smoke stays at the final Phase A gate. Journal external divergence fails closed; StoragePort does not provide distributed transactions for simultaneous multi-device editing.
 
 ## Known issues
 
