@@ -108,3 +108,11 @@ export const RECOVERY_LIMITS = {
   chars: 4_000_000,
   retentionMs: 30 * 24 * 60 * 60 * 1000,
 } as const;
+
+/** Frozen provisional MCP v1 resource bounds. */
+export const MCP_LIMITS = {
+  bodyBytes: 65_536, headerBytes: 8_192, ioMs: 5_000, workMs: 60_000,
+  outputBytes: 65_536, clients: 16, labelPoints: 80, burst: 5,
+  perMinute: 20, unauthPerMinute: 60, concurrency: 4,
+  questionPoints: 4_000, researchPoints: 32_000, sources: 10, urlChars: 2_048, metaBytes: 4_096,
+} as const;
