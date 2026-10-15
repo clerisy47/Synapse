@@ -3,6 +3,7 @@
  * M1-T16 + M2-T10: adapters → config/state → corpus/tools → llm/jobs → UI.
  */
 
+import { createRecoveryJournal, type RecoveryJournal } from "./changes";
 import { Notice, Plugin } from "obsidian";
 
 import {
@@ -97,6 +98,7 @@ import {
   createM3Commands,
   createResearchCaptureCommand,
   createResearchReviewCommand,
+  createRecoveryCommand,
   mountReviewView,
   type ReviewRunner,
   mountChatView,
@@ -359,7 +361,8 @@ export default class VaultSynapsePlugin extends Plugin {
   private controls: ControlStore | null = null;
   private research: ResearchInbox | null = null;
   private activeNote: ActiveNotePort | null = null;
-  private reviewSession: (() => ReviewRunner | null) | null = null;
+  private recovery: RecoveryJournal | null = null;
+  private reviewSession: ((revertId?: string) => ReviewRunner | null) | null = null;
   private closeReview: Disposable | null = null;
   private corpus: CorpusStore | null = null;
   private toolDeps: CoreToolDeps | null = null;
@@ -454,6 +457,7 @@ export default class VaultSynapsePlugin extends Plugin {
     const metadata = createObsidianMetadataFromApp(this.app);
     const activeNote = createObsidianActiveNoteFromApp(this.app);
     this.vault = vault;
+    this.recovery = createRecoveryJournal({ storage, vault, now: () => clock.now() });
     this.activeNote = activeNote;
 
     this.installControls(vault, config.get());
@@ -526,14 +530,15 @@ export default class VaultSynapsePlugin extends Plugin {
       policy: () => { const state = controls.status.get().security; return state.status === "ready" ? state.snapshot : null; },
       subscribePolicy: (callback) => controls.status.subscribe(callback),
     });
-    this.reviewSession = () => {
+    this.reviewSession = (revertId) => {
       const inbox = this.research;
+      const journal = this.recovery;
       const activeNote = this.activeNote;
       const lane = this.lane;
       const jobs = this.jobs;
       const config = this.config;
-      if (!inbox || !activeNote || !lane || !jobs || !config) return null;
-      return createResearchReviewSession({ writer: createObsidianNoteWriterFromApp(this.app), vault, metadata, activeNote, inbox, jobs, model: lane.client,
+      if (!inbox || !journal || !activeNote || !lane || !jobs || !config) return null;
+      return createResearchReviewSession({ journal, ...(revertId ? { revertId } : {}), writer: createObsidianNoteWriterFromApp(this.app), vault, metadata, activeNote, inbox, jobs, model: lane.client,
         paths: settings.controlPaths,
         exclusion: createExclusionPolicy({ folders: settings.excludedFolders, tags: settings.excludedTags,
           frontmatterKey: EXCLUSION_FRONTMATTER_KEY, frontmatterValue: EXCLUSION_FRONTMATTER_VALUE }),
@@ -846,7 +851,16 @@ export default class VaultSynapsePlugin extends Plugin {
         notice: (message) => presentObsidianNotice({ message }),
       });
       this.addCommand(review.command);
-      this.closeReview = review.close;
+      const recovery = createRecoveryCommand({
+        records: () => this.recovery!.reconcile(),
+        session: (id) => this.reviewSession?.(id) ?? null,
+        open: (mount, onClose) => showResearchReview(this.app, mount, onClose),
+        notice: (message) => presentObsidianNotice({ message }),
+      });
+      this.addCommand(recovery.command);
+      void recovery.initialize();
+      this.closeReview = () => { review.close(); recovery.close(); };
+      this.disposables.push(() => recovery.dispose());
       this.disposables.push(() => { this.closeReview = null; review.dispose(); });
       const researchCommand = createResearchCaptureCommand({ service: () => this.research, notice: (message) => presentObsidianNotice({ message }) });
       this.addCommand(researchCommand);

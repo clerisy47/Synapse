@@ -106,7 +106,7 @@ export function createResearchReviewSession(deps: ProposalGeneratorDeps & { writ
     return !disposed;
   }
   return {
-    readyProposal: () => deps.revertId ? proposal : null,
+    readyProposal: () => deps.revertId && proposal ? structuredClone(proposal) : null,
     async prepare() {
       if (disposed || snapshot) return unavailable();
       const generation = version();

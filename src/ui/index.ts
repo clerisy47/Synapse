@@ -79,3 +79,4 @@ export { createResearchReviewCommand } from "./review-command";
 export { createReviewController, type ReviewController, type ReviewRunner } from "./review-controller";
 export { mountReviewView } from "./views/review-view";
 export { REVIEW } from "./strings/en";
+export { createRecoveryCommand } from "./recovery-command";
