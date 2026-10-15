@@ -30,7 +30,8 @@ file kind, and checks every open Markdown leaf. Background, dirty or unavailable
 buffers for source, controls and targets refuse application. Existing targets use
 Obsidian `Vault.process`: its synchronous callback compares full original text,
 checks buffers and generation immediately before returning replacement text.
-Creation uses `Vault.create` only for an absent destination; no folders are made.
+Creation checks the physical adapter as well as loaded files, then uses
+`Vault.create` only for an absent destination; no folders are made.
 A concurrently existing file is never intentionally overwritten.
 
 Review rechecks saved research and both exact control-file hashes, target content,
@@ -70,7 +71,7 @@ bounded recovery retention and reviewed revert. Those features are not complete.
 
 ## Verification
 
-Verification: 774 tests pass; one optional live OpenRouter test is skipped.
+Verification: 775 tests pass; one optional live OpenRouter test is skipped.
 Typecheck, lint (zero errors, eleven warnings), boundaries (205 modules),
 network/write/five-schema checks, production build and whitespace checks pass.
 Production-bundle capture/review/apply/chat/unload smoke passes.

@@ -10,7 +10,7 @@ Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must
 - Added Markdown-only create/atomic compare-update adapter with canonical/control-path checks and all-pane editor guards; separately scoped inbox append remains uncomposed pending R4 authentication.
 - Explicit Apply consumes single-use local approval, rechecks current snapshots/policy before each write, flushes a conservative attempt marker, and reports applied/refused/unknown/unattempted files. Research is preserved; writes are never automatically retried.
 - Added concurrent-edit/creation/policy/cancellation/forgery/replay/partial/unknown-outcome tests and production-bundle scripted-provider apply/persistence/unload smoke. No live provider request or real vault write was performed by the coding agent.
-- Verification: 774 tests pass; one optional live test skipped. Typecheck, lint (zero errors, eleven warnings), boundaries, network/write/schema checks, production build and bundle host smoke pass.
+- Verification: 775 tests pass; one optional live test skipped. Typecheck, lint (zero errors, eleven warnings), boundaries, network/write/schema checks, production build and bundle host smoke pass.
 - Real Obsidian apply smoke is pending; this is why PLAN R3-T04 remains IN_PROGRESS. Per-file recovery and reviewed revert are not yet implemented.
 
 ## Known issues

@@ -41,6 +41,7 @@ async function fixture() {
   let writes = 0;
   const writer = createObsidianNoteWriter({
     entries: () => [...entries.keys()].map((path) => ({ path, markdown: true })), editors: () => [],
+    exists: async (path) => !!await vault.stat(asVaultPath(path)),
     read: (path) => vault.readText(asVaultPath(path)),
     async process(path, update) {
       beforeWrite?.();

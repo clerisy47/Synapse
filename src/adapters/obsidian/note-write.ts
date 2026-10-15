@@ -6,6 +6,7 @@ export interface NoteWriteSurface {
   entries(this: void): readonly { path: string; markdown: boolean }[];
   /** Every open Markdown leaf, including background panes. null means unverifiable. */
   editors(this: void): readonly { path: string; text: string | null }[];
+  exists(this: void, path: string): Promise<boolean>;
   read(this: void, path: string): Promise<string>;
   process(this: void, path: string, update: (current: string) => string): Promise<void>;
   create(this: void, path: string, text: string): Promise<void>;
@@ -39,7 +40,8 @@ function createWriter(surface: NoteWriteSurface, inboxOnly: boolean): { apply(in
           || (!change.target.exists && change.before !== "") || !alive()) return refused();
         if (!await input.revalidate() || !alive() || !guardsMatch()) return refused();
         if (change.operation === "create") {
-          if (matches().length || !editorsMatch(change.path, "")) return refused();
+          if (matches().length || await surface.exists(change.path) || !editorsMatch(change.path, "")) return refused();
+          if (!await input.revalidate() || !alive() || !guardsMatch() || matches().length) return refused();
           // create() must fail if the path already exists; it never overwrites.
           if (!alive()) return refused();
           input.willCommit();
@@ -74,6 +76,7 @@ export function createObsidianNoteWriterFromApp(app: App): NoteWritePort {
       if (!(view instanceof MarkdownView) || !view.file) return [];
       return [{ path: view.file.path, text: view.editor?.getValue() ?? null }];
     }),
+    exists: (path) => vault.adapter.exists(path),
     read: (path) => vault.read(file(path)),
     async process(path, update) { await vault.process(file(path), update); },
     async create(path, text) { await vault.create(path, text); },

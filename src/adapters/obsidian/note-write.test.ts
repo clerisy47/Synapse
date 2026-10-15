@@ -10,6 +10,7 @@ function fixture() {
   const surface: NoteWriteSurface = {
     entries: () => [...files.keys()].map((path) => ({ path, markdown: path.endsWith(".md") })),
     editors: () => editors,
+    exists: async (path) => files.has(path),
     read: async (path) => files.get(path)!,
     process: vi.fn(async (path: string, update: (text: string) => string) => { duringProcess(); files.set(path, update(files.get(path)!)); }),
     create: vi.fn(async (path: string, text: string) => { duringCreate(); if (files.has(path)) throw Error("exists"); files.set(path, text); }),
@@ -85,4 +86,10 @@ it("does not claim a host rejection after submission proves that nothing was wri
   const result = await f.writer.apply(f.request);
   expect(result.ok).toBe(false); if (result.ok) throw Error("expected refusal");
   expect(result.error.detail?.issueCode).toBe("WRITE_OUTCOME_UNKNOWN"); expect(f.files.get("Topic.md")).toBe("after");
+});
+
+it("refuses a disk-only destination that is absent from the host file cache", async () => {
+  const f = fixture(); f.surface.exists = async () => true;
+  const result = await f.writer.apply({ ...f.request, change: { ...f.request.change, path: asVaultPath("New.md"), operation: "create", target: { exists: false }, before: "" } });
+  expect(result.ok).toBe(false); expect(f.surface.create).not.toHaveBeenCalled();
 });
