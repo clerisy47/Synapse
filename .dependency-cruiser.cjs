@@ -94,7 +94,7 @@ module.exports = {
       comment: "research uses public feature contracts and injected I/O; never state or adapters",
       severity: "error",
       from: { path: "^src/research/" },
-      to: { path: "^src/", pathNot: "^(src/core/|src/instructions/|src/policy/|src/evidence/|src/agent/|src/llm/|src/jobs/|src/research/|src/constants\\.ts$)" },
+      to: { path: "^src/", pathNot: "^(src/core/|src/instructions/|src/policy/|src/evidence/|src/agent/|src/llm/|src/jobs/|src/changes/|src/research/|src/constants\\.ts$)" },
     },
     {
       name: "changes-deps",
