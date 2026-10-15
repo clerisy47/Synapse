@@ -57,3 +57,5 @@ export type {
 } from "./control-contracts";
 export { validateControlPaths, validateVaultPath } from "./control-paths";
 export { contentHash, hashApprovalBinding } from "./control-hash";
+
+export type { NoteWritePort, NoteWriteRequest, ResearchAppendPort, ApplyReport } from "./note-write";

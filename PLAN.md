@@ -5,9 +5,9 @@ This revision supersedes the old backlog, including the in-progress PDF probe M4
 
 ## Execution rules
 
-Current task is IN_PROGRESS; otherwise choose the lowest-ID TODO with all dependencies DONE. User-directed scope revisions take precedence over ordinary backlog selection. Status exists only here. R1-T01, R2-T01 through R2-T03 and R3-T01 through R3-T03 are complete; no task is IN_PROGRESS.
+Current task is IN_PROGRESS; otherwise choose the lowest-ID TODO with all dependencies DONE. User-directed scope revisions take precedence over ordinary backlog selection. Status exists only here. R1-T01, R2-T01 through R2-T03 and R3-T01 through R3-T04 are complete; R3-T05 is the next eligible task.
 
-Keep tasks small (normally 1–5 files); split cross-cutting cleanup into reviewable substeps before editing. Do not disable tests or delete meaningful failing coverage. Every implementation slice must build and load. Do not start Phase B until all Must + Should features and Phase A validation are complete.
+Keep tasks small (normally 1–5 files); split cross-cutting cleanup into reviewable substeps before editing. Do not disable tests or delete meaningful failing coverage. Every implementation slice must build and pass headless backend checks. Per user direction (2026-10-15), use the project mini vault now; defer actual Obsidian UI/load/workflow smoke to the final Phase A gate (R5-T03/R5-T04), with final local smoke at R6-T02. Do not start Phase B until all Must + Should features and Phase A validation are complete.
 
 ## Revised milestone map
 
@@ -75,7 +75,7 @@ Keep tasks small (normally 1–5 files); split cross-cutting cleanup into review
 - **Description:** Full before/after Markdown diffs, per-change accept/reject, batch approval and stale snapshot checks; safe DOM and strings.
 - **Dependencies:** R3-T02
 - **Acceptance criteria:** SPEC F5; only local review issues bound approval; rejection/cancel writes nothing.
-- **How to verify:** Viewmodel/DOM tests and real Obsidian review smoke.
+- **How to verify:** Viewmodel/DOM tests; real Obsidian review smoke deferred to R5-T03.
 - **Status:** DONE
 
 ### R3-T04 — Add restricted NoteWritePort and conflict-safe application
@@ -83,8 +83,8 @@ Keep tasks small (normally 1–5 files); split cross-cutting cleanup into review
 - **Description:** Implement one Obsidian write adapter; permit Markdown create/update and separately scoped inbox append. Recheck editor/disk state and approval before writing; narrowly migrate write checker.
 - **Dependencies:** R3-T03
 - **Acceptance criteria:** SPEC F5/F6; no delete/rename/control-file writes; changed or unsaved targets refuse stale apply.
-- **How to verify:** Port contracts; concurrent edit/creation/policy/cancel integration cases; strict checks/build; real Obsidian apply smoke.
-- **Status:** TODO
+- **How to verify:** Port contracts; concurrent edit/creation/policy/cancel integration cases; strict checks/build; `npm run test:vault` disk-backed synthetic apply/conflict checks. Real Obsidian apply smoke deferred to R5-T03.
+- **Status:** DONE
 
 ### R3-T05 — Add durable recovery, reapply prevention and reviewed revert
 
@@ -115,7 +115,7 @@ Keep tasks small (normally 1–5 files); split cross-cutting cleanup into review
 - **Description:** Wire semantic collaboration facades through access policy/JobQueue and serialized idempotent inbox append. Revalidate before replies; avoid forbidden title/path/count/error leaks.
 - **Dependencies:** R4-T02
 - **Acceptance criteria:** SPEC F6/F7; safe allowed/masked/denied answers; inbox-only client cannot read or edit target notes.
-- **How to verify:** MCP client end-to-end with synthetic vault: masking, denial, injection, revocation, duplicate submission; real Obsidian/client smoke.
+- **How to verify:** MCP client end-to-end with synthetic vault: masking, denial, injection, revocation, duplicate submission; real Obsidian/client smoke deferred to R5-T03.
 - **Status:** TODO
 
 ### R5-T01 — Complete iterative agentic retrieval and multi-turn chat
@@ -215,4 +215,4 @@ The prior PDF, contradiction, compare-for-flags, and old eval/release tasks have
 
 ## Definition of done
 
-Acceptance criteria met; required tests/checks/build pass; no illegal runtime imports/network/writes; no sensitive logs; plugin load and required manual behavior verified; status updated here.
+Acceptance criteria met; required tests/checks/build pass; no illegal runtime imports/network/writes; no sensitive logs; headless mini-vault checks verified; actual Obsidian load and manual behavior deferred to the final R5-T03/R5-T04 gate (and R6-T02 for local release); status updated here.

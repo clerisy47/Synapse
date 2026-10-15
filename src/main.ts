@@ -12,6 +12,7 @@ import {
 import {
   showControlReview,
   showResearchReview,
+  createObsidianNoteWriterFromApp,
   RequestUrlTransport,
   createChatItemViewFactory,
   createChatOpener,
@@ -532,7 +533,7 @@ export default class VaultSynapsePlugin extends Plugin {
       const jobs = this.jobs;
       const config = this.config;
       if (!inbox || !activeNote || !lane || !jobs || !config) return null;
-      return createResearchReviewSession({ vault, metadata, activeNote, inbox, jobs, model: lane.client,
+      return createResearchReviewSession({ writer: createObsidianNoteWriterFromApp(this.app), vault, metadata, activeNote, inbox, jobs, model: lane.client,
         paths: settings.controlPaths,
         exclusion: createExclusionPolicy({ folders: settings.excludedFolders, tags: settings.excludedTags,
           frontmatterKey: EXCLUSION_FRONTMATTER_KEY, frontmatterValue: EXCLUSION_FRONTMATTER_VALUE }),

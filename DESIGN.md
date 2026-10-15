@@ -37,7 +37,7 @@ This table is the target allowlist. Boundary-rule changes land alongside modules
 
 The port must enforce canonical path validation, file-kind restrictions, expected-content/version checks, and no control-file targets for research or inbox operations. A distinct local setup capability may create only missing configured control files after exact-content approval; it cannot update them. The adapter uses Obsidian-supported writes with a compare-before-update strategy verified against the current editor/disk state. If a reliable check cannot be made, refuse to apply rather than overwrite. There is no general write/delete/rename API exposed to features or MCP clients.
 
-`check-no-writes.mjs` retains the current blanket ban until NoteWritePort is implemented. Then add only the named adapter to its allowlist and enforce approved-call-path contracts with integration tests. StoragePort is never widened into a vault writer. Navigation remains read-only.
+`check-no-writes.mjs` permits only `vault.create` and `vault.process` in the named note adapter. Delete, rename, folder creation and raw adapter writes remain forbidden there; integration tests enforce the approved call path. StoragePort is never widened into a vault writer. Navigation remains read-only.
 
 ### 2.3 Network and MCP boundary
 
@@ -89,7 +89,9 @@ R3-T01 implements local selected inbox capture, exact source/selection snapshots
 
 The user selects an inbox batch → snapshot research/instructions/policy → retrieve permitted target context → schema-constrained generation → deterministic validation → immutable proposal → full diff in local review UI. Unresolved routing or provenance issues prevent approval.
 
-R3-T03 connects selected research to explicit destination/date choices and complete literal before/after review. Local approvals remain in memory, bind only accepted changes and are revoked by edits, settings changes, cancellation or unload. Stale review text is removed. No application or vault-write checker changes are included. The service boundary and verification are recorded in [review audit](docs/r3-t03-review-audit.md).
+R3-T03 connects selected research to explicit destination/date choices and complete literal before/after review. Local approvals remain in memory, bind only accepted changes and are revoked by edits, settings changes, cancellation or unload. Stale review text is removed. That milestone included no application or vault-write checker changes. The service boundary and verification are recorded in [review audit](docs/r3-t03-review-audit.md).
+
+R3-T04 adds an explicit Apply action, atomic compare-before-update through `Vault.process`, absent-only creation and checks of all open Markdown editor buffers. A conservative batch-attempt marker is flushed before writing; exact per-file recovery remains R3-T05. The scoped append capability is uncomposed until authenticated MCP submission. See the [application audit](docs/r3-t04-apply-audit.md).
 
 The UI lets the user accept/reject individual changes and approve the selected batch. Editing generated text produces a new proposal/diff. Apply revalidates approval, source/target hashes, unsaved buffers, and current policy/instructions before each write. A conflict invalidates the affected proposal and requires a new review. Research is preserved; a batch ledger records applied changes without treating inbox content as policy.
 

@@ -4,6 +4,7 @@ import { asVaultPath, contentHash, createObservable, ok, type ContentHash, type 
 import { createJobQueue } from "../../src/jobs";
 import type { ModelPort, StructuredRequest } from "../../src/llm";
 import { createExclusionPolicy } from "../../src/policy";
+import { createObsidianNoteWriter } from "../../src/adapters/obsidian";
 import { createResearchInbox, createResearchReviewSession } from "../../src/research";
 import { createReviewController, mountReviewView, REVIEW } from "../../src/ui";
 import { FakeActiveNote, FakeClock, FakeMetadata, FakeVault } from "../fakes";
@@ -33,18 +34,88 @@ async function fixture() {
   const calls: StructuredRequest<unknown>[] = [];
   const model: ModelPort = { async generate<T>(request: StructuredRequest<T>) { calls.push(request); await hook?.(); return ok({ value: output as T, attempts: 1, usage: { promptTokens: 0, outputTokens: 0, loadMs: 0, promptEvalMs: 0, evalMs: 0, totalMs: 0 } }); } };
   const jobs = createJobQueue({ clock });
-  const session = createResearchReviewSession({ vault, metadata, activeNote, paths, inbox, model, jobs,
+  const entries = new Map((await vault.listFiles()).map((file) => [file.path, true]));
+  const addNote = vault.addNote.bind(vault);
+  vi.spyOn(vault, "addNote").mockImplementation((seed) => { const path = addNote(seed); entries.set(path, true); return path; });
+  let beforeWrite: (() => void) | null = null;
+  let writes = 0;
+  const writer = createObsidianNoteWriter({
+    entries: () => [...entries.keys()].map((path) => ({ path, markdown: true })), editors: () => [],
+    exists: async (path) => !!await vault.stat(asVaultPath(path)),
+    read: (path) => vault.readText(asVaultPath(path)),
+    async process(path, update) {
+      beforeWrite?.();
+      const text = update(await vault.readText(asVaultPath(path)));
+      vault.addNote({ path, text }); ++writes; vault.emitModify(path);
+    },
+    async create(path, text) {
+      beforeWrite?.(); if (await vault.stat(asVaultPath(path))) throw Error("exists");
+      vault.addNote({ path, text }); metadata.set(path, { tags: [], frontmatter: {}, headings: [] }); ++writes; vault.emitCreate(path);
+    },
+  });
+  const session = createResearchReviewSession({ writer, vault, metadata, activeNote, paths, inbox, model, jobs,
     controls: () => controls.get(), version: () => String(settings.get()),
     exclusion: createExclusionPolicy({ folders: [], tags: ["private"], frontmatterKey: "synapse" }),
     subscribeControls: (callback) => controls.subscribe(callback), subscribeSettings: (callback) => settings.subscribe(callback) });
   cleanups.push(() => { session.dispose(); inbox.dispose(); jobs.dispose(); });
-  return { vault, metadata, activeNote, paths, text, session, controls, settings, calls, jobs, saves,
+  return { writer, writes: () => writes, beforeWrite(fn: () => void) { beforeWrite = fn; }, ledger: () => ledger, vault, metadata, activeNote, paths, text, session, controls, settings, calls, jobs, saves,
     output(value: unknown) { output = value; }, hook(value: typeof hook) { hook = value; },
     async controller() { const result = await session.prepare(); if (!result.ok) throw Error("prepare"); const controller = createReviewController(session, result.value); cleanups.push(controller.dispose); return controller; },
   };
 }
 
 describe("research review workflow", () => {
+  it("applies only the approved subset through the adapter, renders exact outcomes and prevents replay", async () => {
+    const f = await fixture(); f.output({ changes: [{ destinationId: "D2", markdown: "- Daily result.", evidenceIds: ["E1"] }, { destinationId: "D1", markdown: "# Updated topic", evidenceIds: ["E1"] }] });
+    const c = await f.controller(); c.choices(["topic", "daily"], "2026-10-15"); await c.generate();
+    const approvedText = c.state.get().proposal!.changes[0].after;
+    c.decide(0, "accept"); c.decide(1, "reject"); await c.approve();
+    expect(f.writes()).toBe(0);
+    const el = document.createElement("div"); cleanups.push(mountReviewView(el, c, vi.fn()));
+    Array.from(el.querySelectorAll("button")).find((button) => button.textContent === REVIEW.apply)!.click();
+    await vi.waitFor(() => expect(c.state.get().phase).toBe("finished"));
+    expect(c.state.get().report?.outcomes).toEqual([{ path: "Daily/2026-10-15.md", status: "applied" }]);
+    expect(el.textContent).toContain("Daily/2026-10-15.md: Applied");
+    expect(await f.vault.readText(asVaultPath("Daily/2026-10-15.md"))).toBe(approvedText);
+    expect(await f.vault.readText(asVaultPath("Topic.md"))).toBe("# Original\r\nKeep this.\r\n");
+    expect(await f.vault.readText(f.paths.research)).toBe(f.text);
+    await c.apply(); expect(f.writes()).toBe(1);
+    expect(f.ledger().records[0].outcomes).toContain("applied");
+  });
+  it("applies multiple files sequentially despite its own vault events", async () => {
+    const f = await fixture(); f.output({ changes: [{ destinationId: "D2", markdown: "- Daily result.", evidenceIds: ["E1"] }, { destinationId: "D1", markdown: "# Updated topic", evidenceIds: ["E1"] }] });
+    const c = await f.controller(); c.choices(["topic", "daily"], "2026-10-15"); await c.generate(); c.decide(0, "accept"); c.decide(1, "accept"); await c.approve(); await c.apply();
+    expect(c.state.get().report?.outcomes.map((outcome) => outcome.status)).toEqual(["applied", "applied"]); expect(f.writes()).toBe(2);
+  });
+  it("reports a partial batch and preserves concurrent content without retrying", async () => {
+    const f = await fixture(); f.output({ changes: [{ destinationId: "D2", markdown: "- Daily result.", evidenceIds: ["E1"] }, { destinationId: "D1", markdown: "# Updated topic", evidenceIds: ["E1"] }] });
+    const c = await f.controller(); c.choices(["topic", "daily"], "2026-10-15"); await c.generate(); c.decide(0, "accept"); c.decide(1, "accept"); await c.approve();
+    f.beforeWrite(() => { if (f.writes() === 1) f.vault.addNote({ path: "Topic.md", text: "User edit" }); });
+    await c.apply();
+    expect(c.state.get().report?.outcomes.map((outcome) => outcome.status)).toEqual(["applied", "refused"]);
+    expect(await f.vault.readText(asVaultPath("Topic.md"))).toBe("User edit");
+    expect(f.ledger().records[0].outcomes).toContain("partially-applied"); expect(f.ledger().records[0].outcomes).not.toContain("applied");
+    await c.apply(); expect(f.writes()).toBe(1);
+  });
+  it.each(["source", "target", "policy", "cancel"])("refuses a late %s change inside the write callback", async (kind) => {
+    const f = await fixture(); const c = await f.controller(); c.choices(["topic"], ""); await c.generate(); c.decide(0, "accept"); await c.approve();
+    f.beforeWrite(() => {
+      if (kind === "source") f.vault.emitModify(f.paths.research);
+      if (kind === "target") { f.vault.addNote({ path: "Topic.md", text: "User edit" }); f.vault.emitModify("Topic.md"); }
+      if (kind === "policy") f.controls.set(f.controls.get());
+      if (kind === "cancel") c.dispose();
+    });
+    await c.apply(); expect(f.writes()).toBe(0);
+    if (kind !== "cancel") expect(c.state.get().report?.outcomes[0].status).toBe("refused");
+  });
+  it("refuses copied approval data and fails closed when the attempt ledger cannot save", async () => {
+    const f = await fixture(); const c = await f.controller(); c.choices(["topic"], ""); await c.generate(); c.decide(0, "accept");
+    const approval = await f.session.approve(["accept"]); if (!approval.ok) throw Error("approval");
+    expect((await f.session.apply(structuredClone(approval.value))).ok).toBe(false); expect(f.writes()).toBe(0);
+    const g = await fixture(); const d = await g.controller(); d.choices(["topic"], ""); await d.generate(); d.decide(0, "accept"); await d.approve();
+    g.saves.mockRejectedValueOnce(Error("disk full")); await d.apply(); expect(g.writes()).toBe(0); expect(d.state.get().phase).toBe("stale");
+  });
+
   it("captures, generates and renders complete inert changes, approves locally, and writes no notes", async () => {
     const f = await fixture(); const controller = await f.controller();
     const el = document.createElement("div"); const close = vi.fn(); const unmount = mountReviewView(el, controller, close); cleanups.push(unmount);
