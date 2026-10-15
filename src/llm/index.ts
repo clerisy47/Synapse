@@ -4,6 +4,7 @@ export type {
   HealthOutput,
   PlanOutput,
   PromptKind,
+  ProposalOutput,
   ProviderJsonSchema,
   SelectOutput,
 } from "./schemas";
@@ -18,6 +19,7 @@ export {
   emitProviderJsonSchema,
   healthOutputSchema,
   planOutputSchema,
+  proposalOutputSchema,
   schemaSubsetViolations,
   selectOutputSchema,
 } from "./schemas";

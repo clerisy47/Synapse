@@ -42,9 +42,9 @@ try {
   }
 
   const kinds = Object.keys(MODEL_OUTPUT_JSON_SCHEMAS);
-  const expectedKinds = ["health", "qa.plan", "qa.select", "qa.answer"];
+  const expectedKinds = ["health", "qa.plan", "qa.select", "qa.answer", "research.propose"];
   if (kinds.length !== expectedKinds.length || expectedKinds.some((kind) => !kinds.includes(kind))) {
-    console.error(`check-schema-subset: expected health and Q&A schemas, got: ${kinds.join(", ")}`);
+    console.error(`check-schema-subset: expected health, Q&A and research schemas, got: ${kinds.join(", ")}`);
     process.exit(1);
   }
 

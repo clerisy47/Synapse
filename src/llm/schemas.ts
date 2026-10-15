@@ -4,13 +4,15 @@
  */
 
 import { z } from "zod";
+import { CONTROL_LIMITS, PROPOSAL_LIMITS } from "../constants";
 
 /** Prompt kinds that produce structured model output (DESIGN §5.4). */
 export type PromptKind =
   | "health"
   | "qa.plan"
   | "qa.select"
-  | "qa.answer";
+  | "qa.answer"
+  | "research.propose";
 
 /** JSON Schema keywords allowed for provider `format` (DESIGN §5.5). */
 export const ALLOWED_JSON_SCHEMA_KEYWORDS = [
@@ -70,6 +72,16 @@ export const answerOutputSchema = z.object({
   followup: followupSchema.nullable(),
 });
 
+/** Model supplies text and plugin-issued IDs only; never paths or approval. */
+export const proposalOutputSchema = z.strictObject({
+  changes: z.array(z.strictObject({
+    destinationId: z.string().max(CONTROL_LIMITS.identifierChars),
+    markdown: z.string().max(PROPOSAL_LIMITS.entryChars),
+    evidenceIds: z.array(z.string().max(CONTROL_LIMITS.identifierChars)).min(1).max(CONTROL_LIMITS.evidenceIds),
+  })).min(1).max(PROPOSAL_LIMITS.targets),
+});
+export type ProposalOutput = z.infer<typeof proposalOutputSchema>;
+
 export type HealthOutput = z.infer<typeof healthOutputSchema>;
 export type PlanOutput = z.infer<typeof planOutputSchema>;
 export type SelectOutput = z.infer<typeof selectOutputSchema>;
@@ -80,6 +92,7 @@ export const MODEL_OUTPUT_SCHEMAS = {
   "qa.plan": planOutputSchema,
   "qa.select": selectOutputSchema,
   "qa.answer": answerOutputSchema,
+  "research.propose": proposalOutputSchema,
 } as const satisfies Record<PromptKind, z.ZodType>;
 
 export type ProviderJsonSchema = {
@@ -192,6 +205,7 @@ export const MODEL_OUTPUT_JSON_SCHEMAS: Record<PromptKind, ProviderJsonSchema> =
   "qa.plan": emitProviderJsonSchema(planOutputSchema),
   "qa.select": emitProviderJsonSchema(selectOutputSchema),
   "qa.answer": emitProviderJsonSchema(answerOutputSchema),
+  "research.propose": emitProviderJsonSchema(proposalOutputSchema),
 };
 
 /**
