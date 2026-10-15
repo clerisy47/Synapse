@@ -2,16 +2,16 @@
 
 ## Current focus
 
-Completed **R3-T01**: explicit saved inbox selection capture, stable batch identity, provenance/processing history, conservative sync and stale snapshot detection. Next task is **R3-T02**, bounded note-change proposal generation.
+Completed **R3-T02**: bounded queued proposal generation with local routing, opaque destination/evidence IDs, immutable diffs/provenance, disclosure gates and stale-result rejection. Next task is **R3-T03**, destination selection and local diff review/approval UI composition.
 Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must + Should completion; **Phase B = local Ollama**, after validation.
 
 ## Last session
 
-- Delivered R3-T01 in sequential slices: core ledger contracts, typed state parsing/merge/persistence, research capture service, pure command presentation, plugin wiring/integration and docs. Details: [research capture audit](docs/r3-t01-research-audit.md).
-- Capture requires an explicit nonempty selection in the configured inbox and a saved editor buffer. Source/content hashes and UTF-16 ranges bind an immutable in-memory snapshot; inbox/editor edits and lifecycle rebuilds invalidate it.
-- Stable identity follows configured source path and selected content rather than complete inbox hash. Recapture retains prior processing outcomes after unrelated inbox appends; neither research text nor persisted outcomes confer policy, approval or write authority.
-- Persisted ledger contains bounded metadata only. Conservative sync unions outcomes, detects conflicts and blocks malformed/overflowing history. Save failure stays visible and can be retried; all model and vault-write behavior remains unchanged.
-- Verification: **652 tests pass; one optional live test skipped**. Typecheck, lint (zero errors, eight existing warnings), boundaries (185 modules), network/write/schema checks, production build, whitespace and production-bundle injected-host smoke pass. No live model request, real-vault write or real Obsidian UI pass was performed.
+- Delivered R3-T02 as a service API for the upcoming review UI. Details and integration contract: [proposal generation audit](docs/r3-t02-proposal-audit.md). The existing capture command remains unchanged; generation is not yet exposed in the plugin UI.
+- Generation runs in the shared model queue below interactive Q&A. Explicit local choices resolve configured destinations and timezone-aware daily paths. The model receives opaque IDs and permitted text; no returned field grants path, policy, approval or write authority.
+- Daily entries are inserted locally while preserving unrelated content/frontmatter. Provenance binds captured research and existing targets. Unknown IDs, unresolved choices, stale sources/rules/targets, dirty editors, unavailable metadata and unsupported masks refuse generation.
+- A successful proposal waits for flushed approval-free proposed history. Bodies and diffs remain in memory; failed saves can retry without losing prior processing outcomes.
+- Verification: **706 tests pass; one optional live test skipped**. Typecheck, lint (zero errors, eight existing warnings), boundaries (188 modules), network/write/five-schema checks, production build, whitespace and existing production-bundle injected-host smoke pass. Synthetic provider payloads/retries were tested; no live model request, real-vault write or new real Obsidian proposal UI was exercised.
 
 ## Known issues
 
