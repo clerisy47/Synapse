@@ -65,3 +65,4 @@ export {
 export { createObsidianNavigation, createObsidianNavigationFromApp, type NavigationSurface, type ResolveNavigationQuote } from "./navigation";
 
 export { showControlReview } from "./control-review";
+export { showResearchReview } from "./research-review";

@@ -2,16 +2,16 @@
 
 ## Current focus
 
-Completed **R3-T02**: bounded queued proposal generation with local routing, opaque destination/evidence IDs, immutable diffs/provenance, disclosure gates and stale-result rejection. Next task is **R3-T03**, destination selection and local diff review/approval UI composition.
+Delivered the R3-T03 implementation: configured destination/date selection, full literal Markdown review, explicit per-change decisions and in-memory bound local approval. Next task is R3-T04: restricted note writes and conflict-safe application.
 Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must + Should completion; **Phase B = local Ollama**, after validation.
 
 ## Last session
 
-- Delivered R3-T02 as a service API for the upcoming review UI. Details and integration contract: [proposal generation audit](docs/r3-t02-proposal-audit.md). The existing capture command remains unchanged; generation is not yet exposed in the plugin UI.
-- Generation runs in the shared model queue below interactive Q&A. Explicit local choices resolve configured destinations and timezone-aware daily paths. The model receives opaque IDs and permitted text; no returned field grants path, policy, approval or write authority.
-- Daily entries are inserted locally while preserving unrelated content/frontmatter. Provenance binds captured research and existing targets. Unknown IDs, unresolved choices, stale sources/rules/targets, dirty editors, unavailable metadata and unsupported masks refuse generation.
-- A successful proposal waits for flushed approval-free proposed history. Bodies and diffs remain in memory; failed saves can retry without losing prior processing outcomes.
-- Verification: **706 tests pass; one optional live test skipped**. Typecheck, lint (zero errors, eight existing warnings), boundaries (188 modules), network/write/five-schema checks, production build, whitespace and existing production-bundle injected-host smoke pass. Synthetic provider payloads/retries were tested; no live model request, real-vault write or new real Obsidian proposal UI was exercised.
+- Review research captures the saved inbox selection before opening the modal and generates through the shared model lane. Full before/after text, destination, operation, provenance and evidence are shown without interpreting model HTML. See [review implementation and validation](docs/r3-t03-review-audit.md).
+- Approval requires all decisions and at least one acceptance. Its exact subset binding remains in a private, identity-checked single-use registry. Changed source/targets/controls, editor activity, metadata or settings invalidate review and remove proposal text. Disk rechecks detect missed control/source/target events.
+- Approval saves no notes. Closing, cancellation, service rebuild and unload release the review and authority. Bodies/tokens are not persisted; rejection leaves the existing approval-free history available for a fresh review.
+- Verification: **743 tests pass; one optional live test skipped**. Typecheck, lint (zero errors, ten warnings), boundaries (200 modules), network/write/five-schema checks, production build, whitespace and production-bundle injected-host capture/review/chat/unload smoke pass.
+- Real Obsidian evidence (2026-10-15): user reported **Pass** for the synthetic review checklist on their “latest” Obsidian version (numeric version not supplied). Automated real-app access was unavailable because the CLI was disabled; the coding agent made no live provider request and did not write real vault notes.
 
 ## Known issues
 

@@ -75,3 +75,7 @@ export { CONTROLS } from "./strings/en";
 
 export { createResearchCaptureCommand, type ResearchCaptureRunner } from "./research-command";
 export { RESEARCH } from "./strings/en";
+export { createResearchReviewCommand } from "./review-command";
+export { createReviewController, type ReviewController, type ReviewRunner } from "./review-controller";
+export { mountReviewView } from "./views/review-view";
+export { REVIEW } from "./strings/en";

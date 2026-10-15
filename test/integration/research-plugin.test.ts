@@ -36,7 +36,7 @@ function pluginClass(): typeof VaultSynapsePlugin {
   const module = { exports: {} as { default: typeof VaultSynapsePlugin } };
   runInNewContext(readFileSync("main.js", "utf8"), {
     module, exports: module.exports, require: (name: string) => name === "obsidian" ? obsidian : localRequire(name),
-    window, document, crypto, TextEncoder, TextDecoder, AbortController, performance, console, process,
+    window, document, crypto, structuredClone, TextEncoder, TextDecoder, AbortController, performance, console, process,
     setTimeout, clearTimeout,
   });
   return module.exports.default;
@@ -83,4 +83,37 @@ it("captures selection through the host command, preserves inbox, restarts and u
   expect(host.notices).toHaveLength(noticeCount);
   await vi.waitFor(() => expect(listeners.size).toBe(0));
   expect(consoleError).not.toHaveBeenCalled();
+});
+
+it("opens the production research review from captured editor selection and closes on unload", async () => {
+  vi.stubEnv("OPENROUTER_API_KEY", "");
+  const { CONTROL_STARTERS } = await import("../../src/instructions");
+  const { REVIEW } = await import("../../src/ui");
+  const texts: Record<string, string> = { "Research.md": "Synthetic research selection", "Synapse/Instructions.md": CONTROL_STARTERS.instructions, "Synapse/Security.md": CONTROL_STARTERS.security };
+  const files = Object.keys(texts).map((path) => Object.assign(new TFile(), { path, extension: "md", stat: { mtime: 1, ctime: 1, size: texts[path].length } }));
+  const listeners = new Map<object, { name: string; callback: (...args: unknown[]) => void }>();
+  const on = (name: string, callback: (...args: unknown[]) => void) => { const ref = {}; listeners.set(ref, { name, callback }); return ref; };
+  const offref = (ref: object) => { listeners.delete(ref); };
+  const editor = { getValue: () => texts["Research.md"], getCursor: (which: string) => ({ line: 0, ch: which === "from" ? 0 : texts["Research.md"].length }), posToOffset: ({ ch }: { ch: number }) => ch };
+  const modify = vi.fn(); const create = vi.fn();
+  const app = {
+    vault: { adapter: {}, getFiles: () => files, getMarkdownFiles: () => files, getAbstractFileByPath: (path: string) => files.find((file) => file.path === path) ?? null, read: async (file: TFile) => texts[file.path], on, offref, modify, create },
+    metadataCache: { getCache: () => ({ frontmatter: {}, tags: [] }), resolvedLinks: {}, on, offref },
+    workspace: { on, offref, onLayoutReady() {}, getActiveFile: () => files[0], getActiveViewOfType: () => ({ editor }), getLeavesOfType: () => [], detachLeavesOfType() {} },
+  } as unknown as App;
+  const open = vi.spyOn(obsidian.Modal.prototype, "open").mockImplementation(function (this: obsidian.Modal) { (this as obsidian.Modal & { onOpen(): void }).onOpen(); });
+  const close = vi.spyOn(obsidian.Modal.prototype, "close").mockImplementation(function (this: obsidian.Modal) { (this as obsidian.Modal & { onClose(): void }).onClose(); });
+  const PluginClass = pluginClass();
+  const plugin = new PluginClass(app, { id: "vault-synapse", dir: ".obsidian/plugins/vault-synapse" } as PluginManifest);
+  await plugin.onload();
+  await vi.waitFor(() => { expect(listeners.size).toBeGreaterThan(0); });
+  // The control loader resolves asynchronously during initial plugin startup.
+  await vi.waitFor(async () => { await host.commands.get("review-research")?.callback(); expect(open).toHaveBeenCalledOnce(); });
+  const modal = open.mock.instances[0] as unknown as obsidian.Modal;
+  expect(modal.contentEl.textContent).toContain(REVIEW.title);
+  expect(modal.contentEl.querySelector('input[type="checkbox"]')).not.toBeNull();
+  expect(modal.contentEl.querySelector('input[type="date"]')).not.toBeNull();
+  expect(modify).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
+  plugin.onunload(); expect(close).toHaveBeenCalled(); expect(modal.contentEl.childNodes).toHaveLength(0);
+  await vi.waitFor(() => expect(listeners.size).toBe(0));
 });

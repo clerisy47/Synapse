@@ -5,7 +5,7 @@ This revision supersedes the old backlog, including the in-progress PDF probe M4
 
 ## Execution rules
 
-Current task is IN_PROGRESS; otherwise choose the lowest-ID TODO with all dependencies DONE. User-directed scope revisions take precedence over ordinary backlog selection. Status exists only here. R1-T01, R2-T01 through R2-T03 and R3-T01 through R3-T02 are complete; no task is IN_PROGRESS.
+Current task is IN_PROGRESS; otherwise choose the lowest-ID TODO with all dependencies DONE. User-directed scope revisions take precedence over ordinary backlog selection. Status exists only here. R1-T01, R2-T01 through R2-T03 and R3-T01 through R3-T03 are complete; no task is IN_PROGRESS.
 
 Keep tasks small (normally 1–5 files); split cross-cutting cleanup into reviewable substeps before editing. Do not disable tests or delete meaningful failing coverage. Every implementation slice must build and load. Do not start Phase B until all Must + Should features and Phase A validation are complete.
 
@@ -76,7 +76,7 @@ Keep tasks small (normally 1–5 files); split cross-cutting cleanup into review
 - **Dependencies:** R3-T02
 - **Acceptance criteria:** SPEC F5; only local review issues bound approval; rejection/cancel writes nothing.
 - **How to verify:** Viewmodel/DOM tests and real Obsidian review smoke.
-- **Status:** TODO
+- **Status:** DONE
 
 ### R3-T04 — Add restricted NoteWritePort and conflict-safe application
 
