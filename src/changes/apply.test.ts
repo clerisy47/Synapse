@@ -1,6 +1,7 @@
+import { FakeVault, MemoryStorage } from "../../test/fakes";
 import { expect, it, vi } from "vitest";
 import { asVaultPath, err, ok, synapseError, type Approval, type ChangeProposal, type ContentHash, type NoteWritePort } from "../core";
-import { applyReviewedChanges, createReviewApproval } from "./index";
+import { applyReviewedChanges, createReviewApproval, createRecoveryJournal } from "./index";
 
 it("burns authority once, reports partial/unknown outcomes, and never attempts later changes", async () => {
   const paths = { instructions: asVaultPath("Instructions.md"), security: asVaultPath("Security.md"), research: asVaultPath("Research.md") };
@@ -12,10 +13,11 @@ it("burns authority once, reports partial/unknown outcomes, and never attempts l
   const approved = await authority.approve(["accept", "accept", "accept"]); if (!approved.ok) throw Error("approval");
   const apply = vi.fn<NoteWritePort["apply"]>().mockResolvedValueOnce(ok(undefined)).mockResolvedValueOnce(err(synapseError({ code: "STORAGE_WRITE_FAILED", message: "Unknown", detail: { issueCode: "WRITE_OUTCOME_UNKNOWN" } })));
   const begin = vi.fn(async () => ok(undefined)); const completed = vi.fn();
-  const run = (approval: Approval) => applyReviewedChanges({ authority, approval, paths, writer: { apply }, signal: new AbortController().signal,
+  const journal = createRecoveryJournal({ storage: new MemoryStorage(), vault: new FakeVault(), now: () => 1 });
+  const run = (approval: Approval) => applyReviewedChanges({ journal, authority, approval, paths, writer: { apply }, signal: new AbortController().signal,
     current: () => true, validate: async () => true, editorSnapshots: () => [], begin, willCommit: () => {}, completed });
   const result = await run(approved.value);
-  expect(result).toEqual(ok({ outcomes: [{ path: "One.md", status: "applied" }, { path: "Two.md", status: "unknown" }, { path: "Three.md", status: "not-attempted" }] }));
+  expect(result).toEqual(ok({ recoveryId: expect.any(String), outcomes: [{ path: "One.md", status: "applied" }, { path: "Two.md", status: "unknown" }, { path: "Three.md", status: "not-attempted" }] }));
   expect(begin).toHaveBeenCalledOnce(); expect(completed).toHaveBeenCalledOnce(); expect(apply).toHaveBeenCalledTimes(2);
   expect((await run(approved.value)).ok).toBe(false); expect(apply).toHaveBeenCalledTimes(2);
 });

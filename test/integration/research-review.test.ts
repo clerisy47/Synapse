@@ -1,13 +1,14 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { asVaultPath, contentHash, createObservable, ok, type ContentHash, type InstructionSnapshot, type PolicySnapshot, type ResearchLedger } from "../../src/core";
+import { createRecoveryJournal } from "../../src/changes";
 import { createJobQueue } from "../../src/jobs";
 import type { ModelPort, StructuredRequest } from "../../src/llm";
 import { createExclusionPolicy } from "../../src/policy";
 import { createObsidianNoteWriter } from "../../src/adapters/obsidian";
 import { createResearchInbox, createResearchReviewSession } from "../../src/research";
 import { createReviewController, mountReviewView, REVIEW } from "../../src/ui";
-import { FakeActiveNote, FakeClock, FakeMetadata, FakeVault } from "../fakes";
+import { FakeActiveNote, FakeClock, FakeMetadata, FakeVault, MemoryStorage } from "../fakes";
 
 const cleanups: (() => void)[] = [];
 afterEach(() => cleanups.splice(0).forEach((cleanup) => cleanup()));
@@ -53,12 +54,15 @@ async function fixture() {
       vault.addNote({ path, text }); metadata.set(path, { tags: [], frontmatter: {}, headings: [] }); ++writes; vault.emitCreate(path);
     },
   });
-  const session = createResearchReviewSession({ writer, vault, metadata, activeNote, paths, inbox, model, jobs,
+  const storage = new MemoryStorage();
+  const journal = createRecoveryJournal({ storage, vault, now: () => clock.now() });
+  const makeSession = (revertId?: string) => createResearchReviewSession({ journal, ...(revertId ? { revertId } : {}), writer, vault, metadata, activeNote, paths, inbox, model, jobs,
     controls: () => controls.get(), version: () => String(settings.get()),
     exclusion: createExclusionPolicy({ folders: [], tags: ["private"], frontmatterKey: "synapse" }),
     subscribeControls: (callback) => controls.subscribe(callback), subscribeSettings: (callback) => settings.subscribe(callback) });
+  const session = makeSession();
   cleanups.push(() => { session.dispose(); inbox.dispose(); jobs.dispose(); });
-  return { writer, writes: () => writes, beforeWrite(fn: () => void) { beforeWrite = fn; }, ledger: () => ledger, vault, metadata, activeNote, paths, text, session, controls, settings, calls, jobs, saves,
+  return { storage, journal, makeSession, writer, writes: () => writes, beforeWrite(fn: () => void) { beforeWrite = fn; }, ledger: () => ledger, vault, metadata, activeNote, paths, text, session, controls, settings, calls, jobs, saves,
     output(value: unknown) { output = value; }, hook(value: typeof hook) { hook = value; },
     async controller() { const result = await session.prepare(); if (!result.ok) throw Error("prepare"); const controller = createReviewController(session, result.value); cleanups.push(controller.dispose); return controller; },
   };
@@ -195,5 +199,52 @@ describe("research review workflow", () => {
     const c = await f.controller(); c.choices(["topic"], ""); const pending = c.generate();
     await vi.waitFor(() => expect(f.calls).toHaveLength(1)); f.controls.set(f.controls.get()); release(); await pending;
     expect(c.state.get().phase).toBe("stale"); expect(c.state.get().proposal).toBeNull();
+  });
+});
+
+
+describe("journaled review and local revert", () => {
+  async function applied() {
+    const f = await fixture(); const c = await f.controller(); c.choices(["topic"], ""); await c.generate();
+    const original = c.state.get().proposal!.changes[0].before;
+    c.decide(0, "accept"); await c.approve(); await c.apply();
+    const id = c.state.get().report!.recoveryId!; expect(id).toMatch(/^[a-f0-9]{64}$/);
+    c.dispose();
+    return { ...f, id, original };
+  }
+  it("restores exact original bytes only after fresh local approval, without model traffic or inbox changes", async () => {
+    const f = await applied();
+    const records = await createRecoveryJournal({ storage: f.storage, vault: f.vault, now: () => 1 }).reconcile();
+    expect(records.ok && records.value[0].outcomes).toEqual(["applied"]);
+    const runner = f.makeSession(f.id); cleanups.push(runner.dispose);
+    const prepared = await runner.prepare(); if (!prepared.ok) throw Error("revert prepare");
+    const c = createReviewController(runner, prepared.value); cleanups.push(c.dispose);
+    expect(c.state.get().phase).toBe("review"); expect(c.state.get().proposal!.changes[0].after).toBe(f.original);
+    expect(f.writes()).toBe(1); await c.apply(); expect(f.writes()).toBe(1);
+    c.decide(0, "accept"); await c.approve(); expect(c.state.get().phase).toBe("approved");
+    expect(f.writes()).toBe(1); await c.apply();
+    expect(c.state.get().report?.outcomes).toEqual([{ path: "Topic.md", status: "applied" }]);
+    expect(await f.vault.readText(asVaultPath("Topic.md"))).toBe(f.original);
+    expect(await f.vault.readText(f.paths.research)).toBe(f.text); expect(f.calls).toHaveLength(1);
+    const repeated = f.makeSession(f.id); cleanups.push(repeated.dispose); expect((await repeated.prepare()).ok).toBe(false);
+    expect(f.ledger().records[0].outcomes).toContain("applied");
+  });
+  it.each(["excluded", "dirty-editor", "policy-disk", "target"])("refuses recovery disclosure after %s changes", async (kind) => {
+    const f = await applied();
+    if (kind === "excluded") f.metadata.set("Topic.md", { tags: ["private"], frontmatter: {}, headings: [] });
+    if (kind === "dirty-editor") f.activeNote.setCurrent("Topic.md", "Unsaved");
+    if (kind === "policy-disk") f.vault.addNote({ path: f.paths.security, text: "Unparsed security edit" });
+    if (kind === "target") f.vault.addNote({ path: "Topic.md", text: "User edit" });
+    const runner = f.makeSession(f.id); cleanups.push(runner.dispose);
+    expect((await runner.prepare()).ok).toBe(false); expect(runner.readyProposal?.()).toBeNull(); expect(f.writes()).toBe(1);
+  });
+  it("refuses stale revert approval after an unannounced target edit", async () => {
+    const f = await applied(); const runner = f.makeSession(f.id); cleanups.push(runner.dispose);
+    const prepared = await runner.prepare(); if (!prepared.ok) throw Error("prepare");
+    const c = createReviewController(runner, prepared.value); cleanups.push(c.dispose);
+    c.decide(0, "accept"); await c.approve(); expect(c.state.get().phase).toBe("approved");
+    f.vault.addNote({ path: "Topic.md", text: "Preserve user edit" });
+    await c.apply(); expect(c.state.get().phase).toBe("stale"); expect(f.writes()).toBe(1);
+    expect(await f.vault.readText(asVaultPath("Topic.md"))).toBe("Preserve user edit");
   });
 });
