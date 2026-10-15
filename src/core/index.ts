@@ -59,3 +59,5 @@ export { validateControlPaths, validateVaultPath } from "./control-paths";
 export { contentHash, hashApprovalBinding } from "./control-hash";
 
 export type { NoteWritePort, NoteWriteRequest, ResearchAppendPort, ApplyReport } from "./note-write";
+
+export type { McpScope, McpGrant, McpStatus, McpLimits, McpServerPort, McpServerOptions } from "./mcp";

@@ -208,3 +208,12 @@ export const RECOVERY = {
   revert: "Review revert diff",
   close: "Close",
 } as const;
+
+export const MCP_SETTINGS = {
+  title: "Local MCP collaboration", description: "Opt-in native clients on IPv4 loopback. Changing plugin settings disables the listener; enable it again when ready. Choose scopes locally, then provision a bearer once. Query and submission are unavailable until the collaboration milestone. Local OS processes can steal credentials. Submission deduplication will cover 30 days; older retries may append again.",
+  disabled: "Listener disabled", failed: "MCP unavailable. Check local grant storage before enabling again.",
+  enable: "Enable local listener", disable: "Disable local listener", label: "Client label",
+  query: "Allow vault queries", submit: "Allow research submission", pair: "Confirm scopes and pair client",
+  once: "Copy this bearer now. It cannot be recovered. Hide it before sharing your screen.", token: "One-time MCP bearer",
+  dismiss: "Hide bearer", revoke: "Revoke", noScopes: "No scopes",
+} as const;

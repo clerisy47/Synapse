@@ -2,15 +2,15 @@
 
 ## Current focus
 
-R4-T01 freezes the [MCP v1 contract](docs/contracts/mcp-v1.md): authenticated loopback Streamable HTTP, independent client scopes, strict query/submission shapes, safe references, revocation, limits and lifecycle. R4-T02 implements the adapter; R4-T03 wires semantic operations. Real Obsidian/native-client smoke remains deferred to R5-T03.
+R4-T02 implements the [authenticated local MCP adapter](docs/r4-t02-mcp-adapter-audit.md), opt-in pairing/revocation settings and lifecycle cleanup. R4-T03 wires policy-filtered query and durable scoped submission; current semantic calls return fixed unavailable. Actual Obsidian/native-client smoke remains at R5-T03.
 Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must + Should completion; **Phase B = local Ollama**, after validation.
 
 ## Last session
 
-- Selected pinned MCP 2025-11-25 Streamable HTTP with JSON responses, native clients and locally provisioned per-client bearer tokens. No browser access, OAuth discovery, raw resources or apply authority.
-- Documented pairing/revocation, policy/source freshness, masked response projection, serialized durable idempotent inbox append and bounded resource use. Production wiring remains in subsequent tasks.
-- Synthetic loopback spike verifies authentication, forged Host and Origin denial, revocation and listener cleanup. Node fetch does not preserve a forged Host here; the test uses a raw HTTP client for that case.
-- Verified typecheck, full suite (802 passing, one optional live test skipped), 83 mini-vault tests and production build. No live provider or actual Obsidian/client interoperability claimed.
+- Added strict durable hashed grants, one-time bearer display, explicit independent scopes and immediate revocation. Grant persistence failure disables and closes the listener.
+- Implemented bounded loopback-only JSON MCP initialization, notifications, scope-filtered tools and fixed semantic refusal. No model or vault-write authority is composed.
+- Source/policy changes abort work and clear initialization. Settings changes disable/close the listener; unload closes sockets and guards late bootstrap completion.
+- Verified the shipped adapter through synthetic HTTP, DOM controls and plugin-host lifecycle tests, plus all required gates, mini-vault checks and production build. Native-client and actual Obsidian smoke remain deferred.
 
 ## Known issues
 

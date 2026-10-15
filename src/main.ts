@@ -8,6 +8,7 @@ import { Notice, Plugin } from "obsidian";
 
 import {
   NodeHttpTransport,
+  createMcpServer,
   type EndpointChecker as NodeEndpointChecker,
 } from "./adapters/node";
 import {
@@ -42,6 +43,8 @@ import {
   EXCLUSION_FRONTMATTER_VALUE,
   OPENROUTER_API_KEY_ENV,
   PLUGIN_NAME,
+  PLUGIN_VERSION,
+  MCP_LIMITS,
   SLICE_MS,
   VIEW_TYPE_CHAT,
 } from "./constants";
@@ -51,6 +54,7 @@ import {
   synapseError,
   ok,
   type Clock,
+  type McpServerPort,
   type ActiveNotePort,
   type Disposable,
   type MutableObservable,
@@ -103,6 +107,7 @@ import {
   type ReviewRunner,
   mountChatView,
   mountSettingsPanel,
+  mountMcpSettings,
   mountStatusBar,
   mountStatusNotices,
   settingsChangeEffects,
@@ -351,6 +356,8 @@ function buildToolRegistry(raw: CoreToolDeps, access: ToolReadAccess): ToolRegis
 
 /** Composition root only — wiring lands here. Keep load cheap and throw-free (AC-M1.3). */
 export default class VaultSynapsePlugin extends Plugin {
+  private unloaded = false;
+  private mcp: McpServerPort | null = null;
   private readonly disposables: Disposable[] = [];
   private clock: Clock = createSystemClock();
   private state: StateStore | null = null;
@@ -376,6 +383,7 @@ export default class VaultSynapsePlugin extends Plugin {
   private indexStatusUnsub: Disposable | null = null;
 
   async onload(): Promise<void> {
+    this.unloaded = false;
     try {
       await this.bootstrap();
     } catch (cause) {
@@ -387,6 +395,9 @@ export default class VaultSynapsePlugin extends Plugin {
   }
 
   onunload(): void {
+    this.unloaded = true;
+    this.mcp?.dispose();
+    this.mcp = null;
     if (this.warmAbort) {
       this.warmAbort.abort();
       this.warmAbort = null;
@@ -473,6 +484,9 @@ export default class VaultSynapsePlugin extends Plugin {
       void this.onExternalSettings();
     });
 
+    const mcp = await createMcpServer({ storage, limits: MCP_LIMITS, name: PLUGIN_NAME, version: PLUGIN_VERSION });
+    if (this.unloaded) { mcp.dispose(); return; }
+    this.mcp = mcp;
     this.mountUi(config, jobs);
     const openChat = this.mountChat(jobs);
     this.registerCommands(jobs, openChat);
@@ -560,7 +574,7 @@ export default class VaultSynapsePlugin extends Plugin {
     updateIndexStatus();
     this.indexStatusUnsub = corpus.status.subscribe(updateIndexStatus);
     this.invalidateChat?.();
-    this.accessUnsub = access.changes.subscribe(() => { updateIndexStatus(); this.invalidateChat?.(); });
+    this.accessUnsub = access.changes.subscribe(() => { updateIndexStatus(); this.invalidateChat?.(); this.mcp?.invalidate(); });
   }
 
   private onUserActivity(path: VaultPath): void {
@@ -607,6 +621,7 @@ export default class VaultSynapsePlugin extends Plugin {
       await state.reloadAndMerge();
       const prev = config.get();
       const next = parseSettings(state.get().settings);
+      void this.mcp?.disable().catch(() => {});
       config.set(next);
       this.rebuildAi(next);
       if (
@@ -651,6 +666,7 @@ export default class VaultSynapsePlugin extends Plugin {
     const state = this.state;
     if (!config || !state) return;
 
+    void this.mcp?.disable().catch(() => {});
     const keys = patchKeys(patch);
     const next = parseSettings({ ...config.get(), ...patch });
     config.set(next);
@@ -756,9 +772,11 @@ export default class VaultSynapsePlugin extends Plugin {
           plugin: this,
           mount: (containerEl) => {
             const host = createObsidianSettingsHost({ containerEl });
-            return mountSettingsPanel({
+            let mcpDispose: Disposable | null = null;
+            const settingsDispose = mountSettingsPanel({
               host,
               settings: config,
+              afterPaint: () => { mcpDispose?.(); mcpDispose = this.mcp ? mountMcpSettings(containerEl, this.mcp) : null; },
               actions: {
                 invalidControlPaths: () => presentObsidianNotice({ message: CONTROLS.invalidPaths }),
                 applyPatch: (p) => {
@@ -766,6 +784,7 @@ export default class VaultSynapsePlugin extends Plugin {
                 },
               },
             });
+            return () => { mcpDispose?.(); settingsDispose(); };
           },
         }),
       );
