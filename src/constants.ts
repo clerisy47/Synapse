@@ -116,3 +116,5 @@ export const MCP_LIMITS = {
   perMinute: 20, unauthPerMinute: 60, concurrency: 4,
   questionPoints: 4_000, researchPoints: 32_000, sources: 10, urlChars: 2_048, metaBytes: 4_096,
 } as const;
+
+export const COLLABORATION_LIMITS = { receipts: 1000, retentionMs: 30 * 24 * 60 * 60 * 1000, references: 12, excerptPoints: 600, answerPoints: 12000 } as const;
