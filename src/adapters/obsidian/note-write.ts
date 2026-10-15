@@ -66,10 +66,10 @@ function createWriter(surface: NoteWriteSurface, inboxOnly: boolean): { apply(in
     },
   };
 }
-export function createObsidianNoteWriterFromApp(app: App): NoteWritePort {
+function surfaceFromApp(app: App): NoteWriteSurface {
   const vault = app.vault;
   const file = (path: string) => { const entry = vault.getAbstractFileByPath(path); if (!(entry instanceof TFile)) throw new Error("Note application refused"); return entry; };
-  return createObsidianNoteWriter({
+  return {
     entries: () => vault.getAllLoadedFiles().map((entry) => ({ path: entry.path, markdown: entry instanceof TFile && entry.extension === "md" })),
     editors: () => app.workspace.getLeavesOfType("markdown").flatMap((leaf) => {
       const view = leaf.view;
@@ -80,13 +80,18 @@ export function createObsidianNoteWriterFromApp(app: App): NoteWritePort {
     read: (path) => vault.read(file(path)),
     async process(path, update) { await vault.process(file(path), update); },
     async create(path, text) { await vault.create(path, text); },
-  });
+  };
+}
+export function createObsidianNoteWriterFromApp(app: App): NoteWritePort { return createObsidianNoteWriter(surfaceFromApp(app)); }
+export function createObsidianResearchAppenderFromApp(app: App, controls: ControlPaths, gate: { current(): boolean; revalidate(): Promise<boolean>; editorSnapshots?(): readonly { path: string; text: string }[] }): ResearchAppendPort {
+  return createObsidianResearchAppender(surfaceFromApp(app), controls, gate);
 }
 
-/** Uncomposed until authenticated MCP submission lands. Scope is never request data. */
+/** Authenticated MCP submission only. Scope is never request data. */
 export function createObsidianResearchAppender(surface: NoteWriteSurface, controls: ControlPaths, gate: {
   revalidate(): Promise<boolean>;
   current(): boolean;
+  editorSnapshots?(): readonly { path: string; text: string }[];
 }): ResearchAppendPort {
   const paths = structuredClone(controls);
   const writer = createWriter(surface, true);
@@ -94,7 +99,7 @@ export function createObsidianResearchAppender(surface: NoteWriteSurface, contro
     async append(request) {
       if (!request.text.trim()) return refused();
       return writer.apply({ paths, signal: request.signal, current: () => gate.current(), revalidate: () => gate.revalidate(),
-        willCommit: () => {}, editorSnapshots: () => [],
+        willCommit: () => {}, editorSnapshots: () => gate.editorSnapshots?.() ?? [],
         change: { path: paths.research, operation: "update", target: { exists: true },
           before: request.before, after: request.before + request.text } });
     },

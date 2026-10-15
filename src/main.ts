@@ -3,18 +3,21 @@
  * M1-T16 + M2-T10: adapters → config/state → corpus/tools → llm/jobs → UI.
  */
 
+import { createCollaboration } from "./collaboration";
 import { createRecoveryJournal, type RecoveryJournal } from "./changes";
 import { Notice, Plugin } from "obsidian";
 
 import {
   NodeHttpTransport,
   createMcpServer,
+  opaqueMcpId,
   type EndpointChecker as NodeEndpointChecker,
 } from "./adapters/node";
 import {
   showControlReview,
   showResearchReview,
   createObsidianNoteWriterFromApp,
+  createObsidianResearchAppenderFromApp,
   RequestUrlTransport,
   createChatItemViewFactory,
   createChatOpener,
@@ -484,7 +487,22 @@ export default class VaultSynapsePlugin extends Plugin {
       void this.onExternalSettings();
     });
 
-    const mcp = await createMcpServer({ storage, limits: MCP_LIMITS, name: PLUGIN_NAME, version: PLUGIN_VERSION });
+    const collaboration = createCollaboration({ storage, id: opaqueMcpId, now: () => clock.now(), environment: () => {
+      const settings = config.get();
+      const status = this.controls?.status.get();
+      const access = this.access;
+      const tools = this.toolDeps;
+      const lane = this.lane;
+      const activeNote = this.activeNote;
+      if (this.unloaded || !access || !tools || !lane || !activeNote || status?.security.status !== "ready" || status.instructions.status !== "ready") return null;
+      return { vault, metadata: createObsidianMetadataFromApp(this.app), activeNote, access, tools, jobs, model: lane.client,
+        paths: settings.controlPaths, policy: status.security.snapshot, instructions: status.instructions.snapshot,
+        exclusion: createExclusionPolicy({ folders: settings.excludedFolders, tags: settings.excludedTags,
+          frontmatterKey: EXCLUSION_FRONTMATTER_KEY, frontmatterValue: EXCLUSION_FRONTMATTER_VALUE }), registry: (readAccess) => buildToolRegistry(tools, readAccess),
+        appender: (gate) => createObsidianResearchAppenderFromApp(this.app, settings.controlPaths, gate),
+      };
+    } });
+    const mcp = await createMcpServer({ storage, limits: MCP_LIMITS, name: PLUGIN_NAME, version: PLUGIN_VERSION, invoke: (client, name, args, signal) => collaboration.invoke(client, name, args, signal) });
     if (this.unloaded) { mcp.dispose(); return; }
     this.mcp = mcp;
     this.mountUi(config, jobs);
