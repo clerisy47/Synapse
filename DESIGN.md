@@ -43,7 +43,7 @@ The port must enforce canonical path validation, file-kind restrictions, expecte
 
 Provider network APIs exist only in allowlisted transport adapters. Phase A egress is OpenRouter API hosts only; Phase B adds loopback Ollama. MCP introduces an explicitly allowlisted local server adapter with authentication and connection lifecycle. It does not add arbitrary outbound hosts. No feature uses bare fetch, filesystem APIs, or sockets.
 
-The MCP transport selection is a dedicated design task. Choose a supported local transport with per-client capabilities and revocation; test authentication, origin/host restrictions where relevant, request bounds, and unload cleanup. Provider credentials are never client credentials and are never exposed to clients.
+R4-T01 selects authenticated IPv4 loopback Streamable HTTP with manually provisioned per-client bearer grants. The [MCP v1 contract](docs/contracts/mcp-v1.md) freezes transport version, strict semantic schemas, safe references, revocation, limits and lifecycle requirements. Provider credentials are never client credentials and are never exposed to clients. Runtime adapter and semantic wiring follow in R4-T02/R4-T03.
 
 ## 3. Contracts and model outputs
 
