@@ -117,3 +117,56 @@ it("opens the production research review from captured editor selection and clos
   plugin.onunload(); expect(close).toHaveBeenCalled(); expect(modal.contentEl.childNodes).toHaveLength(0);
   await vi.waitFor(() => expect(listeners.size).toBe(0));
 });
+
+it("applies a locally approved change through production composition without changing the inbox", async () => {
+  vi.stubEnv("OPENROUTER_API_KEY", "");
+  const { REVIEW } = await import("../../src/ui");
+  const texts: Record<string, string> = {
+    "Research.md": "Synthetic apply observation.", "Topic.md": "# Original\nKeep this.\n",
+    "Synapse/Instructions.md": '---\n{"version":1,"timezone":"UTC","destinations":[{"id":"topic","path":"Topic.md"}],"daily":{"id":"daily-log","folder":"Daily","filename":"YYYY-MM-DD.md","heading":"## Log"}}\n---\nUse bullets.',
+    "Synapse/Security.md": '---\n{"version":1,"defaults":{"internal":"allow","remote-model":"allow","external-client":"deny"},"rules":[{"id":"create","recipient":"internal","operation":"create","effect":"allow","selector":{}},{"id":"update","recipient":"internal","operation":"update","effect":"allow","selector":{}}]}\n---\nSynthetic rules.',
+  };
+  const files = Object.keys(texts).map((path) => Object.assign(new TFile(), { path, extension: "md", stat: { mtime: 1, ctime: 1, size: texts[path].length } }));
+  const listeners = new Map<object, { name: string; callback: (...args: unknown[]) => void }>();
+  const on = (name: string, callback: (...args: unknown[]) => void) => { const ref = {}; listeners.set(ref, { name, callback }); return ref; };
+  const offref = (ref: object) => { listeners.delete(ref); };
+  const emit = (name: string, file: TFile) => { for (const event of [...listeners.values()]) if (event.name === name) event.callback(file); };
+  const editor = { getValue: () => texts["Research.md"], getCursor: (which: string) => ({ line: 0, ch: which === "from" ? 0 : texts["Research.md"].length }), posToOffset: ({ ch }: { ch: number }) => ch };
+  const researchView = Object.assign(Object.create(obsidian.MarkdownView.prototype) as obsidian.MarkdownView, { file: files[0], editor });
+  const processNote = vi.fn(async (file: TFile, update: (text: string) => string) => {
+    texts[file.path] = update(texts[file.path]); ++file.stat.mtime; emit("modify", file); return texts[file.path];
+  });
+  const create = vi.fn(); const modify = vi.fn();
+  const app = {
+    vault: { adapter: {}, getFiles: () => files, getAllLoadedFiles: () => files, getMarkdownFiles: () => files,
+      getAbstractFileByPath: (path: string) => files.find((file) => file.path === path) ?? null,
+      read: async (file: TFile) => texts[file.path], process: processNote, on, offref, modify, create },
+    metadataCache: { getCache: () => ({ frontmatter: {}, tags: [] }), resolvedLinks: {}, on, offref },
+    workspace: { on, offref, onLayoutReady() {}, getActiveFile: () => files[0], getActiveViewOfType: () => researchView,
+      getLeavesOfType: () => [{ view: researchView }], detachLeavesOfType() {} },
+  } as unknown as App;
+  const open = vi.spyOn(obsidian.Modal.prototype, "open").mockImplementation(function (this: obsidian.Modal) { (this as obsidian.Modal & { onOpen(): void }).onOpen(); });
+  vi.spyOn(obsidian.Modal.prototype, "close").mockImplementation(function (this: obsidian.Modal) { (this as obsidian.Modal & { onClose(): void }).onClose(); });
+  const PluginClass = pluginClass();
+  const plugin = new PluginClass(app, { id: "vault-synapse", dir: ".obsidian/plugins/vault-synapse" } as PluginManifest);
+  await plugin.onload();
+  // Script only the provider response; command, queue, review, authority and writer are production.
+  const lane = (plugin as unknown as { lane: { client: import("../../src/llm").ModelPort } }).lane;
+  const generated = vi.fn(async <T,>() => ({ ok: true as const, value: { value: { changes: [{ destinationId: "D1", markdown: "# Updated\nKeep this.\n- Synthetic result.", evidenceIds: ["E1"] }] } as T,
+    attempts: 1 as const, usage: { promptTokens: 0, outputTokens: 0, loadMs: 0, promptEvalMs: 0, evalMs: 0, totalMs: 0 } } }));
+  lane.client.generate = async <T,>() => { const result = await generated(); return { ...result, value: { ...result.value, value: result.value.value as T } }; };
+  await vi.waitFor(async () => { await host.commands.get("review-research")?.callback(); expect(open).toHaveBeenCalledOnce(); });
+  const el = (open.mock.instances[0] as unknown as obsidian.Modal).contentEl;
+  const checkbox = el.querySelector<HTMLInputElement>('input[type="checkbox"]')!; checkbox.checked = true; checkbox.dispatchEvent(new Event("change"));
+  const button = (label: string) => Array.from(el.querySelectorAll("button")).find((candidate) => candidate.textContent === label)!;
+  button(REVIEW.generate).click(); await vi.waitFor(() => expect(el.querySelector("select")).not.toBeNull());
+  const select = el.querySelector("select")!; select.value = "accept"; select.dispatchEvent(new Event("change"));
+  button(REVIEW.approve).click(); await vi.waitFor(() => expect(button(REVIEW.apply)).toBeDefined());
+  expect(processNote).not.toHaveBeenCalled(); button(REVIEW.apply).click();
+  await vi.waitFor(() => expect(el.textContent).toContain("Topic.md: Applied"));
+  expect(processNote).toHaveBeenCalledOnce(); expect(modify).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
+  expect(texts["Topic.md"]).toBe("# Updated\nKeep this.\n- Synthetic result.");
+  expect(texts["Research.md"]).toBe("Synthetic apply observation."); expect(generated).toHaveBeenCalledOnce();
+  expect(parsePersisted(host.data).state.researchLedger.records[0].outcomes).toContain("applied");
+  plugin.onunload(); await vi.waitFor(() => expect(listeners.size).toBe(0));
+});

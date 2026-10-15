@@ -79,6 +79,11 @@ export function mountReviewView(el: HTMLElement, controller: ReviewController, c
       const approve = add(el, "button", REVIEW.approve); approve.type = "button"; approve.disabled = !canApprove(state);
       approve.addEventListener("click", () => { if (!disposed) void controller.approve(); });
     }
+    if (state.phase === "approved") {
+      const apply = add(el, "button", REVIEW.apply); apply.type = "button";
+      apply.addEventListener("click", () => { if (!disposed) void controller.apply(); });
+    }
+    if (state.report) for (const outcome of state.report.outcomes) add(el, "p", `${outcome.path}: ${REVIEW.outcome[outcome.status]}`);
     const cancel = add(el, "button", REVIEW.cancel); cancel.type = "button";
     cancel.addEventListener("click", () => { if (!disposed) close(); });
     if (focused) el.querySelector<HTMLElement>(`[data-syn-focus="${focused}"]`)?.focus();

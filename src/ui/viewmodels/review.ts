@@ -1,7 +1,8 @@
-import type { ChangeProposal, RoutingSettings } from "../../core";
+import type { ApplyReport, ChangeProposal, RoutingSettings } from "../../core";
 export type ReviewDecision = "undecided" | "accept" | "reject";
 export interface ReviewState {
-  readonly phase: "selecting" | "generating" | "review" | "validating" | "approved" | "stale" | "error" | "canceled";
+  readonly phase: "selecting" | "generating" | "review" | "validating" | "approved" | "applying" | "finished" | "stale" | "error" | "canceled";
+  readonly report: ApplyReport | null;
   readonly routing: RoutingSettings;
   readonly destinations: readonly string[];
   readonly dailyDate: string;
@@ -15,9 +16,11 @@ export type ReviewEvent =
   | { type: "decide"; index: number; decision: ReviewDecision }
   | { type: "validate" }
   | { type: "approved" }
+  | { type: "apply" }
+  | { type: "report"; report: ApplyReport }
   | { type: "stale" | "error" | "cancel" };
 export function initialReviewState(routing: RoutingSettings): ReviewState {
-  return { phase: "selecting", routing, destinations: [], dailyDate: "", proposal: null, decisions: [] };
+  return { phase: "selecting", report: null, routing, destinations: [], dailyDate: "", proposal: null, decisions: [] };
 }
 export function canGenerate(state: ReviewState): boolean {
   return state.phase === "selecting" && state.destinations.length > 0
@@ -42,6 +45,8 @@ export function reduceReview(state: ReviewState, event: ReviewEvent): ReviewStat
       ? { ...state, decisions: state.decisions.map((d, i) => i === event.index ? event.decision : d) } : state;
     case "validate": return canApprove(state) ? { ...state, phase: "validating" } : state;
     case "approved": return state.phase === "validating" ? { ...state, phase: "approved" } : state;
+    case "apply": return state.phase === "approved" ? { ...state, phase: "applying" } : state;
+    case "report": return state.phase === "applying" ? { ...state, phase: "finished", report: event.report, proposal: null, decisions: [] } : state;
     case "stale": return { ...state, phase: "stale", proposal: null, decisions: [] };
     case "error": return ["generating", "validating"].includes(state.phase) ? { ...state, phase: "error" } : state;
     case "cancel": return { ...state, phase: "canceled", proposal: null, decisions: [] };
