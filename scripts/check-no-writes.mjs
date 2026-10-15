@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * AC-M8.5 prep: vault write APIs banned in src/ (DESIGN §2.2).
+ * Vault writes confined to storage and the named restricted note adapter (DESIGN §2.2).
  */
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -12,7 +12,11 @@ const SRC = path.join(ROOT, "src");
 /** Paths relative to repo root. StoragePort may use vault.adapter under the plugin folder. */
 const ALLOWLIST = new Set(["src/adapters/obsidian/storage.ts"]);
 
+const NOTE_WRITER = "src/adapters/obsidian/note-write.ts";
 const PATTERNS = [
+  { name: "vault.append", re: /\bvault\.append\s*\(/ },
+  { name: "vault.createFolder", re: /\bvault\.createFolder\s*\(/ },
+  { name: "vault.process", re: /\bvault\.process\s*\(/ },
   { name: "vault.modify", re: /\bvault\.modify\s*\(/ },
   { name: "vault.create", re: /\bvault\.create\s*\(/ },
   { name: "vault.delete", re: /\bvault\.delete\s*\(/ },
@@ -54,6 +58,7 @@ for (const file of await walk(SRC)) {
     const trimmed = line.trim();
     if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
     for (const { name, re } of PATTERNS) {
+      if (relative === NOTE_WRITER && ["vault.create", "vault.process"].includes(name)) continue;
       if (re.test(line)) {
         violations.push({ relative, line: i + 1, api: name, snippet: trimmed.slice(0, 80) });
       }

@@ -66,3 +66,5 @@ export { createObsidianNavigation, createObsidianNavigationFromApp, type Navigat
 
 export { showControlReview } from "./control-review";
 export { showResearchReview } from "./research-review";
+
+export { createObsidianNoteWriter, createObsidianNoteWriterFromApp, createObsidianResearchAppender, type NoteWriteSurface } from "./note-write";
