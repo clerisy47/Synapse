@@ -22,7 +22,7 @@ Ports-and-adapters with a plain strict TypeScript core. `main.ts` constructs dep
 | corpus | Markdown-only cache/indexes and filtered graph; core, policy, evidence. |
 | tools | Bounded retrieval; core, evidence; injected corpus/access contracts. |
 | agent | Search/chat orchestration; core, evidence, tools, llm and jobs public contracts. |
-| research | Inbox batches, proposal generation and provenance; core, instructions, policy, evidence, agent, llm, jobs contracts. |
+| research | Inbox batches, proposal generation, local review sessions and provenance; core, instructions, policy, evidence, agent, llm, jobs, changes contracts. |
 | changes | Proposal validation, approval binding, application and recovery; core, policy, instructions, state contracts. |
 | collaboration | Scoped MCP operations and safe responses; core, policy, agent, research, jobs contracts. |
 | ui | Pure viewmodels and DOM shells for chat, review, settings; public feature contracts, no adapters. |
@@ -88,6 +88,8 @@ Only current allowed evidence enters the ledger. Before each remote request, app
 R3-T01 implements local selected inbox capture, exact source/selection snapshots and an approval-free durable processing ledger. Stable content identity is separate from source freshness; malformed or conflicting history fails closed. Current behavior and interfaces are recorded in [research capture audit](docs/r3-t01-research-audit.md). Proposal generation and application remain subsequent tasks.
 
 The user selects an inbox batch → snapshot research/instructions/policy → retrieve permitted target context → schema-constrained generation → deterministic validation → immutable proposal → full diff in local review UI. Unresolved routing or provenance issues prevent approval.
+
+R3-T03 connects selected research to explicit destination/date choices and complete literal before/after review. Local approvals remain in memory, bind only accepted changes and are revoked by edits, settings changes, cancellation or unload. Stale review text is removed. No application or vault-write checker changes are included. The service boundary and verification are recorded in [review audit](docs/r3-t03-review-audit.md).
 
 The UI lets the user accept/reject individual changes and approve the selected batch. Editing generated text produces a new proposal/diff. Apply revalidates approval, source/target hashes, unsaved buffers, and current policy/instructions before each write. A conflict invalidates the affected proposal and requires a new review. Research is preserved; a batch ledger records applied changes without treating inbox content as policy.
 
