@@ -14,6 +14,7 @@ export interface ResearchCapture {
 export interface ResearchInbox {
   capture(): Promise<Result<ResearchCapture>>;
   validateSnapshot(snapshot: ResearchSnapshot): Promise<Result<void>>;
+  markProposed(snapshot: ResearchSnapshot): Promise<Result<void>>;
   ledgerStatus(id: BatchId): Result<{ readonly outcome: ResearchProcessingState; readonly conflicted: boolean }>;
   dispose(): void;
 }
@@ -126,7 +127,7 @@ export function createResearchInbox(deps: ResearchInboxDeps): ResearchInbox {
     const record = ledger.value.records.find((item) => item.batch.id === id);
     return record ? ok({ outcome: outcome(record), conflicted: record.conflicted }) : failure("RESEARCH_MISSING_BATCH");
   }
-  return {
+  const inbox: ResearchInbox = {
     capture() {
       // Copy the user's explicit selection now, before queued I/O or mutable editor state changes.
       let selected: ReturnType<ActiveNotePort["current"]>;
@@ -153,7 +154,24 @@ export function createResearchInbox(deps: ResearchInboxDeps): ResearchInbox {
         return status.value.conflicted ? failure("RESEARCH_LEDGER_CONFLICT") : ok(undefined);
       } catch { return failure("RESEARCH_UNAVAILABLE"); }
     },
+    markProposed(snapshot) {
+      const run = tail.then(async (): Promise<Result<void>> => {
+        const valid = await inbox.validateSnapshot(snapshot);
+        if (!valid.ok) return valid;
+        const latest = ledgerAvailable();
+        if (!latest.ok) return latest;
+        const record = latest.value.records.find((item) => item.batch.id === snapshot.batch.id);
+        if (!record || record.conflicted || record.outcomes.some((state) => state === "applied" || state === "partially-applied" || state === "rejected")) return failure("RESEARCH_LEDGER_CONFLICT");
+        try {
+          await deps.saveLedger({ ...latest.value, records: latest.value.records.map((item) => item === record ? { ...item, outcomes: item.outcomes.includes("proposed") ? item.outcomes : [...item.outcomes, "proposed"] } : item) });
+        } catch { return failure("RESEARCH_STORAGE_FAILED"); }
+        return inbox.validateSnapshot(snapshot);
+      });
+      tail = run.then(() => undefined, () => undefined);
+      return run;
+    },
     ledgerStatus,
     dispose() { if (disposed) return; disposed = true; ++epoch; unsubscribeVault(); unsubscribeEditor(); },
   };
+  return inbox;
 }

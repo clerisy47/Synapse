@@ -209,3 +209,24 @@ describe("research capture", () => {
     expect(issue(await newService.validateSnapshot(captured.value.snapshot))).toBe("RESEARCH_STALE"); newService.dispose();
   });
 });
+
+describe("approval-free proposal history", () => {
+  it("serializes monotone proposed outcomes and always flushes an explicit retry", async () => {
+    const f = fixture(); const captured = await f.inbox.capture();
+    if (!captured.ok) throw Error("capture");
+    f.saveLedger.mockImplementationOnce(async (ledger) => { f.setLedger(ledger); throw Error("synthetic failure"); });
+    expect((await f.inbox.markProposed(captured.value.snapshot)).ok).toBe(false);
+    expect((await f.inbox.markProposed(captured.value.snapshot)).ok).toBe(true);
+    expect(f.saveLedger).toHaveBeenCalledTimes(3);
+    expect(f.ledger.records[0].outcomes).toEqual(["captured", "proposed"]);
+    expect(JSON.stringify(f.ledger)).not.toContain(captured.value.snapshot.text);
+  });
+  it("cannot mark stale or applied research as proposed", async () => {
+    const f = fixture(); const captured = await f.inbox.capture();
+    if (!captured.ok) throw Error("capture");
+    const record = f.ledger.records[0];
+    f.setLedger({ ...f.ledger, records: [{ ...record, outcomes: ["captured", "applied"] }] });
+    expect((await f.inbox.markProposed(captured.value.snapshot)).ok).toBe(false);
+    expect((await f.inbox.markProposed({ ...captured.value.snapshot })).ok).toBe(false);
+  });
+});
