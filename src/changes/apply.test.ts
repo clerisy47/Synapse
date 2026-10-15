@@ -17,7 +17,9 @@ it("burns authority once, reports partial/unknown outcomes, and never attempts l
   const run = (approval: Approval) => applyReviewedChanges({ journal, authority, approval, paths, writer: { apply }, signal: new AbortController().signal,
     current: () => true, validate: async () => true, editorSnapshots: () => [], begin, willCommit: () => {}, completed });
   const result = await run(approved.value);
-  expect(result).toEqual(ok({ recoveryId: expect.any(String), outcomes: [{ path: "One.md", status: "applied" }, { path: "Two.md", status: "unknown" }, { path: "Three.md", status: "not-attempted" }] }));
+  if (!result.ok) throw Error("application refused");
+  expect(result.value.recoveryId).toMatch(/^[a-f0-9]{64}$/);
+  expect(result.value.outcomes).toEqual([{ path: "One.md", status: "applied" }, { path: "Two.md", status: "unknown" }, { path: "Three.md", status: "not-attempted" }]);
   expect(begin).toHaveBeenCalledOnce(); expect(completed).toHaveBeenCalledOnce(); expect(apply).toHaveBeenCalledTimes(2);
   expect((await run(approved.value)).ok).toBe(false); expect(apply).toHaveBeenCalledTimes(2);
 });
