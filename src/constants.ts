@@ -100,3 +100,11 @@ export const RESEARCH_LEDGER_MAX_RECORDS = 1000;
 
 /** Bounded in-memory research generation; no implicit truncation. */
 export const PROPOSAL_LIMITS = { targets: 8, inputChars: 48_000, entryChars: 8_000, outputTokens: 4_000 } as const;
+
+/** Recovery text stays in plugin storage; unresolved intents are never evicted. */
+export const RECOVERY_LIMITS = {
+  records: 20,
+  files: CONTROL_LIMITS.changes,
+  chars: 4_000_000,
+  retentionMs: 30 * 24 * 60 * 60 * 1000,
+} as const;

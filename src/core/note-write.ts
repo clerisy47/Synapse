@@ -15,6 +15,7 @@ export interface NoteWritePort {
   apply(request: NoteWriteRequest): Promise<Result<void>>;
 }
 export interface ApplyReport {
+  readonly recoveryId?: string;
   readonly outcomes: readonly { readonly path: ProposedChange["path"]; readonly status: "applied" | "refused" | "unknown" | "not-attempted" }[];
 }
 
