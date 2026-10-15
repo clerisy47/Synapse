@@ -1,4 +1,5 @@
 /** Deliberately bounded MCP 2025-11-25 JSON-only protocol surface. */
+import { URL } from "node:url";
 import { z } from "zod";
 import type { McpLimits, McpScope } from "../../core";
 export const MCP_VERSION = "2025-11-25";
