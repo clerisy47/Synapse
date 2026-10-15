@@ -12,6 +12,7 @@ const SRC = path.join(ROOT, "src");
 /** Paths relative to repo root. Transport files may not exist yet. */
 const ALLOWLIST = new Set([
   "src/adapters/node/http-transport.ts",
+  "src/adapters/node/mcp-server.ts",
   "src/adapters/obsidian/request-url-transport.ts",
 ]);
 

@@ -7,3 +7,5 @@ export {
   type EndpointChecker,
   type NodeHttpTransportOptions,
 } from "./http-transport";
+
+export { createMcpServer } from "./mcp-server";
