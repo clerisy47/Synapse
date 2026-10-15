@@ -28,6 +28,7 @@ async function flushMicrotasks(): Promise<void> {
 describe("PRIORITY", () => {
   it("prioritizes interactive qa over health checks", () => {
     expect(PRIORITY.qa).toBeLessThan(PRIORITY.health);
+    expect(PRIORITY.qa).toBeLessThan(PRIORITY.research);
   });
 });
 

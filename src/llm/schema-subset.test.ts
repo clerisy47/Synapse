@@ -17,10 +17,11 @@ const PROMPT_KINDS = [
   "qa.plan",
   "qa.select",
   "qa.answer",
+  "research.propose",
 ] as const;
 
 describe("model-output schemas", () => {
-  it("registers only health and Q&A prompt kinds", () => {
+  it("registers health, Q&A and research prompt kinds", () => {
     expect(Object.keys(MODEL_OUTPUT_SCHEMAS).sort()).toEqual([...PROMPT_KINDS].sort());
     expect(Object.keys(MODEL_OUTPUT_JSON_SCHEMAS).sort()).toEqual([...PROMPT_KINDS].sort());
   });

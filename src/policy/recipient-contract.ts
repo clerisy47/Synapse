@@ -29,13 +29,26 @@ function matches(selector: PolicySelector, request: AccessContractRequest): bool
 
 /** Shared deterministic decision used by runtime read sessions and later write gates. */
 export function evaluateAccessContract(policy: PolicySnapshot | null, request: AccessContractRequest): AccessDecision {
+  return evaluate(policy, request, false);
+}
+
+/** Explicit selected-research/style disclosure only; never used by retrieval/tools.
+ * Caller still supplies user exclusion and current metadata. Security.md stays private. */
+export function evaluateResearchInput(policy: PolicySnapshot | null, request: AccessContractRequest): AccessDecision {
+  const privileged = request.operation === "read" && request.context.purpose === "research"
+    && [request.controlPaths.research, request.controlPaths.instructions].includes(request.path);
+  if (!privileged) return { effect: "deny", reason: "control-file" };
+  return evaluate(policy, request, true);
+}
+
+function evaluate(policy: PolicySnapshot | null, request: AccessContractRequest, privileged: boolean): AccessDecision {
   const deny = (reason: Extract<AccessDecision, { effect: "deny" }>["reason"]): AccessDecision => ({ effect: "deny", reason });
   if (policy === null) return deny("policy-unavailable");
   if (request.context.policyHash !== policy.hash) return deny("stale-policy");
   const inboxAppend = request.operation === "append-research" && request.context.recipient === "external-client" && request.path === request.controlPaths.research;
   if (request.operation === "append-research" && !inboxAppend) return deny("capability");
   if (request.excluded) return deny("excluded");
-  if (!inboxAppend && [request.controlPaths.instructions, request.controlPaths.security, request.controlPaths.research].some((path) => path.toLowerCase() === request.path.toLowerCase())) return deny("control-file");
+  if (!privileged && !inboxAppend && [request.controlPaths.instructions, request.controlPaths.security, request.controlPaths.research].some((path) => path.toLowerCase() === request.path.toLowerCase())) return deny("control-file");
   if (request.tags === null || request.frontmatter === null) return deny("metadata-unavailable");
   const { context, operation } = request;
   if (context.recipient === "remote-model" && operation !== "read") return deny("capability");

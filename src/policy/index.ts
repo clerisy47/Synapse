@@ -19,7 +19,7 @@ export type {
 export { createExclusionPolicy } from "./exclusion";
 
 export { AccessContextSchema, SecurityRulesSchema, parseSecurityRules } from "./security-contracts";
-export { evaluateAccessContract } from "./recipient-contract";
+export { evaluateAccessContract, evaluateResearchInput } from "./recipient-contract";
 export type { AccessContractRequest, AccessDecision } from "./recipient-contract";
 
 export { replaceLiterals, projectDisclosure } from "./disclosure";
