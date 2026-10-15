@@ -11,6 +11,7 @@ import {
 } from "./adapters/node";
 import {
   showControlReview,
+  showResearchReview,
   RequestUrlTransport,
   createChatItemViewFactory,
   createChatOpener,
@@ -71,7 +72,7 @@ import {
 } from "./llm";
 import { bindToolAccess, guardToolRegistry, createPermittedTextReader, type ToolReadAccess } from "./tools";
 import { createAccessRuntime, createEndpointPolicy, createExclusionPolicy, guardNavigation, intersectReadSessions, type AccessRuntime } from "./policy";
-import { createResearchInbox, type ResearchInbox } from "./research";
+import { createResearchInbox, createResearchReviewSession, type ResearchInbox } from "./research";
 import { loadStateStore, mergeResearchLedgers, type StateStore } from "./state";
 import {
   SEARCH_TEXT_BUDGET_MS,
@@ -94,6 +95,9 @@ import {
   createChatController,
   createM3Commands,
   createResearchCaptureCommand,
+  createResearchReviewCommand,
+  mountReviewView,
+  type ReviewRunner,
   mountChatView,
   mountSettingsPanel,
   mountStatusBar,
@@ -354,6 +358,8 @@ export default class VaultSynapsePlugin extends Plugin {
   private controls: ControlStore | null = null;
   private research: ResearchInbox | null = null;
   private activeNote: ActiveNotePort | null = null;
+  private reviewSession: (() => ReviewRunner | null) | null = null;
+  private closeReview: Disposable | null = null;
   private corpus: CorpusStore | null = null;
   private toolDeps: CoreToolDeps | null = null;
   private access: AccessRuntime | null = null;
@@ -395,6 +401,7 @@ export default class VaultSynapsePlugin extends Plugin {
     } catch {
       // ignore
     }
+    this.reviewSession = null;
     this.research?.dispose();
     this.research = null;
     this.activeNote = null;
@@ -473,6 +480,7 @@ export default class VaultSynapsePlugin extends Plugin {
   }
 
   private installControls(vault: VaultPort, settings: Settings): void {
+    this.closeReview?.();
     this.controls?.dispose();
     this.controls = createControlStore({ vault, paths: settings.controlPaths, starters: CONTROL_STARTERS });
     void this.controls.reload();
@@ -517,6 +525,27 @@ export default class VaultSynapsePlugin extends Plugin {
       policy: () => { const state = controls.status.get().security; return state.status === "ready" ? state.snapshot : null; },
       subscribePolicy: (callback) => controls.status.subscribe(callback),
     });
+    this.reviewSession = () => {
+      const inbox = this.research;
+      const activeNote = this.activeNote;
+      const lane = this.lane;
+      const jobs = this.jobs;
+      const config = this.config;
+      if (!inbox || !activeNote || !lane || !jobs || !config) return null;
+      return createResearchReviewSession({ vault, metadata, activeNote, inbox, jobs, model: lane.client,
+        paths: settings.controlPaths,
+        exclusion: createExclusionPolicy({ folders: settings.excludedFolders, tags: settings.excludedTags,
+          frontmatterKey: EXCLUSION_FRONTMATTER_KEY, frontmatterValue: EXCLUSION_FRONTMATTER_VALUE }),
+        controls: () => {
+          const status = controls.status.get();
+          return status.instructions.status === "ready" && status.security.status === "ready"
+            ? { instructions: status.instructions.snapshot, policy: status.security.snapshot } : null;
+        },
+        version: () => this.lane === lane && this.controls === controls && this.research === inbox ? "current" : "retired",
+        subscribeSettings: (callback) => config.subscribe(callback),
+        subscribeControls: (callback) => controls.status.subscribe(callback),
+      });
+    };
     const access = this.access;
     const updateIndexStatus = () => {
       const count = access.internalCount();
@@ -596,6 +625,7 @@ export default class VaultSynapsePlugin extends Plugin {
   }
 
   private rebuildAi(settings: Settings): void {
+    this.closeReview?.();
     this.lane = buildAiLane(settings, this.clock);
   }
 
@@ -809,6 +839,14 @@ export default class VaultSynapsePlugin extends Plugin {
           showControlReview(this.app, CONTROLS.setupHeading, changes.length ? CONTROLS.setupPending : CONTROLS.noMissing, changes);
         }).catch(() => presentObsidianNotice({ message: CONTROLS.failed }));
       } });
+      const review = createResearchReviewCommand({
+        createSession: () => this.reviewSession?.() ?? null,
+        open: (controller, onClose) => showResearchReview(this.app, (el, close) => mountReviewView(el, controller, close), onClose),
+        notice: (message) => presentObsidianNotice({ message }),
+      });
+      this.addCommand(review.command);
+      this.closeReview = review.close;
+      this.disposables.push(() => { this.closeReview = null; review.dispose(); });
       const researchCommand = createResearchCaptureCommand({ service: () => this.research, notice: (message) => presentObsidianNotice({ message }) });
       this.addCommand(researchCommand);
       const defs = createM3Commands({
