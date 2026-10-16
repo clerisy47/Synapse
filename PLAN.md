@@ -5,7 +5,7 @@ This revision supersedes the old backlog, including the in-progress PDF probe M4
 
 ## Execution rules
 
-Current task is IN_PROGRESS; otherwise choose the lowest-ID TODO with all dependencies DONE. User-directed scope revisions take precedence over ordinary backlog selection. Status exists only here. R1-T01, R2-T01 through R2-T03 and R3-T01 through R3-T05 are complete; R4-T01 is complete; R4-T02 and R4-T03 are complete; R5-T01 is complete; R5-T02 is complete; R5-T03 is the next eligible task.
+Current task is IN_PROGRESS; otherwise choose the lowest-ID TODO with all dependencies DONE. User-directed scope revisions take precedence over ordinary backlog selection. Status exists only here. R1-T01, R2-T01 through R2-T03 and R3-T01 through R3-T05 are complete; R4-T01 is complete; R4-T02 and R4-T03 are complete; R5-T01 is complete; R5-T02 is complete; R5-T03 is in progress; live-provider and real-host evidence must pass before its gate closes.
 
 Keep tasks small (normally 1–5 files); split cross-cutting cleanup into reviewable substeps before editing. Do not disable tests or delete meaningful failing coverage. Every implementation slice must build and pass headless backend checks. Per user direction (2026-10-15), use the project mini vault now; defer actual Obsidian UI/load/workflow smoke to the final Phase A gate (R5-T03/R5-T04), with final local smoke at R6-T02. Do not start Phase B until all Must + Should features and Phase A validation are complete.
 
@@ -140,7 +140,7 @@ Keep tasks small (normally 1–5 files); split cross-cutting cleanup into review
 - **Dependencies:** R5-T02
 - **Acceptance criteria:** SPEC F1–F11 acceptance criteria; zero forbidden disclosure/write; all parsed schemas valid; citation validity at least 95%; manual gaps closed.
 - **How to verify:** Required checks/build, deterministic eval, live OpenRouter with synthetic inputs and real Obsidian workflow evidence.
-- **Status:** TODO
+- **Status:** IN_PROGRESS
 
 ### R5-T04 — Phase A release readiness
 

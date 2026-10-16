@@ -1,5 +1,5 @@
 import { fixtureDisclosureAccess } from "../fakes";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { NodeHttpTransport } from "../../src/adapters/node";
 import { createQaPipeline, type QaEvent } from "../../src/agent";
 import { createCorpusStore } from "../../src/corpus";
@@ -29,14 +29,14 @@ afterEach(async () => {
   for (const dispose of cleanup.splice(0).reverse()) await dispose();
 });
 
-async function run(outputs: unknown[], opts: { graph?: boolean; stale?: boolean; maxReads?: number } = {}) {
+async function run(outputs: unknown[], opts: { graph?: boolean; stale?: boolean; maxReads?: number; fixture?: { note: string; question: string } } = {}) {
   const server = await startMockOpenRouterServer(outputs);
   cleanup.push(server.close);
   const clock = new FakeClock(1_700_000_000_000);
   const vault = new FakeVault();
   const metadata = new FakeMetadata();
   for (const path of ["notes/alpha.md", "private/secret.md"]) {
-    vault.addNote({ path, text: path.startsWith("private/") ? PRIVATE : NOTE });
+    vault.addNote({ path, text: path.startsWith("private/") ? PRIVATE : (opts.fixture?.note ?? NOTE) });
     metadata.set(path, { frontmatter: {}, tags: [], headings: [] });
   }
   if (opts.graph) {
@@ -89,7 +89,7 @@ async function run(outputs: unknown[], opts: { graph?: boolean; stale?: boolean;
   const events: QaEvent[] = [];
   const handle = queue.submit({
     kind: "qa", label: "Q&A integration",
-    run: (ctx) => pipeline.run({ question: "Where is the quantum rendezvous?", history: [] }, ctx, (event) => events.push(event)),
+    run: (ctx) => pipeline.run({ question: opts.fixture?.question ?? "Where is the quantum rendezvous?", history: [] }, ctx, (event) => events.push(event)),
   });
   const result = await handle.result;
   expect(result.ok).toBe(true);
@@ -106,6 +106,8 @@ async function run(outputs: unknown[], opts: { graph?: boolean; stale?: boolean;
     expect(body.messages[0]).toEqual({ role: "system", content: SHARED_SYSTEM_PREFIX });
     expect(body.messages[1]?.role).toBe("user");
   }
+  expect(await vault.readText("notes/alpha.md" as Parameters<typeof vault.readText>[0])).toBe(opts.fixture?.note ?? NOTE);
+  expect(await vault.readText("private/secret.md" as Parameters<typeof vault.readText>[0])).toBe(PRIVATE);
   const visible = JSON.stringify({ requests: server.requests, result: result.value, events });
   expect(visible).not.toContain("EXCLUDED_SENTINEL_73");
   expect(visible).not.toContain("private/secret.md");
@@ -193,4 +195,62 @@ it("does not read graph targets when the read budget is zero", async () => {
   const { value } = await run([{ ...plan, expand_graph: true }, { read: [], enough: true }, answer(["E1"])], { graph: true, maxReads: 0 });
   expect(value.stats.reads).toBe(0);
   expect(value.trace.some((hop) => hop.tool === "read_note")).toBe(false);
+});
+
+// Known answers are independently stored in the fixture table. Scripted HTTP
+// responses test orchestration/schema/citation integrity, not model intelligence.
+const facts = [
+  ["Atlas", "owner", "Mira"], ["Beacon", "owner", "Tomas"],
+  ["Cedar", "owner", "Leena"], ["Delta", "owner", "Ravi"],
+  ["Ember", "owner", "Nora"], ["Fjord", "owner", "Ivo"],
+  ["Grove", "owner", "Sana"], ["Harbor", "owner", "Omar"],
+  ["Indigo", "owner", "Ada"], ["Juniper", "owner", "Theo"],
+  ["Kestrel", "venue", "Oslo"], ["Lagoon", "venue", "Kyoto"],
+  ["Maple", "venue", "Lima"], ["Nimbus", "venue", "Accra"],
+  ["Orchid", "venue", "Bern"], ["Pebble", "venue", "Riga"],
+  ["Quartz", "venue", "Pune"], ["Reef", "venue", "Bath"],
+  ["Summit", "venue", "Kobe"], ["Tundra", "venue", "Perth"],
+  ["Umber", "weekday", "Monday"], ["Vale", "weekday", "Tuesday"],
+  ["Willow", "weekday", "Wednesday"], ["Xenon", "weekday", "Thursday"],
+  ["Yarrow", "weekday", "Friday"], ["Zephyr", "weekday", "Saturday"],
+  ["Acorn", "weekday", "Sunday"], ["Birch", "weekday", "Monday"],
+  ["Coral", "weekday", "Tuesday"], ["Dune", "weekday", "Wednesday"],
+  ["Elm", "status", "approved"], ["Flint", "status", "paused"],
+  ["Glade", "status", "active"], ["Hazel", "status", "complete"],
+  ["Iris", "status", "scheduled"], ["Jade", "status", "reviewed"],
+  ["Knoll", "status", "draft"], ["Larch", "status", "archived"],
+  ["Moss", "status", "queued"], ["North", "status", "blocked"],
+] as const;
+
+describe("Phase A known-answer evaluation (scripted HTTP)", () => {
+  const measurements: { correct: boolean; cited: boolean; elapsedMs: number }[] = [];
+  afterAll(() => {
+    // Aggregate counts only: no questions, note bodies, keys, or paths.
+    console.info("Phase A scripted evaluation", JSON.stringify({
+      mode: "scripted-http", questions: measurements.length,
+      correct: measurements.filter((m) => m.correct).length,
+      validCitations: measurements.filter((m) => m.cited).length,
+      elapsedMs: measurements.map((m) => Math.round(m.elapsedMs)),
+    }));
+  });
+  it.each(facts)("%s %s resolves to current evidence", async (project, field, expected) => {
+    const started = performance.now();
+    const claim = `${project}'s ${field} is ${expected}.`;
+    const note = `${claim} This synthetic project record is the authoritative schedule and ownership register for evaluation purposes.`;
+    const { value } = await run([
+      { ...plan, searches: [{ ...plan.searches[0], terms: [project] }] },
+      { read: ["E1"], enough: false },
+      { status: "answered", claims: [{ text: claim, sources: ["E1"] }], followup: null },
+    ], { fixture: { note, question: `What is ${project}'s ${field}?` } });
+    const correct = value.status === "answered" && value.claims.length === 1
+      && value.claims[0]?.text === claim && value.claims[0]?.text.includes(expected);
+    const citation = value.claims[0]?.citations[0];
+    const cited = value.claims[0]?.sourced === true && citation?.status === "sourced"
+      && citation.excerpt.ref.path === "notes/alpha.md"
+      && note.includes(citation.excerpt.text) && citation.excerpt.text.includes(expected);
+    measurements.push({ correct, cited, elapsedMs: performance.now() - started });
+    expect(correct).toBe(true);
+    expect(cited).toBe(true);
+    expect(value.trace.map((hop) => hop.tool)).toContain("read_note");
+  });
 });

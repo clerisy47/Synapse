@@ -2,16 +2,16 @@
 
 ## Current focus
 
-R5-T02 completes [clear-data, privacy disclosures and diagnostics](docs/r5-t02-privacy-audit.md). R5-T03 is next: synthetic evaluation and the Phase A feature-complete gate. Actual Obsidian/native-client smoke remains at R5-T03.
+R5-T03 synthetic evaluation is underway; see [Phase A gate evidence](docs/r5-t03-evaluation.md). The deterministic suite passes. Live `openrouter/free` failed structured output validation; real Obsidian/native-client smoke and live quality evaluation remain pending. The Phase A gate is open.
 Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must + Should completion; **Phase B = local Ollama**, after validation.
 
 ## Last session
 
-- Added locally confirmed clear-data with frozen persistence and pending-write drain; preserves settings and all vault files, removes recovery/receipt/pairing history and requires reload.
-- Disclosed lost recovery/revert and duplicate-prevention history, retained API key, sync/backups, sensitive retention and OpenRouter routed-provider egress.
-- Removed raw exception logging and paths from debug notices. Added clear/restart, pending/late write, failure, local confirmation/cancel/unload and production-bundle redaction coverage.
-- Required checks/build passed; 853 tests passed (one existing opt-in live test skipped), 88 mini-vault checks, and production-bundle plugin tests passed. Lint has warnings only.
-- Real Obsidian smoke and live openrouter/free evaluation remain at R5-T03/R5-T04.
+- Added 40 synthetic known-answer cases through queued production retrieval, tools, OpenRouter HTTP parsing, and current-passage citation verification. Scripted answers measure pipeline integrity, not live model quality.
+- Added `npm run test:eval` (204 checks) and `npm run test:live` entry points. Full suite: 893 passed, one opt-in live test skipped; required static checks and build passed.
+- Separately loaded the local key without logging it and ran the real `openrouter/free` health-shaped call: failed `FORMAT_IGNORED` after 3.65 seconds. No alternate model used.
+- Real Obsidian host/client evidence is pending; no desktop-control tool is available in this session. Existing injected-host tests are not presented as real host smoke.
+- R5-T03 remains IN_PROGRESS; R5-T04 and Phase B remain gated. Evaluation changes are prepared for review without declaring feature completion.
 
 ## Known issues
 
