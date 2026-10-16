@@ -2,10 +2,12 @@
 
 ## Current focus
 
-R5-T03 synthetic evaluation is underway; see [Phase A gate evidence](docs/r5-t03-evaluation.md). The deterministic suite passes. Live `openrouter/free` failed structured output validation; real Obsidian/native-client smoke and live quality evaluation remain pending. The Phase A gate is open.
+R5-T03 synthetic evaluation is underway; see [Phase A gate evidence](docs/r5-t03-evaluation.md). The deterministic suite passes. The latest production `openrouter/free` health probe passed after earlier failures; real Obsidian/native-client smoke and live quality evaluation remain pending. The Phase A gate is open.
 Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must + Should completion; **Phase B = local Ollama**, after validation.
 
 ## Last session
+
+- Production live health passed with `openrouter/free` and the 512-token budget in 14.79 seconds. All 893 automated tests and required static/build checks passed. One health success does not establish router reliability or live Q&A/research quality. PR #126 stays draft; real host/client evidence is still unavailable. Preserved the user's uncommitted AGENTS.md retry-rule edit.
 
 - Investigated live failures using metadata only: the 16-token health request exhausted its budget during reasoning. Raised the provisional health cap to 512; two production probes still failed FORMAT_IGNORED, while a separate diagnostic returned valid health JSON. This is a partial mitigation, not a closed provider gate. All 893 automated tests and static/build checks passed. PR #126 remains draft pending reliable live results and real host/client evidence. The active user-edited retry rule permits ten attempts with 30-second waits; the earlier three-attempt stop below is historical.
 

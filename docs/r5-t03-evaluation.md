@@ -82,6 +82,20 @@ network/write/schema checks, all 893 automated tests (one live test skipped),
 and production build passed. Real host/client evidence remains unavailable.
 Keep the PR draft and R5-T03 IN_PROGRESS.
 
+## Latest production health revalidation
+
+On 2026-10-16, the production-client `openrouter/free` live health test passed
+with the 512-token budget in 14.79 seconds. This is one successful structured
+health request after the failures above; it does not establish reliability or
+live Q&A/research quality. No provider response content or credentials were
+printed. All 893 automated tests passed (one opt-in live test skipped in the
+full run); typecheck, lint (26 warnings, zero errors), boundaries,
+network/write/schema checks and production build passed.
+
+Real Obsidian/native-client evidence is still unavailable in this session.
+PR #126 remains draft and R5-T03 remains IN_PROGRESS. Live quality evaluation
+and the manual workflows below are still required before merge or gate closure.
+
 ## Coverage map
 
 | Requirement | Executable evidence |
@@ -101,7 +115,7 @@ measure a universal disclosure/write rate or substitute for desktop workflow QA.
 ## Remaining gate evidence
 
 1. Live health and real Q&A/research quality must pass with `openrouter/free`.
-   The first live structured call failed. No 40-question live quality result,
+   The latest health call passed after earlier failures. No 40-question live quality result,
    provider latency distribution, or real-model citation rate is claimed.
 2. Real Obsidian load/unload, exact citation selection, diff review, apply,
    unsaved/stale conflicts, restart/revert, clear-data, and authenticated native
