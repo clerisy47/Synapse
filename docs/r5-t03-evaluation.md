@@ -12,6 +12,10 @@ Measured 2026-10-16. The Phase A feature-complete gate remains open.
   With a local `.env`, use
   `node --env-file=.env node_modules/vitest/vitest.mjs run test/live/openrouter.live.test.ts`.
   Never capture keys or provider response bodies in the report.
+- `SYNAPSE_LIVE_QA=1 node --env-file=.env node_modules/vitest/vitest.mjs run test/integration/pipeline-e2e.test.ts -t 'Phase A live Q&A smoke'`:
+  opt-in single-question production pipeline smoke with synthetic notes. With the
+  key already exported, use `SYNAPSE_LIVE_QA=1 npm run test:live:qa`.
+  Both the key and explicit opt-in are required; ordinary CI does not send input.
 - Run typecheck, lint, boundaries, check:network, check:writes, check:schema,
   and build using the package scripts.
 
@@ -127,3 +131,24 @@ measure a universal disclosure/write rate or substitute for desktop workflow QA.
    checklists. Record pass/fail per workflow without credentials or vault content.
 
 R5-T03 stays IN_PROGRESS. R5-T04 and Phase B cannot start from these results.
+
+## Live Q&A smoke follow-up
+
+On 2026-10-16, added a separately opt-in synthetic Q&A smoke using the same
+queued production pipeline and tools as the deterministic HTTP evaluation.
+It uses `openrouter/free`, checks the expected fact and a verified citation into
+current evidence, and preserves both allowed and excluded fixture notes. It
+reports aggregate booleans/timing or error codes without provider content or keys.
+Live execution uses a progressing clock so production wall-clock budgets apply.
+
+The first live attempt failed `FORMAT_IGNORED` after 2.26 seconds, before an
+answer could be evaluated. No alternate model, parser relaxation or retry was
+used. This establishes an executable live pipeline check but provides no passing
+Q&A quality evidence. The 40-question live evaluation, research quality and real
+Obsidian/native-client workflows remain outstanding. R5-T03 stays IN_PROGRESS
+and PR #126 remains draft.
+
+Validation: 893 automated tests passed, with two explicitly opt-in live tests
+skipped. Typecheck, lint (26 warnings, zero errors), boundaries, network/write/
+schema checks and production build passed. The final clock adjustment also
+passed typecheck and all 48 deterministic pipeline tests.

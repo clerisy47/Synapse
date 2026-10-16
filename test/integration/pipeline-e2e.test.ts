@@ -1,5 +1,6 @@
 import { fixtureDisclosureAccess } from "../fakes";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
+import { DEFAULT_OPENROUTER_BASE_URL, DEFAULT_OPENROUTER_MODEL, OPENROUTER_API_KEY_ENV } from "../../src/constants";
 import { NodeHttpTransport } from "../../src/adapters/node";
 import { createQaPipeline, type QaEvent } from "../../src/agent";
 import { createCorpusStore } from "../../src/corpus";
@@ -29,10 +30,14 @@ afterEach(async () => {
   for (const dispose of cleanup.splice(0).reverse()) await dispose();
 });
 
-async function run(outputs: unknown[], opts: { graph?: boolean; stale?: boolean; maxReads?: number; fixture?: { note: string; question: string } } = {}) {
+async function run(outputs: unknown[], opts: { live?: boolean; graph?: boolean; stale?: boolean; maxReads?: number; fixture?: { note: string; question: string } } = {}) {
   const server = await startMockOpenRouterServer(outputs);
   cleanup.push(server.close);
   const clock = new FakeClock(1_700_000_000_000);
+  if (opts.live) {
+    clock.now = () => Date.now();
+    clock.mono = () => performance.now();
+  }
   const vault = new FakeVault();
   const metadata = new FakeMetadata();
   for (const path of ["notes/alpha.md", "private/secret.md"]) {
@@ -75,13 +80,13 @@ async function run(outputs: unknown[], opts: { graph?: boolean; stale?: boolean;
     list_recent: createListRecentHandler(deps),
     read_note: createReadNoteHandler(deps),
   } });
-  const transport = new NodeHttpTransport({ checkEndpoint: (url) => {
+  const transport = new NodeHttpTransport(opts.live ? {} : { checkEndpoint: (url) => {
     if (new URL(url).origin !== server.origin) throw new Error("Unexpected test endpoint");
   } });
   const pipeline = createQaPipeline({
     access: fixtureDisclosureAccess(),
     budget: opts.maxReads === undefined ? {} : { maxReads: opts.maxReads },
-    model: new OpenRouterClient({ transport, endpoint: server.endpoint, model: "openrouter/free", apiKey: "synthetic-test-key" }),
+    model: new OpenRouterClient({ transport, endpoint: opts.live ? DEFAULT_OPENROUTER_BASE_URL : server.endpoint, model: DEFAULT_OPENROUTER_MODEL, apiKey: opts.live ? (process.env[OPENROUTER_API_KEY_ENV] ?? null) : "synthetic-test-key" }),
     tools, readText: (path) => opts.stale ? Promise.resolve("replacement text without the cited passage") : vault.readText(path),
   });
   const queue = createJobQueue({ clock, abortable: transport.capabilities.abortable });
@@ -92,11 +97,11 @@ async function run(outputs: unknown[], opts: { graph?: boolean; stale?: boolean;
     run: (ctx) => pipeline.run({ question: opts.fixture?.question ?? "Where is the quantum rendezvous?", history: [] }, ctx, (event) => events.push(event)),
   });
   const result = await handle.result;
-  expect(result.ok).toBe(true);
+  expect(result.ok, result.ok ? undefined : result.error.code).toBe(true);
   if (!result.ok) throw new Error(result.error.code);
   expect(handle.state.get()).toBe("done");
   expect(server.remaining()).toBe(0);
-  expect(server.requests).toHaveLength(outputs.length);
+  if (!opts.live) expect(server.requests).toHaveLength(outputs.length);
   for (const request of server.requests) {
     expect(request.url).toBe("/api/v1/chat/completions");
     expect(request.headers.authorization).toBe("Bearer synthetic-test-key");
@@ -253,4 +258,27 @@ describe("Phase A known-answer evaluation (scripted HTTP)", () => {
     expect(cited).toBe(true);
     expect(value.trace.map((hop) => hop.tool)).toContain("read_note");
   });
+});
+
+// Opt-in smoke only: one real pipeline question, not the 40-question quality gate.
+describe("Phase A live Q&A smoke", () => {
+  it.skipIf(!process.env[OPENROUTER_API_KEY_ENV] || process.env.SYNAPSE_LIVE_QA !== "1")(
+    "answers a synthetic question with a current verified citation",
+    async () => {
+      const started = performance.now();
+      const { value } = await run([], { live: true });
+      const correct = value.status === "answered"
+        && value.claims.some((claim) => claim.text.includes("Alpha"));
+      const cited = value.claims.some((claim) => claim.text.includes("Alpha") && claim.sourced
+        && claim.citations.some((citation) => citation.status === "sourced"
+          && citation.excerpt.ref.path === "notes/alpha.md"
+          && NOTE.includes(citation.excerpt.text) && citation.excerpt.text.includes("Alpha")));
+      console.info("Phase A live Q&A smoke", JSON.stringify({
+        correct, validCitation: cited, elapsedMs: Math.round(performance.now() - started),
+      }));
+      expect(correct).toBe(true);
+      expect(cited).toBe(true);
+    },
+    180_000,
+  );
 });
