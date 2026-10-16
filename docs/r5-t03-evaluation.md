@@ -56,6 +56,32 @@ investigate the provider's structured-output behavior in a separately scoped
 follow-up and obtain real Obsidian/native-client workflow evidence before
 closing the gate. Keep the strict parser and `openrouter/free` requirement.
 
+## Provider budget investigation
+
+On 2026-10-16, the active user-edited AGENTS.md superseded the earlier
+three-attempt stop with ten attempts and a 30-second wait before retries.
+Follow-up probes observed that wait and used only synthetic health input.
+
+A metadata-only diagnostic with the original 16-token request returned HTTP
+200, `finish_reason: length`, null answer content, and reasoning output. This
+demonstrates budget exhaustion for that request, not proof that every earlier
+FORMAT_IGNORED had the same cause. OpenRouter documents that reasoning and
+visible output can share `max_tokens`:
+[reasoning token budget](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens).
+
+Raised the provisional health budget in `src/constants.ts` from 16 to 512.
+Two separate production-client live tests still failed FORMAT_IGNORED (2.48
+and 5.97 seconds). A separate metadata-only diagnostic at 512 tokens returned
+HTTP 200, `finish_reason: stop`, six completion tokens, and valid health JSON.
+That isolated success is not a production health pass or a quality evaluation.
+No response text, reasoning text or credentials were printed or retained.
+The budget increase is a partial mitigation; router reliability remains unresolved.
+
+After the budget change, typecheck, lint (26 warnings, zero errors), boundaries,
+network/write/schema checks, all 893 automated tests (one live test skipped),
+and production build passed. Real host/client evidence remains unavailable.
+Keep the PR draft and R5-T03 IN_PROGRESS.
+
 ## Coverage map
 
 | Requirement | Executable evidence |

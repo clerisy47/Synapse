@@ -7,6 +7,8 @@ Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must
 
 ## Last session
 
+- Investigated live failures using metadata only: the 16-token health request exhausted its budget during reasoning. Raised the provisional health cap to 512; two production probes still failed FORMAT_IGNORED, while a separate diagnostic returned valid health JSON. This is a partial mitigation, not a closed provider gate. All 893 automated tests and static/build checks passed. PR #126 remains draft pending reliable live results and real host/client evidence. The active user-edited retry rule permits ten attempts with 30-second waits; the earlier three-attempt stop below is historical.
+
 - Third recorded live probe failed `FORMAT_IGNORED` after 1.55 seconds; stop further attempts under the three-failure rule. All 893 automated tests and required static/build checks passed again. PR #126 stays draft; provider investigation and real Obsidian/native-client evidence are required to proceed.
 
 - Delivery revalidation: 893 tests and all required static/build checks passed; the separate live `openrouter/free` probe again failed `FORMAT_IGNORED` (1.15 seconds). PR #126 remains a draft pending live-provider and real-host evidence.

@@ -45,7 +45,8 @@ export const TIMEOUT_GET_MS = 5_000;
 
 /** num_predict per prompt kind. Provisional. */
 export const NUM_PREDICT = {
-  health: 16,
+  // Router-selected reasoning models share this budget with visible JSON output.
+  health: 512,
   select: 100,
   plan: 200,
   answer: 600,
