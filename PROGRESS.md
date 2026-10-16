@@ -2,16 +2,16 @@
 
 ## Current focus
 
-R5-T01 completes [iterative retrieval and multi-turn chat](docs/r5-t01-retrieval-audit.md). R5-T02 is next: clear-data, privacy and diagnostics. Actual Obsidian/native-client smoke remains at R5-T03.
+R5-T02 completes [clear-data, privacy disclosures and diagnostics](docs/r5-t02-privacy-audit.md). R5-T03 is next: synthetic evaluation and the Phase A feature-complete gate. Actual Obsidian/native-client smoke remains at R5-T03.
 Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must + Should completion; **Phase B = local Ollama**, after validation.
 
 ## Last session
 
-- Followed permitted graph references into bounded Markdown reads, sharing the run's hop/read budgets; no model-supplied paths.
-- Passed the current-policy last three turns to planning, selection and answering. Answer instructions require current evidence rather than treating history as evidence.
-- Fixed phrase-only follow-up retrieval so it searches the proposed phrase instead of a placeholder term.
-- Verified second-search retrieval, linked evidence, zero read budget, stale/forged citations and recipient-filtered history. All required checks/build passed: 844 tests passed (one existing opt-in live test skipped), 88 mini-vault checks, including production composition coverage in the full suite.
-- Real Obsidian navigation/workflow smoke and live OpenRouter evaluation remain deferred to R5-T03.
+- Added locally confirmed clear-data with frozen persistence and pending-write drain; preserves settings and all vault files, removes recovery/receipt/pairing history and requires reload.
+- Disclosed lost recovery/revert and duplicate-prevention history, retained API key, sync/backups, sensitive retention and OpenRouter routed-provider egress.
+- Removed raw exception logging and paths from debug notices. Added clear/restart, pending/late write, failure, local confirmation/cancel/unload and production-bundle redaction coverage.
+- Required checks/build passed; 853 tests passed (one existing opt-in live test skipped), 88 mini-vault checks, and production-bundle plugin tests passed. Lint has warnings only.
+- Real Obsidian smoke and live openrouter/free evaluation remain at R5-T03/R5-T04.
 
 ## Known issues
 

@@ -82,3 +82,4 @@ export { REVIEW } from "./strings/en";
 export { createRecoveryCommand } from "./recovery-command";
 
 export { mountMcpSettings } from "./mcp-settings";
+export { createPrivacyCommand } from "./privacy-command";

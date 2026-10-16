@@ -82,7 +82,7 @@ import {
 import { bindToolAccess, guardToolRegistry, createPermittedTextReader, type ToolReadAccess } from "./tools";
 import { createAccessRuntime, createEndpointPolicy, createExclusionPolicy, guardNavigation, intersectReadSessions, type AccessRuntime } from "./policy";
 import { createResearchInbox, createResearchReviewSession, type ResearchInbox } from "./research";
-import { loadStateStore, mergeResearchLedgers, type StateStore } from "./state";
+import { createPrivacyStorage, loadStateStore, mergeResearchLedgers, type StateStore } from "./state";
 import {
   SEARCH_TEXT_BUDGET_MS,
   createGetBacklinksHandler,
@@ -106,6 +106,7 @@ import {
   createResearchCaptureCommand,
   createResearchReviewCommand,
   createRecoveryCommand,
+  createPrivacyCommand,
   mountReviewView,
   type ReviewRunner,
   mountChatView,
@@ -389,8 +390,8 @@ export default class VaultSynapsePlugin extends Plugin {
     this.unloaded = false;
     try {
       await this.bootstrap();
-    } catch (cause) {
-      console.error(`${PLUGIN_NAME}: failed to load`, cause);
+    } catch {
+      console.error(`${PLUGIN_NAME}: failed to load`);
       new Notice(
         `${PLUGIN_NAME}: failed to initialize. Check the developer console.`,
       );
@@ -422,6 +423,7 @@ export default class VaultSynapsePlugin extends Plugin {
     this.reviewSession = null;
     this.research?.dispose();
     this.research = null;
+    this.recovery = null;
     this.activeNote = null;
     this.controls?.dispose();
     this.controls = null;
@@ -443,7 +445,7 @@ export default class VaultSynapsePlugin extends Plugin {
     this.state = null;
     this.config = null;
     if (state) {
-      void state.flush().finally(() => {
+      void state.flush().catch(() => undefined).finally(() => {
         state.dispose();
       });
     }
@@ -452,7 +454,8 @@ export default class VaultSynapsePlugin extends Plugin {
   private async bootstrap(): Promise<void> {
     const clock = this.clock;
 
-    const storage = createObsidianStorageFromPlugin(this);
+    const privacy = createPrivacyStorage(createObsidianStorageFromPlugin(this));
+    const storage = privacy.storage;
 
     const { store: state } = await loadStateStore({ storage, clock });
     this.state = state;
@@ -508,6 +511,13 @@ export default class VaultSynapsePlugin extends Plugin {
     this.mountUi(config, jobs);
     const openChat = this.mountChat(jobs);
     this.registerCommands(jobs, openChat);
+    const clearData = createPrivacyCommand({
+      clear: () => privacy.clear(state.get(), () => { this.invalidateChat?.(); this.onunload(); }),
+      open: (mount, onClose) => showResearchReview(this.app, mount, onClose),
+      notice: (message) => presentObsidianNotice({ message }),
+    });
+    this.addCommand(clearData.command);
+    this.disposables.push(() => clearData.dispose());
 
     const layoutDispose = onLayoutReady(this.app, () => {
       void this.startWarm();
@@ -622,8 +632,8 @@ export default class VaultSynapsePlugin extends Plugin {
     this.warmAbort = local;
     try {
       await corpus.warm(local.signal);
-    } catch (cause) {
-      console.error(`${PLUGIN_NAME}: corpus warm failed`, cause);
+    } catch {
+      console.error(`${PLUGIN_NAME}: corpus warm failed`);
     } finally {
       if (this.warmAbort === local) {
         this.warmAbort = null;
@@ -658,8 +668,8 @@ export default class VaultSynapsePlugin extends Plugin {
       ) {
         this.rebuildCorpus(next);
       }
-    } catch (cause) {
-      console.error(`${PLUGIN_NAME}: external settings reload failed`, cause);
+    } catch {
+      console.error(`${PLUGIN_NAME}: external settings reload failed`);
     }
   }
 
@@ -721,8 +731,8 @@ export default class VaultSynapsePlugin extends Plugin {
     if (!lane) return;
     try {
       await lane.health.quick();
-    } catch (cause) {
-      console.error(`${PLUGIN_NAME}: quick health failed`, cause);
+    } catch {
+      console.error(`${PLUGIN_NAME}: quick health failed`);
     }
   }
 
@@ -748,11 +758,11 @@ export default class VaultSynapsePlugin extends Plugin {
       return;
     }
     const data = outcome.data as ListRecentResult;
-    const paths = data.items.map((item) => item.ref.path);
+    const count = data.items.length;
     const summary =
-      paths.length === 0
+      count === 0
         ? `${PLUGIN_NAME}: list_recent → 0 notes`
-        : `${PLUGIN_NAME}: list_recent → ${paths.length}: ${paths.join(", ")}`;
+        : `${PLUGIN_NAME}: list_recent → ${count} notes`;
     new Notice(summary, 10_000);
   }
 
@@ -766,8 +776,8 @@ export default class VaultSynapsePlugin extends Plugin {
           indexStatus: this.indexStatus,
         }),
       );
-    } catch (cause) {
-      console.error(`${PLUGIN_NAME}: status bar failed`, cause);
+    } catch {
+      console.error(`${PLUGIN_NAME}: status bar failed`);
     }
 
     try {
@@ -780,8 +790,8 @@ export default class VaultSynapsePlugin extends Plugin {
           },
         }),
       );
-    } catch (cause) {
-      console.error(`${PLUGIN_NAME}: notices failed`, cause);
+    } catch {
+      console.error(`${PLUGIN_NAME}: notices failed`);
     }
 
     try {
@@ -806,8 +816,8 @@ export default class VaultSynapsePlugin extends Plugin {
           },
         }),
       );
-    } catch (cause) {
-      console.error(`${PLUGIN_NAME}: settings tab failed`, cause);
+    } catch {
+      console.error(`${PLUGIN_NAME}: settings tab failed`);
       new Notice(`${PLUGIN_NAME}: settings tab failed to load.`);
     }
   }
@@ -920,8 +930,8 @@ export default class VaultSynapsePlugin extends Plugin {
           },
         });
       }
-    } catch (cause) {
-      console.error(`${PLUGIN_NAME}: commands failed`, cause);
+    } catch {
+      console.error(`${PLUGIN_NAME}: commands failed`);
     }
   }
 }
