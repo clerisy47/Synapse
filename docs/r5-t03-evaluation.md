@@ -47,6 +47,15 @@ write, schema and production build checks passed. The separate live
 PR #126 remains a draft because live-provider and real-host requirements
 are still unmet; the passing CI suite does not close the Phase A gate.
 
+A third recorded live probe on 2026-10-16 failed with `FORMAT_IGNORED`
+after 1.55 seconds. Required static checks, all 893 automated tests (one
+opt-in live test skipped), and the production build passed again. Further
+attempts stop under the repository's three-failure rule. No desktop-control
+tool is available for the outstanding real-host evidence. Next action:
+investigate the provider's structured-output behavior in a separately scoped
+follow-up and obtain real Obsidian/native-client workflow evidence before
+closing the gate. Keep the strict parser and `openrouter/free` requirement.
+
 ## Coverage map
 
 | Requirement | Executable evidence |

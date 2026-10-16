@@ -7,6 +7,8 @@ Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must
 
 ## Last session
 
+- Third recorded live probe failed `FORMAT_IGNORED` after 1.55 seconds; stop further attempts under the three-failure rule. All 893 automated tests and required static/build checks passed again. PR #126 stays draft; provider investigation and real Obsidian/native-client evidence are required to proceed.
+
 - Delivery revalidation: 893 tests and all required static/build checks passed; the separate live `openrouter/free` probe again failed `FORMAT_IGNORED` (1.15 seconds). PR #126 remains a draft pending live-provider and real-host evidence.
 
 - Added 40 synthetic known-answer cases through queued production retrieval, tools, OpenRouter HTTP parsing, and current-passage citation verification. Scripted answers measure pipeline integrity, not live model quality.
