@@ -16,12 +16,13 @@ import {
   type ModelUsage,
   type SelectOutput,
 } from "../llm";
-import { buildSelectPrompt, QA_NUM_PREDICT } from "./prompts";
+import { buildSelectPrompt, QA_NUM_PREDICT, type ChatTurn } from "./prompts";
 
 export type SelectorStrategy = "model" | "top-k";
 
 export type SelectInput = {
   question: string;
+  history?: ChatTurn[];
   /** Ordered by search score (best first). */
   candidateIds: ExcerptId[];
   /** Token-trimmed compact lines for the select prompt. */
@@ -71,7 +72,7 @@ export class ModelSelector implements EvidenceSelector {
   }
 
   async select(input: SelectInput): Promise<Result<SelectResult>> {
-    const prompt = buildSelectPrompt(input.question, input.compactRender);
+    const prompt = buildSelectPrompt(input.question, input.compactRender, input.history);
     const generated = await this.model.generate<SelectOutput>(
       {
         kind: "qa.select",

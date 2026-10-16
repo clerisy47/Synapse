@@ -26,6 +26,7 @@ import {
 } from "../llm";
 import {
   createDuplicateTracker,
+  SEARCH_TEXT_TERM_CHARS,
   type ToolName,
   type ToolRegistry,
   type SearchTextResult,
@@ -33,6 +34,8 @@ import {
   type SearchByTagResult,
   type ListRecentResult,
   type ReadNoteResult,
+  type GetLinksResult,
+  type GetBacklinksResult,
 } from "../tools";
 import {
   attachAnchors,
@@ -287,6 +290,7 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
   let selectedIds: ExcerptId[] = [];
   let planned: PlannedSearch[] = [];
   let expandGraph = false;
+  let graphReads = 0;
   let lastAnswer: AnswerOutput | null = null;
   let claims: AnswerClaim[] = [];
   let unknownForRetry: string[] | undefined;
@@ -320,7 +324,7 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
       stats: {
         modelCalls,
         hops: state.hops,
-        reads: state.reads,
+        reads: state.reads + graphReads,
         activeMs: ctx.activeMs(),
         promptTokens,
         outputTokens,
@@ -501,8 +505,30 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
             if (!t.ok) {
               return t;
             }
-            // Graph results are path refs only — hops counted; no excerpts.
-            void hop.data;
+            if (hop.rejected === undefined && hop.data !== undefined) {
+              const refs = tool === "get_links"
+                ? (hop.data as GetLinksResult).results.flatMap((r) => r.outgoing)
+                : (hop.data as GetBacklinksResult).results.flatMap((r) => r.incoming);
+              for (const path of [...new Set(refs.map((ref) => ref.path))]) {
+                if (topPaths.includes(path)) continue;
+                if (state.phase !== "SEARCH" || !canSearch(budget, ctx.activeMs(), state.hops) ||
+                    remainingReads(budget, state.reads + graphReads) === 0) break;
+                const read = await invokeToolHop({ tools: args.tools, dup, tool: "read_note",
+                  rawArgs: { path }, ctx, emit, trace, hopSerial: ++hopSerial });
+                graphReads += 1;
+                const transition = apply({ type: "toolHop", ...(read.rejected ? { rejected: read.rejected } : {}) });
+                if (!transition.ok) return transition;
+                if (read.rejected === undefined && read.data !== undefined) {
+                  for (const excerpt of (read.data as ReadNoteResult).excerpts) {
+                    const id = ledger.add(excerpt);
+                    if (!allIds.includes(id)) {
+                      allIds.push(id);
+                      scored.push({ id, score: 0, path });
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -542,10 +568,11 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
         () =>
           selector.select({
             question: question(),
+            history: historyForPrompt(input, args.multiTurn, access),
             candidateIds:
               compact.included.length > 0 ? compact.included : candidateIds,
             compactRender: compact.text,
-            maxReads: remainingReads(budget, state.reads),
+            maxReads: remainingReads(budget, state.reads + graphReads),
             signal: ctx.signal,
           }),
       );
@@ -640,6 +667,7 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
         (excerpt) => access.project(excerpt),
       );
       const prompt = buildAnswerPrompt(question(), rendered.text, {
+        history: historyForPrompt(input, args.multiTurn, access),
         ...(unknownForRetry !== undefined
           ? { unknownIds: unknownForRetry.map((id) => access.sanitize(id)) }
           : {}),
@@ -685,7 +713,7 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
             tool: "search_text",
             args: {
               terms:
-                followup.terms.length > 0 ? followup.terms : ["followup"],
+                followup.terms.length > 0 ? followup.terms : followup.phrases.slice(0, 1).map((phrase) => phrase.slice(0, SEARCH_TEXT_TERM_CHARS)),
               phrases: followup.phrases,
             },
           },
