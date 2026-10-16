@@ -29,6 +29,7 @@ describe("PRIORITY", () => {
   it("prioritizes interactive qa over health checks", () => {
     expect(PRIORITY.qa).toBeLessThan(PRIORITY.health);
     expect(PRIORITY.qa).toBeLessThan(PRIORITY.research);
+    expect(PRIORITY.research).toBeLessThan(PRIORITY.mcp);
   });
 });
 

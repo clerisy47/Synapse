@@ -36,10 +36,10 @@ module.exports = {
       from: {
         path: "^src/",
         pathNot:
-          "^src/main\\.ts$|^src/(config|state|policy|instructions|research|changes|evidence|jobs|llm|corpus|tools|agent|core|adapters|ui)/",
+          "^src/main\\.ts$|^src/(config|state|policy|instructions|research|collaboration|changes|evidence|jobs|llm|corpus|tools|agent|core|adapters|ui)/",
       },
       to: {
-        path: "^src/(config|state|policy|instructions|research|changes|evidence|jobs|llm|corpus|tools|agent|core|adapters|ui)/",
+        path: "^src/(config|state|policy|instructions|research|collaboration|changes|evidence|jobs|llm|corpus|tools|agent|core|adapters|ui)/",
         pathNot: "/index\\.(ts|tsx|js)$",
       },
     },
@@ -95,6 +95,12 @@ module.exports = {
       severity: "error",
       from: { path: "^src/research/" },
       to: { path: "^src/", pathNot: "^(src/core/|src/instructions/|src/policy/|src/evidence/|src/agent/|src/llm/|src/jobs/|src/changes/|src/research/|src/constants\\.ts$)" },
+    },
+    {
+      name: "collaboration-deps",
+      severity: "error",
+      from: { path: "^src/collaboration/" },
+      to: { path: "^src/", pathNot: "^(src/core/|src/policy/|src/agent/|src/llm/|src/tools/|src/jobs/|src/collaboration/|src/constants\\.ts$)" },
     },
     {
       name: "changes-deps",

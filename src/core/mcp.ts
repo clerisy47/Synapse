@@ -44,13 +44,15 @@ export interface McpServerPort {
     invalidate(): void;
     dispose(): void;
 }
+export type McpResult =
+    | { status: "unavailable" | "conflict" }
+    | { status: "accepted"; receipt: string }
+    | { status: "answered"; answer: string; references: { id: string; label: string; excerpt: string }[] };
 export interface McpServerOptions {
     storage: StoragePort;
     limits: McpLimits;
     name: string;
     version: string;
     /** R4-T03 supplies policy-aware semantic work. No internal answer forwarding. */
-    invoke?: (client: Readonly<Omit<McpGrant, "digest">>, name: string, args: unknown, signal: AbortSignal) => Promise<{
-        status: "unavailable";
-    }>;
+    invoke?: (client: Readonly<Omit<McpGrant, "digest">>, name: string, args: unknown, signal: AbortSignal) => Promise<McpResult>;
 }

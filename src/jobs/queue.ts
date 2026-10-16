@@ -19,13 +19,14 @@ import {
   type JobProgress,
 } from "./context";
 
-export type JobKind = "qa" | "health" | "research";
+export type JobKind = "qa" | "health" | "research" | "mcp";
 
 /** Lower number runs first. */
 export const PRIORITY: Record<JobKind, number> = {
   qa: 0,
   health: 1,
   research: 2,
+  mcp: 3,
 };
 
 export interface JobSpec<T> {

@@ -2,15 +2,15 @@
 
 ## Current focus
 
-R4-T02 implements the [authenticated local MCP adapter](docs/r4-t02-mcp-adapter-audit.md), opt-in pairing/revocation settings and lifecycle cleanup. R4-T03 wires policy-filtered query and durable scoped submission; current semantic calls return fixed unavailable. Actual Obsidian/native-client smoke remains at R5-T03.
+R4-T03 adds [policy-filtered MCP query and scoped submission](docs/r4-t03-collaboration-audit.md). R5-T01 is next: iterative retrieval and multi-turn audit. Actual Obsidian/native-client smoke remains at R5-T03.
 Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must + Should completion; **Phase B = local Ollama**, after validation.
 
 ## Last session
 
-- Added strict durable hashed grants, one-time bearer display, explicit independent scopes and immediate revocation. Grant persistence failure disables and closes the listener.
-- Implemented bounded loopback-only JSON MCP initialization, notifications, scope-filtered tools and fixed semantic refusal. No model or vault-write authority is composed.
-- Source/policy changes abort work and clear initialization. Settings changes disable/close the listener; unload closes sockets and guards late bootstrap completion.
-- Verified the shipped adapter through synthetic HTTP, DOM controls and plugin-host lifecycle tests, plus all required gates, mini-vault checks and production build. Native-client and actual Obsidian smoke remain deferred.
+- Composed authenticated semantic calls with intersected internal/remote/client permissions and lowest-priority model jobs. Responses contain masked extractive evidence and fresh opaque ordinal references, never generated prose or private citations.
+- Added serialized inbox-only appends with explicit policy, disk/editor/control guards, durable hashed intents/receipts, replay and conservative marker/hash recovery. Research and existing note content remain intact.
+- Verified masking/denial, injection, revocation, concurrent retries, uncertain writes, retention/capacity and production plugin composition. Source-event invalidation may drop an append response; reinitialize and retry the same key to recover its receipt.
+- All required checks and build passed: 839 tests passed (one existing opt-in live test skipped), 83 mini-vault checks and four production-bundle host tests. Live OpenRouter and actual Obsidian/client smoke remain deferred.
 
 ## Known issues
 

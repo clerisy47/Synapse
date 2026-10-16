@@ -47,7 +47,7 @@ function pluginClass(): typeof VaultSynapsePlugin {
   const module = { exports: {} as { default: typeof VaultSynapsePlugin } };
   runInNewContext(readFileSync("main.js", "utf8"), {
     module, exports: module.exports, require: (name: string) => name === "obsidian" ? obsidian : localRequire(name),
-    window, document, crypto, structuredClone, TextEncoder, TextDecoder, AbortController, performance, console, process,
+    window, document, crypto, structuredClone, TextEncoder, TextDecoder, AbortController, performance, console, process, Date,
     setTimeout, clearTimeout,
   });
   return module.exports.default;
@@ -194,4 +194,62 @@ it("applies a locally approved change through production composition without cha
   expect(processNote).toHaveBeenCalledTimes(2); expect(texts["Topic.md"]).toBe("# Original\nKeep this.\n");
   expect(texts["Research.md"]).toBe("Synthetic apply observation."); expect(generated).toHaveBeenCalledOnce();
   plugin.onunload(); await vi.waitFor(() => expect(listeners.size).toBe(0));
+});
+
+it("composes authenticated inbox submission and durable retry through the shipped plugin", async () => {
+  vi.stubEnv("OPENROUTER_API_KEY", "");
+  const { request: httpRequest } = await import("node:http");
+  const { CONTROL_STARTERS } = await import("../../src/instructions");
+  const texts: Record<string, string> = {
+    "Research.md": "Preserve original inbox.", "Synapse/Instructions.md": CONTROL_STARTERS.instructions,
+    "Synapse/Security.md": '---\n{"version":1,"defaults":{"internal":"allow","remote-model":"deny","external-client":"deny"},"rules":[{"id":"append","recipient":"external-client","operation":"append-research","effect":"allow","selector":{}}]}\n---\nSynthetic policy.',
+  };
+  const files = Object.keys(texts).map((path) => Object.assign(new TFile(), { path, extension: "md", stat: { mtime: 1, ctime: 1, size: texts[path].length } }));
+  const adapter = pluginFolderAdapter();
+  const listeners = new Map<object, { name: string; callback: (...args: unknown[]) => void }>();
+  const on = (name: string, callback: (...args: unknown[]) => void) => { const ref = {}; listeners.set(ref, { name, callback }); return ref; };
+  const offref = (ref: object) => { listeners.delete(ref); };
+  const processNote = vi.fn(async (file: TFile, update: (text: string) => string) => {
+    texts[file.path] = update(texts[file.path]); ++file.stat.mtime;
+    for (const listener of [...listeners.values()]) if (listener.name === "modify") listener.callback(file);
+    return texts[file.path];
+  });
+  const create = vi.fn();
+  const app = {
+    vault: { adapter, getFiles: () => files, getMarkdownFiles: () => files, getAllLoadedFiles: () => files,
+      getAbstractFileByPath: (path: string) => files.find((file) => file.path === path) ?? null, read: async (file: TFile) => texts[file.path], process: processNote, create, on, offref },
+    metadataCache: { getCache: () => ({ frontmatter: {}, tags: [] }), resolvedLinks: {}, on, offref },
+    workspace: { on, offref, onLayoutReady() {}, getActiveFile: () => null, getActiveViewOfType: () => null, getLeavesOfType: () => [], detachLeavesOfType() {} },
+  } as unknown as App;
+  const PluginClass = pluginClass();
+  const plugin = new PluginClass(app, { id: "vault-synapse", dir: ".obsidian/plugins/vault-synapse" } as PluginManifest);
+  await plugin.onload();
+  const mcp = (plugin as unknown as { mcp: import("../../src/core").McpServerPort }).mcp;
+  const paired = await mcp.pair("Synthetic submitter", ["submit-research"]); await mcp.enable();
+  let requestTime = Date.now();
+  vi.spyOn(Date, "now").mockImplementation(() => requestTime);
+  const post = (body: unknown) => new Promise<{ status: number | undefined; body: { result?: { structuredContent?: { status: string; receipt?: string }; isError?: boolean } } }>((resolve, reject) => {
+    requestTime += 4000; // Refill transport tokens without a wall-clock sleep.
+    const req = httpRequest(mcp.status().url!, { method: "POST", headers: { Authorization: `Bearer ${paired.token}`, Accept: "application/json, text/event-stream", "Content-Type": "application/json", "MCP-Protocol-Version": "2025-11-25" } }, (res) => {
+      let text = ""; res.setEncoding("utf8"); res.on("data", (chunk: string) => { text += chunk; }); res.on("end", () => resolve({ status: res.statusCode, body: text ? JSON.parse(text) as { result?: { structuredContent?: { status: string; receipt?: string } } } : {} }));
+    }); req.on("error", reject); req.end(JSON.stringify(body));
+  });
+  const ready = async () => {
+    await post({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "synthetic", version: "1" } } });
+    await post({ jsonrpc: "2.0", method: "notifications/initialized" });
+  };
+  const submit = () => post({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "submit_research", arguments: { idempotencyKey: "abcdefghijklmnop", text: "Synthetic external observation" } } });
+  try {
+    await ready();
+    // A successful append emits a host source event, aborting late HTTP delivery.
+    await submit();
+    await vi.waitFor(() => expect(processNote).toHaveBeenCalledOnce());
+    await ready();
+    await vi.waitFor(async () => { const result = await submit(); expect(result.body.result?.structuredContent?.status).toBe("accepted"); });
+    expect(texts["Research.md"]).toContain("Preserve original inbox.");
+    expect(texts["Research.md"]).toContain("External unverified research");
+    expect(create).not.toHaveBeenCalled(); expect(processNote).toHaveBeenCalledOnce();
+    expect((await post({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "query_vault", arguments: { question: "private?" } } })).body.result?.isError).toBe(true);
+  } finally { plugin.onunload(); }
+  expect(mcp.status().url).toBeNull(); await vi.waitFor(() => expect(listeners.size).toBe(0));
 });

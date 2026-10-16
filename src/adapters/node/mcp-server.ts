@@ -1,4 +1,5 @@
 /** The sole allowlisted inbound network adapter. Never performs outbound I/O. */
+import { Buffer } from "node:buffer";
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { TextDecoder } from "node:util";
@@ -222,11 +223,12 @@ export async function createMcpServer(o: McpServerOptions): Promise<McpServerPor
                     resolve(null);
                 else
                     abort.signal.addEventListener("abort", () => resolve(null), { once: true }); });
-                await Promise.race([o.invoke?.({ id: grant.id, label: grant.label, generation: grant.generation, scopes: [...grant.scopes] }, tool.name, call.data.arguments, abort.signal) ?? Promise.resolve(null), canceled]);
-                // R4-T02 intentionally has no semantic disclosure or inbox authority.
+                const result = await Promise.race([o.invoke?.({ id: grant.id, label: grant.label, generation: grant.generation, scopes: [...grant.scopes] }, tool.name, call.data.arguments, abort.signal) ?? Promise.resolve(null), canceled]);
+                // Authority and source invalidation can race semantic completion.
                 if (!current() || abort.signal.aborted)
                     return http(res, 409);
-                rpc(res, id, unavailable());
+                const safe = result ?? { status: "unavailable" };
+                rpc(res, id, { structuredContent: safe, content: [{ type: "text", text: JSON.stringify(safe) }] });
             }
             finally {
                 clearTimeout(deadline);

@@ -9,3 +9,5 @@ export {
 } from "./http-transport";
 
 export { createMcpServer } from "./mcp-server";
+
+export { opaqueMcpId } from "./mcp-id";
