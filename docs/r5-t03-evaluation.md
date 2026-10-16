@@ -37,6 +37,16 @@ this verifies transport, retrieval and evidence plumbing, not model comprehensio
 The known-answer fixture currently uses text search/read; other tool behavior is
 covered by tool contracts and recipient integration tests rather than all 40 cases.
 
+## Delivery revalidation
+
+Revalidated 2026-10-16: 893 automated tests passed (one opt-in live test
+skipped); typecheck, lint (26 warnings, zero errors), boundaries, network,
+write, schema and production build checks passed. The separate live
+`openrouter/free` structured probe again failed with `FORMAT_IGNORED`
+(1.15 seconds). No alternate model or relaxed parser was used.
+PR #126 remains a draft because live-provider and real-host requirements
+are still unmet; the passing CI suite does not close the Phase A gate.
+
 ## Coverage map
 
 | Requirement | Executable evidence |

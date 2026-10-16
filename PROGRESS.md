@@ -7,6 +7,8 @@ Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must
 
 ## Last session
 
+- Delivery revalidation: 893 tests and all required static/build checks passed; the separate live `openrouter/free` probe again failed `FORMAT_IGNORED` (1.15 seconds). PR #126 remains a draft pending live-provider and real-host evidence.
+
 - Added 40 synthetic known-answer cases through queued production retrieval, tools, OpenRouter HTTP parsing, and current-passage citation verification. Scripted answers measure pipeline integrity, not live model quality.
 - Added `npm run test:eval` (204 checks) and `npm run test:live` entry points. Full suite: 893 passed, one opt-in live test skipped; required static checks and build passed.
 - Separately loaded the local key without logging it and ran the real `openrouter/free` health-shaped call: failed `FORMAT_IGNORED` after 3.65 seconds. No alternate model used.
