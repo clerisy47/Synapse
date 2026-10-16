@@ -34,7 +34,8 @@ Enable local MCP in settings and provision a bearer with explicit independent qu
 - Phase A sends selected context to OpenRouter only through allowlisted transports, with first-use disclosure. Local-only privacy arrives in Phase B.
 - No telemetry, analytics, or update pings. Exclude notes with `vault-synapse: ignore` frontmatter or configured folder/tag rules.
 - Target-note changes require local review, approval and explicit Apply through a restricted adapter. Separately authorized MCP submissions can append only to the configured research inbox.
-- Plugin state stays in the plugin folder. Recovery records contain full before/after target note text and trusted paths and may be copied by vault sync or backups. Recovery is capped at 20 records and 4,000,000 serialized characters, with 30-day expiry processed on startup/access; unresolved writes remain retained and a full journal refuses new work. Clear-data UX is pending R5-T02 before release. See the [recovery audit](docs/r3-t05-recovery-audit.md).
+- Diagnostics contain static event names only, with no exception messages, stacks, note paths, prompts, research or keys. The debug recent-notes command shows only a policy-filtered count.
+- Plugin state stays in the plugin folder. Recovery records contain full before/after target note text and trusted paths and may be copied by vault sync or backups. Recovery is capped at 20 records and 4,000,000 serialized characters, with 30-day expiry processed on startup/access; unresolved writes remain retained and a full journal refuses new work. Run **Clear plugin data** to review the warning and erase plugin history while preserving settings and every vault file. Synapse stops until you reload it. Clearing loses recovery/revert and duplicate-prevention history, MCP receipts and client pairings; processed research can be proposed again and resubmissions can duplicate inbox entries. Settings retain the configured API key. Synced copies and backups must be managed separately. See the [recovery audit](docs/r3-t05-recovery-audit.md).
 
 ## Runtime security controls
 
@@ -51,3 +52,5 @@ metadata or exclusion changes cancel pending chat and clear retained history;
 repeat the question after the controls/index refresh. Chat retains at most three
 current-policy Q/A pairs when multi-turn is enabled. Details and representation
 limits are in [control contracts](docs/control-contracts.md).
+
+Research proposals and chat history stay in memory. The research ledger retains bounded batch hashes, source paths and processing outcomes (no research body); MCP receipts retain hashes and inbox paths for 30 days, with unresolved intents retained. MCP grants persist hashed bearers until revoked or cleared. Settings, including a configured API key, live in `data.json` and may also be synced or backed up. Chat, research generation and MCP queries can send permitted/masked context, questions and recent chat history to OpenRouter and its routed provider; review/apply/revert and MCP inbox submission do not require model egress. No telemetry is sent.
