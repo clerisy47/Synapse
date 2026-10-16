@@ -10,7 +10,7 @@ Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must
 - Composed authenticated semantic calls with intersected internal/remote/client permissions and lowest-priority model jobs. Responses contain masked extractive evidence and fresh opaque ordinal references, never generated prose or private citations.
 - Added serialized inbox-only appends with explicit policy, disk/editor/control guards, durable hashed intents/receipts, replay and conservative marker/hash recovery. Research and existing note content remain intact.
 - Verified masking/denial, injection, revocation, concurrent retries, uncertain writes, retention/capacity and production plugin composition. Source-event invalidation may drop an append response; reinitialize and retry the same key to recover its receipt.
-- All required checks and build passed: 838 tests passed (one existing opt-in live test skipped), 83 mini-vault checks and four production-bundle host tests. Live OpenRouter and actual Obsidian/client smoke remain deferred.
+- All required checks and build passed: 839 tests passed (one existing opt-in live test skipped), 83 mini-vault checks and four production-bundle host tests. Live OpenRouter and actual Obsidian/client smoke remain deferred.
 
 ## Known issues
 

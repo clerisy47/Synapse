@@ -31,8 +31,18 @@ export async function query(e: CollaborationEnvironment, client: Client, args: {
     let text = sessions.reduce((text, session) => session.sanitize(text), input);
     for (const value of values) {
       // Fixed literal comparison: no model/client-controlled regular expressions.
-      let at = text.toLowerCase().indexOf(value.toLowerCase());
-      while (at >= 0) { text = text.slice(0, at) + text.slice(at + value.length); at = text.toLowerCase().indexOf(value.toLowerCase()); }
+      const needle = value.toLowerCase();
+      if (text.toLowerCase().length === text.length && needle.length === value.length) {
+        let at = text.toLowerCase().indexOf(needle);
+        while (at >= 0) { text = text.slice(0, at) + text.slice(at + value.length); at = text.toLowerCase().indexOf(needle); }
+      } else {
+        // Unicode case expansion (e.g. İ) changes folded offsets. Compare at
+        // original offsets so removal always advances and cannot miss a title.
+        for (let at = 0; at <= text.length - value.length;) {
+          if (text.slice(at, at + value.length).toLowerCase() === needle) { text = text.slice(0, at) + text.slice(at + value.length); at = 0; }
+          else at++;
+        }
+      }
     }
     return text;
   };

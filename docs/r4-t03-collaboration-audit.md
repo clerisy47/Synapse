@@ -66,7 +66,7 @@ StoragePort, the shipped server and restricted appender, including source-event
 invalidation and receipt retry. Run with `SYNAPSE_SMOKE_BUNDLE=1` to test `main.js`.
 
 Typecheck, lint (existing warnings only), dependency boundaries, network/write/schema
-gates and production build passed. The full suite passed 838 tests (one existing
+gates and production build passed. The full suite passed 839 tests (one existing
 opt-in live test skipped); mini-vault passed 83 checks; the production bundle passed
 four host tests. These are synthetic/headless checks. Real Obsidian/native-client
 workflow and live `openrouter/free` validation remain at R5-T03; none is claimed here.
