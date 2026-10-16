@@ -2,15 +2,16 @@
 
 ## Current focus
 
-R4-T03 adds [policy-filtered MCP query and scoped submission](docs/r4-t03-collaboration-audit.md). R5-T01 is next: iterative retrieval and multi-turn audit. Actual Obsidian/native-client smoke remains at R5-T03.
+R5-T01 completes [iterative retrieval and multi-turn chat](docs/r5-t01-retrieval-audit.md). R5-T02 is next: clear-data, privacy and diagnostics. Actual Obsidian/native-client smoke remains at R5-T03.
 Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must + Should completion; **Phase B = local Ollama**, after validation.
 
 ## Last session
 
-- Composed authenticated semantic calls with intersected internal/remote/client permissions and lowest-priority model jobs. Responses contain masked extractive evidence and fresh opaque ordinal references, never generated prose or private citations.
-- Added serialized inbox-only appends with explicit policy, disk/editor/control guards, durable hashed intents/receipts, replay and conservative marker/hash recovery. Research and existing note content remain intact.
-- Verified masking/denial, injection, revocation, concurrent retries, uncertain writes, retention/capacity and production plugin composition. Source-event invalidation may drop an append response; reinitialize and retry the same key to recover its receipt.
-- All required checks and build passed: 839 tests passed (one existing opt-in live test skipped), 83 mini-vault checks and four production-bundle host tests. Live OpenRouter and actual Obsidian/client smoke remain deferred.
+- Followed permitted graph references into bounded Markdown reads, sharing the run's hop/read budgets; no model-supplied paths.
+- Passed the current-policy last three turns to planning, selection and answering. Answer instructions require current evidence rather than treating history as evidence.
+- Fixed phrase-only follow-up retrieval so it searches the proposed phrase instead of a placeholder term.
+- Verified second-search retrieval, linked evidence, zero read budget, stale/forged citations and recipient-filtered history. All required checks/build passed: 844 tests passed (one existing opt-in live test skipped), 88 mini-vault checks, including production composition coverage in the full suite.
+- Real Obsidian navigation/workflow smoke and live OpenRouter evaluation remain deferred to R5-T03.
 
 ## Known issues
 

@@ -71,6 +71,10 @@ describe("recipient Q&A payload boundary", () => {
     expect(payloads).not.toMatch(/MASK_SENTINEL|DENIED_SENTINEL|OWNER_SENTINEL|ALIAS_SENTINEL|SecretTitle|classified|Notes\/|Denied\/|LEGACY_SENTINEL|STALE_HISTORY_SENTINEL/);
     expect(payloads).toContain("[MASKED]");
     expect(payloads).toContain("current question");
+    for (const request of requests) {
+      expect(JSON.stringify(request.body)).toContain("current question");
+      expect(JSON.stringify(request.body)).not.toMatch(/LEGACY_SENTINEL|STALE_HISTORY_SENTINEL/);
+    }
     expect(result.value.claims[0]?.text).toBe("quantum [MASKED] at ");
     expect(result.value.claims[0]?.citations[0]?.status).toBe("sourced");
     expect(result.value.claims[0]?.citations[0]?.excerpt.ref.path).toBe("Notes/SecretTitle.md");

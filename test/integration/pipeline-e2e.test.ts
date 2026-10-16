@@ -29,7 +29,7 @@ afterEach(async () => {
   for (const dispose of cleanup.splice(0).reverse()) await dispose();
 });
 
-async function run(outputs: unknown[]) {
+async function run(outputs: unknown[], opts: { graph?: boolean; stale?: boolean; maxReads?: number } = {}) {
   const server = await startMockOpenRouterServer(outputs);
   cleanup.push(server.close);
   const clock = new FakeClock(1_700_000_000_000);
@@ -39,13 +39,18 @@ async function run(outputs: unknown[]) {
     vault.addNote({ path, text: path.startsWith("private/") ? PRIVATE : NOTE });
     metadata.set(path, { frontmatter: {}, tags: [], headings: [] });
   }
+  if (opts.graph) {
+    vault.addNote({ path: "notes/linked.md", text: "The rendezvous location is Beta, as confirmed by the linked schedule. This schedule is the authoritative destination for the team meeting." });
+    metadata.set("notes/linked.md", { frontmatter: {}, tags: [], headings: [] });
+    metadata.setResolvedLinks({ "notes/alpha.md": { "notes/linked.md": 1 } });
+  }
   const corpus = createCorpusStore({
     vault, metadata, clock, sliceMs: 12,
     exclusion: createExclusionPolicy({ folders: ["private"], tags: [], frontmatterKey: "vault-synapse" }),
   });
   cleanup.push(() => corpus.dispose());
   await corpus.warm();
-  expect(corpus.reader().list()).toHaveLength(1);
+  expect(corpus.reader().list()).toHaveLength(opts.graph ? 2 : 1);
   const deps: CoreToolDeps = {
     getDoc: (path) => corpus.reader().get(path),
     listDocs: () => corpus.reader().list(),
@@ -75,8 +80,9 @@ async function run(outputs: unknown[]) {
   } });
   const pipeline = createQaPipeline({
     access: fixtureDisclosureAccess(),
+    budget: opts.maxReads === undefined ? {} : { maxReads: opts.maxReads },
     model: new OpenRouterClient({ transport, endpoint: server.endpoint, model: "openrouter/free", apiKey: "synthetic-test-key" }),
-    tools, readText: (path) => vault.readText(path),
+    tools, readText: (path) => opts.stale ? Promise.resolve("replacement text without the cited passage") : vault.readText(path),
   });
   const queue = createJobQueue({ clock, abortable: transport.capabilities.abortable });
   cleanup.push(() => queue.dispose());
@@ -147,4 +153,44 @@ describe("queued Q&A over mock OpenRouter HTTP", () => {
     expect(value.stats.modelCalls).toBe(4);
     expect(JSON.stringify(server.requests[3]?.body)).toContain("Previous answer cited unknown IDs (do not reuse): E999");
   });
+});
+
+
+describe("iterative retrieval completion", () => {
+  it.each([false, true])("requires a revised second search before evidence can answer (phrase only: %s)", async (phraseOnly) => {
+    const { value, server } = await run([
+      { ...plan, searches: [{ ...plan.searches[0], terms: ["absentterm"] }] },
+      { read: [], enough: true },
+      { status: "insufficient", claims: [], followup: { terms: phraseOnly ? [] : ["quantum"], phrases: phraseOnly ? ["quantum rendezvous"] : [] } },
+      { read: ["E1"], enough: true }, answer(["E1"]),
+    ]);
+    expect(value.status).toBe("answered");
+    expect(value.claims[0]?.sourced).toBe(true);
+    expect(value.trace.filter((hop) => hop.tool === "search_text").map((hop) => hop.resultCount)).toEqual([0, 1]);
+    expect(JSON.stringify(server.requests[2]?.body)).not.toContain(NOTE);
+    expect(JSON.stringify(server.requests[4]?.body)).toContain("quantum rendezvous");
+  });
+  it("follows graph references into bounded current Markdown evidence", async () => {
+    const { value, server } = await run([
+      { ...plan, expand_graph: true }, { read: ["E2"], enough: true }, answer(["E2"]),
+    ], { graph: true });
+    expect(value.claims[0]?.citations[0]?.excerpt.ref.path).toBe("notes/linked.md");
+    expect(value.claims[0]?.sourced).toBe(true);
+    expect(value.trace.map((hop) => hop.tool)).toContain("get_links");
+    expect(value.trace.map((hop) => hop.tool)).toContain("read_note");
+    expect(value.stats.reads).toBe(1);
+    expect(value.stats.hops).toBeLessThanOrEqual(6);
+    expect(JSON.stringify(server.requests[2]?.body)).toContain("location is Beta");
+  });
+  it("marks vanished passages unverified", async () => {
+    const { value } = await run([plan, { read: [], enough: true }, answer(["E1"])], { stale: true });
+    expect(value.claims[0]?.sourced).toBe(false);
+    expect(value.claims[0]?.citations[0]?.status).toBe("unverified");
+  });
+});
+
+it("does not read graph targets when the read budget is zero", async () => {
+  const { value } = await run([{ ...plan, expand_graph: true }, { read: [], enough: true }, answer(["E1"])], { graph: true, maxReads: 0 });
+  expect(value.stats.reads).toBe(0);
+  expect(value.trace.some((hop) => hop.tool === "read_note")).toBe(false);
 });
