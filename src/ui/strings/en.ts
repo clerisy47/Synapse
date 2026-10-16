@@ -81,7 +81,7 @@ export const SETTINGS = {
     "Phase B only: hostname you explicitly allow when not using loopback.",
 
   egressWarning:
-    "Note excerpts used in AI jobs leave this machine and are sent to OpenRouter.",
+    "AI jobs send questions, recent chat history, selected research, formatting instructions and permitted or masked note context to OpenRouter and its routed provider. Settings and recovery data may be copied by vault sync or backups.",
   nonLoopbackWarning:
     "This endpoint is not loopback. Acknowledge the host below before Synapse will use it.",
   endpointBlocked:
@@ -216,4 +216,13 @@ export const MCP_SETTINGS = {
   query: "Allow vault queries", submit: "Allow research submission", pair: "Confirm scopes and pair client",
   once: "Copy this bearer now. It cannot be recovered. Hide it before sharing your screen.", token: "One-time MCP bearer",
   dismiss: "Hide bearer", revoke: "Revoke", noScopes: "No scopes",
+} as const;
+
+export const PRIVACY = {
+  command: "Clear plugin data",
+  warning: "Clear plugin data? Settings (including the API key), control files, Research.md and all notes are preserved. Recovery and revert history, research duplicate-prevention history, MCP receipts and client pairings are lost. Previously processed research can be proposed again and client submissions can be duplicated after pairing again. Active services will stop; reload the plugin to continue. Synced copies and backups are not erased.",
+  confirm: "Clear data and stop Synapse",
+  cancel: "Cancel",
+  done: "Plugin data cleared. Reload Synapse to continue.",
+  failed: "Could not fully clear plugin data. Synapse is stopped; reload and retry.",
 } as const;

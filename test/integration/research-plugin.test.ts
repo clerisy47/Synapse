@@ -38,6 +38,7 @@ function pluginFolderAdapter() {
     read: async (path: string) => { const text = files.get(path); if (text === undefined) throw Error("missing plugin file"); return text; },
     write: async (path: string, text: string) => { files.set(path, text); },
     mkdir: async (path: string) => { directories.add(path); },
+    remove: async (path: string) => { files.delete(path); },
   };
 }
 
@@ -252,4 +253,52 @@ it("composes authenticated inbox submission and durable retry through the shippe
     expect((await post({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "query_vault", arguments: { question: "private?" } } })).body.result?.isError).toBe(true);
   } finally { plugin.onunload(); }
   expect(mcp.status().url).toBeNull(); await vi.waitFor(() => expect(listeners.size).toBe(0));
+});
+
+
+it("clears production plugin history after local confirmation and reloads with settings and vault intact", async () => {
+  vi.stubEnv("OPENROUTER_API_KEY", "");
+  const saved = defaultPersistedState(); saved.settings.apiKey = "synthetic-secret";
+  saved.researchLedger = { ...saved.researchLedger, blocked: true }; host.data = saved;
+  const adapter = pluginFolderAdapter();
+  const listeners = new Set<object>();
+  const on = () => { const ref = {}; listeners.add(ref); return ref; };
+  const offref = (ref: object) => { listeners.delete(ref); };
+  const modify = vi.fn(); const create = vi.fn();
+  const app = {
+    vault: { adapter, getFiles: () => [], getMarkdownFiles: () => [], getAbstractFileByPath: () => null, on, offref, modify, create },
+    metadataCache: { getCache: () => null, resolvedLinks: {}, on, offref },
+    workspace: { on, offref, onLayoutReady() {}, getLeavesOfType: () => [], detachLeavesOfType() {} },
+  } as unknown as App;
+  const open = vi.spyOn(obsidian.Modal.prototype, "open").mockImplementation(function (this: obsidian.Modal) { this.onOpen(); });
+  vi.spyOn(obsidian.Modal.prototype, "close").mockImplementation(function (this: obsidian.Modal) { this.onClose(); });
+  const PluginClass = pluginClass();
+  const manifest = { id: "vault-synapse", dir: ".obsidian/plugins/vault-synapse" } as PluginManifest;
+  const plugin = new PluginClass(app, manifest); await plugin.onload();
+  const folder = manifest.dir!;
+  await adapter.write(`${folder}/mcp-receipts.json`, "synthetic history");
+  await host.commands.get("clear-plugin-data")!.callback();
+  const modal = open.mock.instances[0] as unknown as obsidian.Modal;
+  expect(modal.contentEl.textContent).toContain("Recovery");
+  expect(parsePersisted(host.data).state.researchLedger.blocked).toBe(true);
+  modal.contentEl.querySelector("button")!.click();
+  await vi.waitFor(() => expect(host.notices).toContain("Plugin data cleared. Reload Synapse to continue."));
+  expect(listeners.size).toBe(0);
+  expect(await adapter.exists(`${folder}/mcp-receipts.json`)).toBe(false);
+  expect(await adapter.exists(`${folder}/recovery.json`)).toBe(false);
+  expect(parsePersisted(host.data).state.settings).toEqual(saved.settings);
+  expect(parsePersisted(host.data).state.researchLedger.blocked).toBe(false);
+  expect(modify).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
+  const restart = new PluginClass(app, manifest); await restart.onload(); restart.onunload();
+  await vi.waitFor(() => expect(listeners.size).toBe(0));
+});
+
+it("logs only a static event when initialization throws sensitive host data", async () => {
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  const plugin = new (pluginClass())({ vault: { adapter: pluginFolderAdapter() } } as unknown as App, { id: "vault-synapse", dir: ".obsidian/plugins/vault-synapse" } as PluginManifest);
+  vi.spyOn(plugin, "loadData").mockRejectedValue(new Error("secret key note text Private.md"));
+  await plugin.onload();
+  expect(log).toHaveBeenCalledWith("Vault Synapse: failed to load");
+  expect(JSON.stringify(log.mock.calls)).not.toMatch(/secret|Private/);
+  plugin.onunload();
 });
