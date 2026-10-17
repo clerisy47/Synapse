@@ -1,12 +1,13 @@
+import { withMetadata } from "../../test/note-metadata-fixture";
 import { describe, expect, it, vi } from "vitest";
 import { asVaultPath, hashApprovalBinding, type Approval, type ChangeProposal, type ContentHash } from "../core";
 import { createReviewApproval, type ReviewDecision } from "./index";
 const hash = "a".repeat(64) as ContentHash;
-const paths = { instructions: asVaultPath("Synapse/Instructions.md"), security: asVaultPath("Synapse/Security.md"), research: asVaultPath("Research.md") };
+const paths = { instructions: asVaultPath("Synapse/Instructions.md"), research: asVaultPath("Research.md") };
 function fixture() {
   const proposal: ChangeProposal = { version: 1, id: "proposal" as ChangeProposal["id"], instructionsHash: hash, policyHash: hash,
     batch: { id: "batch" as ChangeProposal["batch"]["id"], source: paths.research, sourceHash: hash, selectedHash: hash, range: { start: 0, end: 5 }, provenance: "local" },
-    changes: ["One.md", "Two.md"].map((path, i) => ({ destinationId: `D${i + 1}` as ChangeProposal["changes"][number]["destinationId"], path: asVaultPath(path), operation: "create", target: { exists: false }, before: "", after: `# ${path}\n`, evidenceIds: ["E1"] })), issues: [] };
+    changes: ["One.md", "Two.md"].map((path, i) => ({ destinationId: `D${i + 1}` as ChangeProposal["changes"][number]["destinationId"], path: asVaultPath(path), operation: "create", target: { exists: false }, before: "", after: withMetadata(`# ${path}\n`), evidenceIds: ["E1"] })), issues: [] };
   let generation = "initial";
   const validate = vi.fn(async () => true);
   const service = createReviewApproval({ proposal, paths, validate, version: () => generation });
@@ -29,7 +30,7 @@ describe("local review authority", () => {
   });
   it("refuses proposal issues and restricted targets", async () => {
     const f = fixture();
-    for (const proposal of [{ ...f.proposal, issues: [{ code: "ambiguous" }] }, { ...f.proposal, changes: [{ ...f.proposal.changes[0], path: paths.security }] }]) {
+    for (const proposal of [{ ...f.proposal, issues: [{ code: "ambiguous" }] }, { ...f.proposal, changes: [{ ...f.proposal.changes[0], path: paths.instructions }] }]) {
       const service = createReviewApproval({ proposal, paths, validate: f.validate, version: () => "initial" });
       expect((await service.approve(proposal.changes.map(() => "accept"))).ok).toBe(false);
     }
@@ -48,7 +49,7 @@ describe("local review authority", () => {
     const result = await pending; if (!result.ok) throw Error("approval");
     const consumed = await f.service.consume(result.value); if (!consumed.ok) throw Error("consume");
     expect(consumed.value.changes[0].path).toBe("One.md");
-    expect(consumed.value.changes[0].after).toBe("# One.md\n");
+    expect(consumed.value.changes[0].after).toBe(withMetadata("# One.md\n"));
   });
   it("fails closed on validation errors, changes during validation and post-issue revocation", async () => {
     const f = fixture(); f.validate.mockImplementationOnce(async () => { f.invalidate(); return true; });

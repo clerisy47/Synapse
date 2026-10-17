@@ -1,5 +1,7 @@
 # R3-T04 real Obsidian apply smoke
 
+> Historical evidence: Security.md support was removed on 2026-10-17. Use [current access contracts](control-contracts.md) for active requirements.
+
 The revised PLAN defers this real Obsidian apply check to R5-T03/R5-T04.
 R3-T04 uses headless validation; injected-host and mini-vault tests do not
 replace this final host check.

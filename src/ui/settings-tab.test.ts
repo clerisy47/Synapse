@@ -87,9 +87,9 @@ function createFakeHost(): SettingsTabHost & {
 }
 
 describe("mountSettingsPanel", () => {
-  it("renders egress warning and connection fields for defaults", () => {
+  it("renders egress warning and connection fields for explicit cloud settings", () => {
     const host = createFakeHost();
-    const store = createObservable<Settings>({ ...DEFAULT_SETTINGS });
+    const store = createObservable<Settings>({ ...DEFAULT_SETTINGS, provider: "openrouter", endpoint: "https://openrouter.ai/api/v1" });
     const applyPatch = vi.fn();
 
     const dispose = mountSettingsPanel({
@@ -206,7 +206,7 @@ it("rejects conflicting control paths visibly and applies canonical paths", () =
   const invalidControlPaths = vi.fn();
   const dispose = mountSettingsPanel({ host, settings: store, actions: { applyPatch, invalidControlPaths } });
   const field = host.fields.find((value) => value.key === "instructions")!;
-  field.onChange("synapse/security.md");
+  field.onChange("research.md");
   expect(invalidControlPaths).toHaveBeenCalledOnce();
   expect(applyPatch).not.toHaveBeenCalled();
   field.onChange("Config\\Style.md");

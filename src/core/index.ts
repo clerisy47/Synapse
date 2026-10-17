@@ -61,3 +61,6 @@ export { contentHash, hashApprovalBinding } from "./control-hash";
 export type { NoteWritePort, NoteWriteRequest, ResearchAppendPort, ApplyReport } from "./note-write";
 
 export type { McpScope, McpGrant, McpStatus, McpLimits, McpServerPort, McpServerOptions, McpResult } from "./mcp";
+
+export { NOTE_METADATA_LIMITS, compactNoteMetadata, metadataIssues, parseNoteFrontmatter, proposeMissingMetadata } from "./note-metadata";
+export type { RequiredNoteMetadata, MetadataField, MetadataIssue } from "./note-metadata";

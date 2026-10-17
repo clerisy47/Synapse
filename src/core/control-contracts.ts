@@ -16,7 +16,6 @@ export type AccessContext =
 
 export interface ControlPaths {
   readonly instructions: VaultPath;
-  readonly security: VaultPath;
   readonly research: VaultPath;
 }
 
@@ -47,7 +46,7 @@ export interface SecurityRules {
 
 export interface PolicySnapshot {
   readonly version: 1;
-  /** SHA-256 of exact complete control-file text, including explanatory prose. */
+  /** Access-contract version, included in proposal/approval bindings. */
   readonly hash: ContentHash;
   readonly rules: SecurityRules;
 }

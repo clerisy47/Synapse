@@ -11,7 +11,7 @@ function snapshot(rules: readonly SecurityRule[] = []): PolicySnapshot {
   return { version: 1, hash, rules: parsed.value };
 }
 function request(overrides: Partial<AccessContractRequest> = {}): AccessContractRequest {
-  return { context: { recipient: "internal", purpose: "search", policyHash: hash }, operation: "read", path: asVaultPath("Projects/One.md"), excluded: false, tags: [], frontmatter: {}, controlPaths: { instructions: asVaultPath("Synapse/Instructions.md"), security: asVaultPath("Synapse/Security.md"), research: asVaultPath("Research.md") }, maskingSupported: true, ...overrides };
+  return { context: { recipient: "internal", purpose: "search", policyHash: hash }, operation: "read", path: asVaultPath("Projects/One.md"), excluded: false, tags: [], frontmatter: {}, controlPaths: { instructions: asVaultPath("Synapse/Instructions.md"), research: asVaultPath("Research.md") }, maskingSupported: true, ...overrides };
 }
 const remote = () => request({ context: { recipient: "remote-model", purpose: "chat", policyHash: hash } });
 
@@ -60,7 +60,7 @@ describe("recipient policy contract", () => {
     for (const overrides of [{ tags: null }, { frontmatter: null }, { excluded: true }]) expect(evaluateAccessContract(snapshot(), request(overrides)).effect).toBe("deny");
   });
   it("denies control files and inbox in ordinary retrieval", () => {
-    for (const path of [request().controlPaths.instructions, request().controlPaths.security, request().controlPaths.research]) expect(evaluateAccessContract(snapshot(), request({ path })).effect).toBe("deny");
+    for (const path of [request().controlPaths.instructions, request().controlPaths.instructions, request().controlPaths.research]) expect(evaluateAccessContract(snapshot(), request({ path })).effect).toBe("deny");
   });
   it("deny wins regardless of rule order and masks do not grant", () => {
     const deny: SecurityRule = { ...grant, id: "deny", effect: "deny" };

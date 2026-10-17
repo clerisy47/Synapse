@@ -13,7 +13,7 @@ it("invalidates synchronously, blocks dirty sources until metadata refresh, and 
   const policy: PolicySnapshot = { version: 1, hash, rules: { version: 1, defaults: { internal: "allow", "remote-model": "allow", "external-client": "deny" }, rules: [] } };
   const controls = createObservable(0);
   const runtime = createAccessRuntime({ vault: corpus.vault, metadata,
-    paths: { instructions: asVaultPath("Synapse/Instructions.md"), security: asVaultPath("Synapse/Security.md"), research: asVaultPath("Research.md") },
+    paths: { instructions: asVaultPath("Synapse/Instructions.md"), research: asVaultPath("Research.md") },
     policy: () => policy, subscribePolicy: (cb) => controls.subscribe(cb),
     getDoc: (p) => corpus.docs.get(p) ?? null, getFrontmatter: (p) => corpus.asDeps().getFrontmatter(p), listDocs: () => [...corpus.docs.values()],
     exclusion: createExclusionPolicy({ folders: [], tags: ["private"], frontmatterKey: "vault-synapse" }),

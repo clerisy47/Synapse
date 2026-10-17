@@ -19,7 +19,7 @@ import {
   type Transport,
 } from "../core";
 import type { PromptKind } from "./schemas";
-import { buildOpenRouterChatRequest, joinEndpoint } from "./request";
+import { buildBonsaiChatRequest, buildOpenRouterChatRequest, joinEndpoint } from "./request";
 import {
   extractChatContent,
   extractUsage,
@@ -49,7 +49,8 @@ export type StructuredRequest<T> = {
   instructions: string;
   input: string;
   schema: z.ZodType<T>;
-  numPredict: number;
+  /** null omits the provider output token cap (used for planning). */
+  numPredict: number | null;
 };
 
 export interface ModelPort {
@@ -60,6 +61,7 @@ export interface ModelPort {
 }
 
 export type OpenRouterClientOptions = {
+  provider?: "bonsai" | "openrouter";
   transport: Transport;
   endpoint: string;
   model: string;
@@ -76,6 +78,7 @@ const ZERO_TIMING = {
 } as const;
 
 export class OpenRouterClient implements ModelPort {
+  private readonly provider: "bonsai" | "openrouter";
   private readonly transport: Transport;
   private readonly endpoint: string;
   private readonly model: string;
@@ -84,6 +87,7 @@ export class OpenRouterClient implements ModelPort {
   private readonly idleTimeoutMs: number;
 
   constructor(opts: OpenRouterClientOptions) {
+    this.provider = opts.provider ?? "openrouter";
     this.transport = opts.transport;
     this.endpoint = opts.endpoint;
     this.model = opts.model;
@@ -101,7 +105,7 @@ export class OpenRouterClient implements ModelPort {
     }
 
     const key = this.apiKey?.trim() ?? "";
-    if (key.length === 0) {
+    if (this.provider === "openrouter" && key.length === 0) {
       return err(
         synapseError({
           code: "MODEL_HTTP_ERROR",
@@ -112,7 +116,7 @@ export class OpenRouterClient implements ModelPort {
     }
 
     const url = joinEndpoint(this.endpoint, "/chat/completions");
-    const headers = authHeaders(key);
+    const headers = this.provider === "bonsai" ? {} : authHeaders(key);
 
     const first = await this.callOnce(url, headers, req, signal);
     if (!first.ok) {
@@ -167,14 +171,16 @@ export class OpenRouterClient implements ModelPort {
     if (validationFeedback !== undefined) {
       buildArgs.validationFeedback = validationFeedback;
     }
-    const body = buildOpenRouterChatRequest(buildArgs);
+    const body = this.provider === "bonsai"
+      ? buildBonsaiChatRequest({ ...buildArgs, kind: req.kind })
+      : buildOpenRouterChatRequest(buildArgs);
 
     let responseBody: unknown;
     try {
       responseBody = await this.postChat(url, body, headers, signal, true, req.isCurrent);
     } catch (cause) {
       if (req.isCurrent && !req.isCurrent()) return err(accessError());
-      return err(mapTransportFailure(cause));
+      return err(this.provider === "bonsai" ? mapBonsaiFailure(cause) : mapTransportFailure(cause));
     }
 
     if (signal.aborted) {
@@ -370,4 +376,20 @@ async function collectLastChunk(
     });
   }
   return last;
+}
+
+/** Local client shares cancellation, freshness and validation with cloud client. */
+export class BonsaiClient extends OpenRouterClient {
+  constructor(opts: Omit<OpenRouterClientOptions, "apiKey" | "provider">) {
+    super({ ...opts, apiKey: null, provider: "bonsai" });
+  }
+}
+
+export function mapBonsaiFailure(cause: unknown): SynapseError {
+  const mapped = mapTransportFailure(cause);
+  if (mapped.code === "CANCELLED" || mapped.code === "ENDPOINT_BLOCKED") return mapped;
+  return synapseError({ code: mapped.code,
+    message: "Bonsai runtime unavailable or incompatible. Start Prism llama-server with the configured model and loopback endpoint; see docs/bonsai.md.",
+    remediation: "bonsai_runtime", ...(mapped.detail ? { detail: mapped.detail } : {}),
+  });
 }

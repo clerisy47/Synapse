@@ -36,7 +36,7 @@ async function fixture() {
   const request: NoteWriteRequest = {
     change: { path: asVaultPath("Topic.md"), operation: "update", before, after: before + "\nReviewed synthetic observation.\n",
       target: { exists: true, hash: hash.value }, destinationId: "D1" as NoteWriteRequest["change"]["destinationId"], evidenceIds: [] },
-    paths: { instructions: asVaultPath("Synapse/Instructions.md"), security: asVaultPath("Synapse/Security.md"), research: asVaultPath("Research.md") },
+    paths: { instructions: asVaultPath("Synapse/Instructions.md"), research: asVaultPath("Research.md") },
     signal: new AbortController().signal, current: () => true, revalidate: async () => true,
     willCommit() {}, editorSnapshots: () => [],
   };
@@ -45,7 +45,7 @@ async function fixture() {
 
 it("updates and creates Markdown on disk while preserving inbox and control files", async () => {
   const f = await fixture();
-  const protectedPaths = ["Research.md", "Synapse/Instructions.md", "Synapse/Security.md"];
+  const protectedPaths = ["Research.md", "Synapse/Instructions.md"];
   const before = await Promise.all(protectedPaths.map(f.read));
   expect((await f.writer.apply(f.request)).ok).toBe(true);
   expect(await f.read("Topic.md")).toBe(f.request.change.after);
@@ -59,11 +59,11 @@ it.each(["disk", "editor", "policy", "control-target"])("refuses %s conflicts wi
   if (kind === "disk") f.beforeProcess(() => writeFile(f.file("Topic.md"), "Concurrent synthetic edit"));
   if (kind === "editor") f.editors.push({ path: "Topic.md", text: "Unsaved synthetic edit" });
   const request = { ...f.request, revalidate: async () => kind !== "policy",
-    change: { ...f.request.change, path: asVaultPath(kind === "control-target" ? "Synapse/Security.md" : "Topic.md") } };
-  const security = await f.read("Synapse/Security.md");
+    change: { ...f.request.change, path: asVaultPath(kind === "control-target" ? "Synapse/Instructions.md" : "Topic.md") } };
+  const instructions = await f.read("Synapse/Instructions.md");
   expect((await f.writer.apply(request)).ok).toBe(false);
   expect(await f.read("Topic.md")).toBe(kind === "disk" ? "Concurrent synthetic edit" : f.request.change.before);
-  expect(await f.read("Synapse/Security.md")).toBe(security);
+  expect(await f.read("Synapse/Instructions.md")).toBe(instructions);
 });
 
 it("appends only to the scoped inbox and refuses revoked or stale submission", async () => {

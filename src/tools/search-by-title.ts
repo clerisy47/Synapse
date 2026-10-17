@@ -2,7 +2,7 @@
  * search_by_title tool (DESIGN §5.4) — title / alias / filename substring match.
  */
 
-import { foldCase, type DocMeta, type VaultPath } from "../core";
+import { compactNoteMetadata, foldCase, type DocMeta, type VaultPath } from "../core";
 import type { CoreToolDeps } from "./deps";
 import type { ToolHandler, ToolOutcome } from "./registry";
 
@@ -11,6 +11,9 @@ export type SearchByTitleMatchedOn = "title" | "alias" | "filename";
 export interface SearchByTitleHit {
   ref: DocMeta["ref"];
   title: string;
+  description?: string;
+  tags: string[];
+  aliases: string[];
   matchedOn: SearchByTitleMatchedOn;
 }
 
@@ -65,6 +68,7 @@ export function createSearchByTitleHandler(
       .map(({ matchedOn, doc }) => ({
         ref: doc.ref,
         title: doc.title,
+        ...compactNoteMetadata(doc),
         matchedOn,
       }))
       .sort((a, b) => {

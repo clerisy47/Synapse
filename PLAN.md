@@ -1,13 +1,15 @@
 # PLAN: Synapse
 
-Status: draft v2 · Revised 2026-10-14 · Inputs: SPEC.md and DESIGN.md v2.
+Status: draft v2 · Revised 2026-10-17 · Inputs: SPEC.md and DESIGN.md v2.
 This revision supersedes the old backlog, including the in-progress PDF probe M4-T01 and obsolete feature tasks. They are retired, not completed. Original statuses and task details remain in `docs/history/2026-10-14-scope-revision/PLAN.md` for history only.
 
 ## Execution rules
 
-Current task is IN_PROGRESS; otherwise choose the lowest-ID TODO with all dependencies DONE. User-directed scope revisions take precedence over ordinary backlog selection. Status exists only here. R1-T01, R2-T01 through R2-T03 and R3-T01 through R3-T05 are complete; R4-T01 is complete; R4-T02 and R4-T03 are complete; R5-T01 is complete; R5-T02 is complete; R5-T03 is the next eligible task.
+Current task is IN_PROGRESS; otherwise choose the lowest-ID TODO with all dependencies DONE. User-directed scope revisions take precedence over ordinary backlog selection. Status exists only here. R1-T01, R2-T01 through R2-T03 and R3-T01 through R3-T05 are complete; R4-T01 is complete; R4-T02 and R4-T03 are complete; R5-T01 is complete; R5-T02 is complete; R5-T03 is in progress; full live-provider quality and real-host evidence must pass before its gate closes. R6-T01 integration is complete under the authorized Bonsai scope revision; see docs/bonsai-integration.md.
 
-Keep tasks small (normally 1–5 files); split cross-cutting cleanup into reviewable substeps before editing. Do not disable tests or delete meaningful failing coverage. Every implementation slice must build and pass headless backend checks. Per user direction (2026-10-15), use the project mini vault now; defer actual Obsidian UI/load/workflow smoke to the final Phase A gate (R5-T03/R5-T04), with final local smoke at R6-T02. Do not start Phase B until all Must + Should features and Phase A validation are complete.
+Keep tasks small (normally 1–5 files); split cross-cutting cleanup into reviewable substeps before editing. Do not disable tests or delete meaningful failing coverage. Every implementation slice must build and pass headless backend checks. Per user direction (2026-10-15), use the project mini vault now; defer actual Obsidian UI/load/workflow smoke to the final feature gate (R5-T03/R5-T04), with final local smoke at R6-T02. The 2026-10-17 user revision authorizes Bonsai integration now; existing feature/host/release gates remain open.
+
+Latest gate evidence: the 40-question live Bonsai check passes after planned-keyword normalization; the operator confirmed Obsidian 1.14.4 host tests. Authenticated native MCP-client query/submission smoke remains unverified, so R5-T03 stays open. Measurements and retained failures: docs/r5-t03-evaluation.md.
 
 ## Revised milestone map
 
@@ -17,8 +19,42 @@ Keep tasks small (normally 1–5 files); split cross-cutting cleanup into review
 | R2 | Instruction and security contracts, editable control files, recipient policy. |
 | R3 | Research proposals, diff approval, restricted note writes, recovery. |
 | R4 | Authenticated scoped MCP collaboration. |
-| R5 | Search/chat completion, privacy validation, evaluation and Phase A release readiness. |
-| R6 | Final switch to validated local Ollama. |
+| R5 | Search/chat completion, privacy validation, evaluation and release readiness. |
+| R6 | Local Bonsai integration and full local release validation. |
+
+## Security.md removal — user revision 2026-10-17
+
+This revision supersedes Security.md requirements in completed R2/R3/R4 tasks.
+Historical task descriptions below record prior implementation only.
+
+### R7-T01 — Remove the Security.md feature
+
+- **Description:** Remove the policy-file loader, starter, configured path and UI; make chat/search independent of control files; preserve exclusions, provider consent, MCP scopes and exact local approval. Split into control/settings, runtime/review, regression and documentation slices.
+- **Dependencies:** none (user-directed revision)
+- **Acceptance criteria:** Missing/malformed Security.md cannot block chat, research review or scoped MCP submission; no Security.md setup/settings; old path settings ignored; instruction/source/target conflicts still reject writes.
+- **How to verify:** Full automated tests, typecheck, lint, boundary/network/write/schema checks and build. Real host smoke remains part of the existing final gate.
+- **Status:** DONE
+
+## Chat readability — user revision 2026-10-17
+
+### R7-T02 — Improve grounded overviews and compact citation presentation
+
+- **Description:** Retain complete search paragraphs within the existing excerpt cap; prompt supported overview coverage; inline compact references with consolidated, collapsed readable excerpts; rounded trace timings and omitted empty arguments. Preserve evidence, navigation, budgets and six-hop behavior.
+- **Dependencies:** none (user-directed revision)
+- **How to verify:** DOM regressions, six-hop regression, live synthetic Bonsai overview and unsupported question, required checks/build; install only three artifacts. Real-host acceptance remains pending under R5-T03.
+- **Status:** DONE
+
+## User-directed metadata revision
+
+### R8-T01 — Mandatory note metadata and reviewed migration
+
+- **Description:** Reviewable slices: shared bounded contract; exclusion-first audit and repair view; queued missing-field proposals and exact local approval through NoteWritePort; retrieval discovery/body verification; creation/edit validation; mini-vault comparison and documentation.
+- **Dependencies:** none (user-directed scope revision)
+- **Acceptance criteria:** mandatory description/tags/aliases; preserve existing metadata/content; visible repair count; no noncompliant model retrieval; preserved exclusion/consent/MCP/snapshot boundaries. No Dataview.
+- **How to verify:** focused contract/audit/migration/discovery/security tests, mini-vault before/after measurements, full tests/typecheck/lint/boundary/network/write/schema/build. Real-host gates stay open until evidenced.
+- **Status:** DONE
+
+- **Evidence:** [metadata evaluation](docs/metadata-evaluation.md); automated and narrow live checks complete. Real-host repair UI/editor/reload and native-client evidence remain under R5-T03/R5-T04/R6-T02; no release gate closure.
 
 ## Tasks
 
@@ -134,34 +170,34 @@ Keep tasks small (normally 1–5 files); split cross-cutting cleanup into review
 - **How to verify:** Clear/restart, redaction, exclusions, no-illegal-network/write and unload tests.
 - **Status:** DONE
 
-### R5-T03 — Synthetic evaluation and Phase A feature-complete gate
+### R5-T03 — Synthetic evaluation and feature-complete gate
 
-- **Description:** Build fixture/eval suite for Q&A, iterative retrieval, policy, research, review/apply and MCP. Use openrouter/free for live tests; report failure rather than switching models.
+- **Description:** Build fixture/eval suite for Q&A, iterative retrieval, policy, research, review/apply and MCP. Use production Bonsai for default live synthetic tests; report failures without silent provider fallback.
 - **Dependencies:** R5-T02
 - **Acceptance criteria:** SPEC F1–F11 acceptance criteria; zero forbidden disclosure/write; all parsed schemas valid; citation validity at least 95%; manual gaps closed.
-- **How to verify:** Required checks/build, deterministic eval, live OpenRouter with synthetic inputs and real Obsidian workflow evidence.
-- **Status:** TODO
+- **How to verify:** Required checks/build, deterministic eval, live Bonsai with synthetic inputs and real Obsidian workflow evidence.
+- **Status:** IN_PROGRESS
 
-### R5-T04 — Phase A release readiness
+### R5-T04 — release readiness
 
-- **Description:** Finalize settings/a11y/docs/license/release pipeline, artifact version hygiene and install smoke. This milestone gates Phase B; the final local product remains pending.
+- **Description:** Finalize settings/a11y/docs/license/release pipeline, artifact version hygiene and install smoke. Full quality and real-host validation remain required.
 - **Dependencies:** R5-T03
 - **Acceptance criteria:** SPEC F8 release criteria; only three release artifacts; all Must + Should complete and verified.
 - **How to verify:** Release dry run, clean-vault install and feature checklist.
 - **Status:** TODO
 
-### R6-T01 — Implement and switch default to local Ollama
+### R6-T01 — Integrate and default to local Bonsai (authorized scope revision)
 
-- **Description:** Add Ollama client behind ModelPort, loopback policy/health and settings migration; no silent cloud fallback.
-- **Dependencies:** R5-T04
-- **Acceptance criteria:** SPEC Phase B/F1; all workflows execute with local inference; absent Ollama fails visibly without blocking plugin load.
-- **How to verify:** Mock transport/client tests plus real local feature smoke after Phase A gate.
-- **Status:** TODO
+- **Description:** Implement ModelPort/request builder, strict loopback policy, migration/settings/health, offline and cancellation handling; add meaningful automated tests, setup docs and live production synthetic workflow checks. Reviewable slices: provider/transport; configuration/UI; tests/live workflows; requirements/results documentation. No runtime/weights bundled or automatically started.
+- **Dependencies:** R5-T02 (user-directed override of former R5-T04 dependency)
+- **Acceptance criteria:** SPEC F1 integration; absent Bonsai fails visibly without blocking plugin load; no fallback; existing privacy/approval boundaries retained. Full quality/host release gate remains R5-T03/R6-T02.
+- **How to verify:** Provider/migration/endpoint/failure/cancellation tests, required checks/build, live synthetic schema/Q&A/research checks through production integration.
+- **Status:** DONE
 
 ### R6-T02 — Local evaluation and final release
 
 - **Description:** Run full quality/privacy/latency suite locally; measure hardware floor and recommend only evaluated models; final docs and release install validation.
-- **Dependencies:** R6-T01
+- **Dependencies:** R6-T01, R5-T04
 - **Acceptance criteria:** SPEC success criteria locally; measured limitations recorded; local default and optional remote opt-in disclosed.
 - **How to verify:** Local eval report, all required checks/build and real Obsidian/MCP/research/chat release smoke.
 - **Status:** TODO
@@ -211,7 +247,7 @@ The prior walking skeleton, Markdown corpus/tools and cited chat tasks remain co
 
 ## Retired backlog
 
-The prior PDF, contradiction, compare-for-flags, and old eval/release tasks have been replaced rather than marked DONE. M4-T01 no longer governs current work. The old M1-T17 local bake-off is replaced by R6-T02 and remains strictly after feature completion. Daily resurfacing is removed from the current scope; its unused scaffolding is included in R1-T01.
+The prior PDF, contradiction, compare-for-flags, and old eval/release tasks have been replaced rather than marked DONE. M4-T01 no longer governs current work. The old M1-T17 local bake-off is replaced by R6-T02 with full release validation still after feature completion. Daily resurfacing is removed from the current scope; its unused scaffolding is included in R1-T01.
 
 ## Definition of done
 

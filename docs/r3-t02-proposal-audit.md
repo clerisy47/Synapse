@@ -1,5 +1,7 @@
 # R3-T02 — bounded research proposal generation
 
+> Historical evidence: Security.md support was removed on 2026-10-17. Use [current access contracts](control-contracts.md) for active requirements.
+
 ## Scope and implementation plan
 
 Goal: turn an explicitly captured research selection and local destination choices

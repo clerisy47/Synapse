@@ -1,3 +1,4 @@
+import { withMetadata } from "../note-metadata-fixture";
 // @vitest-environment happy-dom
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
@@ -101,7 +102,7 @@ it("opens the production research review from captured editor selection and clos
   vi.stubEnv("OPENROUTER_API_KEY", "");
   const { CONTROL_STARTERS } = await import("../../src/instructions");
   const { REVIEW } = await import("../../src/ui");
-  const texts: Record<string, string> = { "Research.md": "Synthetic research selection", "Synapse/Instructions.md": CONTROL_STARTERS.instructions, "Synapse/Security.md": CONTROL_STARTERS.security };
+  const texts: Record<string, string> = { "Research.md": "Synthetic research selection", "Synapse/Instructions.md": CONTROL_STARTERS.instructions };
   const files = Object.keys(texts).map((path) => Object.assign(new TFile(), { path, extension: "md", stat: { mtime: 1, ctime: 1, size: texts[path].length } }));
   const listeners = new Map<object, { name: string; callback: (...args: unknown[]) => void }>();
   const on = (name: string, callback: (...args: unknown[]) => void) => { const ref = {}; listeners.set(ref, { name, callback }); return ref; };
@@ -134,9 +135,8 @@ it("applies a locally approved change through production composition without cha
   vi.stubEnv("OPENROUTER_API_KEY", "");
   const { REVIEW } = await import("../../src/ui");
   const texts: Record<string, string> = {
-    "Research.md": "Synthetic apply observation.", "Topic.md": "# Original\nKeep this.\n",
+    "Research.md": "Synthetic apply observation.", "Topic.md": withMetadata("# Original\nKeep this.\n"),
     "Synapse/Instructions.md": '---\n{"version":1,"timezone":"UTC","destinations":[{"id":"topic","path":"Topic.md"}],"daily":{"id":"daily-log","folder":"Daily","filename":"YYYY-MM-DD.md","heading":"## Log"}}\n---\nUse bullets.',
-    "Synapse/Security.md": '---\n{"version":1,"defaults":{"internal":"allow","remote-model":"allow","external-client":"deny"},"rules":[{"id":"create","recipient":"internal","operation":"create","effect":"allow","selector":{}},{"id":"update","recipient":"internal","operation":"update","effect":"allow","selector":{}}]}\n---\nSynthetic rules.',
   };
   const files = Object.keys(texts).map((path) => Object.assign(new TFile(), { path, extension: "md", stat: { mtime: 1, ctime: 1, size: texts[path].length } }));
   const listeners = new Map<object, { name: string; callback: (...args: unknown[]) => void }>();
@@ -164,7 +164,7 @@ it("applies a locally approved change through production composition without cha
   await plugin.onload();
   // Script only the provider response; command, queue, review, authority and writer are production.
   const lane = (plugin as unknown as { lane: { client: import("../../src/llm").ModelPort } }).lane;
-  const generated = vi.fn(async <T,>() => ({ ok: true as const, value: { value: { changes: [{ destinationId: "D1", markdown: "# Updated\nKeep this.\n- Synthetic result.", evidenceIds: ["E1"] }] } as T,
+  const generated = vi.fn(async <T,>() => ({ ok: true as const, value: { value: { changes: [{ destinationId: "D1", markdown: withMetadata("# Updated\nKeep this.\n- Synthetic result."), evidenceIds: ["E1"] }] } as T,
     attempts: 1 as const, usage: { promptTokens: 0, outputTokens: 0, loadMs: 0, promptEvalMs: 0, evalMs: 0, totalMs: 0 } } }));
   lane.client.generate = async <T,>() => { const result = await generated(); return { ...result, value: { ...result.value, value: result.value.value as T } }; };
   await vi.waitFor(async () => { await host.commands.get("review-research")?.callback(); expect(open).toHaveBeenCalledOnce(); });
@@ -177,7 +177,7 @@ it("applies a locally approved change through production composition without cha
   expect(processNote).not.toHaveBeenCalled(); button(REVIEW.apply).click();
   await vi.waitFor(() => expect(el.textContent).toContain("Topic.md: Applied"));
   expect(processNote).toHaveBeenCalledOnce(); expect(modify).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
-  expect(texts["Topic.md"]).toBe("# Updated\nKeep this.\n- Synthetic result.");
+  expect(texts["Topic.md"]).toBe(withMetadata("# Updated\nKeep this.\n- Synthetic result."));
   expect(texts["Research.md"]).toBe("Synthetic apply observation."); expect(generated).toHaveBeenCalledOnce();
   expect(parsePersisted(host.data).state.researchLedger.records[0].outcomes).toContain("applied");
   (open.mock.instances[0] as unknown as obsidian.Modal).close();
@@ -186,13 +186,13 @@ it("applies a locally approved change through production composition without cha
   const recoveryEl = (open.mock.instances[1] as unknown as obsidian.Modal).contentEl;
   const revert = Array.from(recoveryEl.querySelectorAll("button")).find((candidate) => candidate.textContent === "Review revert diff")!;
   revert.click(); await vi.waitFor(() => expect(recoveryEl.querySelector("select")).not.toBeNull());
-  expect(Array.from(recoveryEl.querySelectorAll("pre")).map((pre) => pre.textContent)).toEqual(["# Updated\nKeep this.\n- Synthetic result.", "# Original\nKeep this.\n"]);
+  expect(Array.from(recoveryEl.querySelectorAll("pre")).map((pre) => pre.textContent)).toEqual([withMetadata("# Updated\nKeep this.\n- Synthetic result."), withMetadata("# Original\nKeep this.\n")]);
   const decision = recoveryEl.querySelector("select")!; decision.value = "accept"; decision.dispatchEvent(new Event("change"));
   const recoveryButton = (label: string) => Array.from(recoveryEl.querySelectorAll("button")).find((candidate) => candidate.textContent === label)!;
   recoveryButton(REVIEW.approve).click(); await vi.waitFor(() => expect(recoveryButton(REVIEW.apply)).toBeDefined());
   expect(processNote).toHaveBeenCalledOnce(); recoveryButton(REVIEW.apply).click();
   await vi.waitFor(() => expect(recoveryEl.textContent).toContain("Topic.md: Applied"));
-  expect(processNote).toHaveBeenCalledTimes(2); expect(texts["Topic.md"]).toBe("# Original\nKeep this.\n");
+  expect(processNote).toHaveBeenCalledTimes(2); expect(texts["Topic.md"]).toBe(withMetadata("# Original\nKeep this.\n"));
   expect(texts["Research.md"]).toBe("Synthetic apply observation."); expect(generated).toHaveBeenCalledOnce();
   plugin.onunload(); await vi.waitFor(() => expect(listeners.size).toBe(0));
 });
@@ -203,7 +203,6 @@ it("composes authenticated inbox submission and durable retry through the shippe
   const { CONTROL_STARTERS } = await import("../../src/instructions");
   const texts: Record<string, string> = {
     "Research.md": "Preserve original inbox.", "Synapse/Instructions.md": CONTROL_STARTERS.instructions,
-    "Synapse/Security.md": '---\n{"version":1,"defaults":{"internal":"allow","remote-model":"deny","external-client":"deny"},"rules":[{"id":"append","recipient":"external-client","operation":"append-research","effect":"allow","selector":{}}]}\n---\nSynthetic policy.',
   };
   const files = Object.keys(texts).map((path) => Object.assign(new TFile(), { path, extension: "md", stat: { mtime: 1, ctime: 1, size: texts[path].length } }));
   const adapter = pluginFolderAdapter();

@@ -4,6 +4,8 @@
 
 import {
   foldCase,
+  compactNoteMetadata,
+  bodyStartOffset,
   sha1Hex,
   type DocMeta,
   type Excerpt,
@@ -32,6 +34,9 @@ const TF_SAT_K = 1.5;
 export interface SearchTextHit {
   ref: DocMeta["ref"];
   score: number;
+  description?: string;
+  tags: string[];
+  aliases: string[];
   excerpts: Excerpt[];
 }
 
@@ -118,6 +123,13 @@ function expandExcerptWindow(
   start: number,
   end: number,
 ): { start: number; end: number } {
+  // Preserve a complete supporting paragraph when it fits the existing cap.
+  // A match near the start otherwise exposes only half a minimal window.
+  const paragraphStart = text.lastIndexOf("\n\n", start);
+  const paragraphEnd = text.indexOf("\n\n", end);
+  const fullStart = paragraphStart < 0 ? 0 : paragraphStart + 2;
+  const fullEnd = paragraphEnd < 0 ? text.length : paragraphEnd;
+  if (fullEnd - fullStart <= EXCERPT_EXPAND_MAX) return { start: fullStart, end: fullEnd };
   const matchLen = Math.max(0, end - start);
   const target = Math.min(
     EXCERPT_EXPAND_MAX,
@@ -159,6 +171,7 @@ export function createSearchTextHandler(deps: CoreToolDeps): ToolHandler<"search
     const sliceMs = Number.isFinite(deps.sliceMs) ? deps.sliceMs : SEARCH_TEXT_SLICE_MS;
     const budgetMs = Number.isFinite(deps.budgetMs) ? deps.budgetMs : SEARCH_TEXT_BUDGET_MS;
 
+    const started = deps.clock.mono();
     const scan = await deps.scanText({
       terms: needles,
       clock: deps.clock,
@@ -184,6 +197,16 @@ export function createSearchTextHandler(deps: CoreToolDeps): ToolHandler<"search
       }
     }
 
+    // Reuse DocTable for bounded metadata discovery; metadata never mints evidence.
+    let metadataTruncated = false;
+    let lastYield = started;
+    for (const doc of deps.listDocs()) {
+      if (ctx.signal.aborted || deps.clock.mono() - started >= budgetMs) { metadataTruncated = true; break; }
+      if (deps.clock.mono() - lastYield >= sliceMs) { await deps.clock.yieldNow(); lastYield = deps.clock.mono(); }
+      if (ctx.signal.aborted || deps.clock.mono() - started >= budgetMs) { metadataTruncated = true; break; }
+      const discovery = foldCase([doc.description ?? "", ...doc.tags, ...doc.aliases].join(" "));
+      if (docMatchesScope(doc, args.scope) && needles.some((term) => discovery.includes(foldCase(term))) && !byPath.has(doc.ref.path)) byPath.set(doc.ref.path, []);
+    }
     type Ranked = {
       path: VaultPath;
       doc: DocMeta;
@@ -250,6 +273,8 @@ export function createSearchTextHandler(deps: CoreToolDeps): ToolHandler<"search
         score += HEADING_BOOST;
       }
 
+      const discovery = foldCase([c.doc.description ?? "", ...c.doc.tags, ...c.doc.aliases].join(" "));
+      if (needles.some((term) => discovery.includes(foldCase(term)))) score += ALIAS_BOOST;
       c.score = score;
     }
 
@@ -266,7 +291,7 @@ export function createSearchTextHandler(deps: CoreToolDeps): ToolHandler<"search
     for (const row of top) {
       const excerpts: Excerpt[] = [];
       const seen = new Set<string>();
-      const ordered = [...row.hits].sort((a, b) => a.start - b.start);
+      const ordered = (row.hits.length ? [...row.hits] : [{ path: row.path, start: bodyStartOffset(row.text), end: Math.min(row.text.length, bodyStartOffset(row.text) + EXCERPT_EXPAND_MAX) }]).sort((a, b) => a.start - b.start);
       for (const hit of ordered) {
         if (excerpts.length >= SEARCH_TEXT_EXCERPTS_MAX) {
           break;
@@ -277,6 +302,8 @@ export function createSearchTextHandler(deps: CoreToolDeps): ToolHandler<"search
           continue;
         }
         seen.add(key);
+        win.start = Math.max(win.start, bodyStartOffset(row.text));
+        if (win.end <= win.start) continue;
         const excerptText = row.text.slice(win.start, win.end);
         const textHash = await sha1Hex(excerptText);
         excerpts.push({
@@ -291,10 +318,11 @@ export function createSearchTextHandler(deps: CoreToolDeps): ToolHandler<"search
       outHits.push({
         ref: row.doc.ref,
         score: row.score,
+        ...compactNoteMetadata(row.doc),
         excerpts: capExcerpts(excerpts, SEARCH_TEXT_EXCERPTS_MAX),
       });
     }
 
-    return { ok: true, data: { hits: outHits }, truncated: scan.truncated };
+    return { ok: true, data: { hits: outHits }, truncated: scan.truncated || metadataTruncated };
   };
 }

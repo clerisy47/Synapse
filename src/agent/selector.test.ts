@@ -213,6 +213,6 @@ describe("prompts", () => {
   });
 
   it("exports local QA_NUM_PREDICT mirrors", () => {
-    expect(QA_NUM_PREDICT).toEqual({ plan: 200, select: 100, answer: 600 });
+    expect(QA_NUM_PREDICT).toEqual({ plan: null, select: 100, answer: 600 });
   });
 });

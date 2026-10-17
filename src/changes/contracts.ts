@@ -44,13 +44,13 @@ export const ChangeProposalSchema = z.strictObject({
   if (value.issues.some((issue) => issue.changeIndex !== undefined && issue.changeIndex >= value.changes.length)) ctx.addIssue({ code: "custom", message: "INVALID_CHANGE_INDEX" });
 });
 
-export function parseChangeProposal(input: unknown, paths: ControlPaths): Result<ChangeProposal> {
+export function parseChangeProposal(input: unknown, paths: ControlPaths, repairPath?: string): Result<ChangeProposal> {
   const result = ChangeProposalSchema.safeParse(input);
   if (!result.success) {
     const issue = result.error.issues[0];
     return err(synapseError({ code: "SCHEMA_INVALID", retryable: false, message: "Invalid proposal contract", detail: { issueCode: issue?.code === "custom" ? issue.message : "PROPOSAL_SCHEMA_INVALID", field: issue?.path.join(".") ?? "" } }));
   }
-  if (result.data.batch.source !== paths.research || result.data.changes.some((item) => [paths.instructions, paths.security, paths.research].some((control) => control.toLowerCase() === item.path.toLowerCase()))) return err(synapseError({ code: "SCHEMA_INVALID", retryable: false, message: "Proposal source or target is restricted", detail: { issueCode: "RESTRICTED_PROPOSAL_PATH" } }));
+  if ((repairPath ? result.data.batch.source !== repairPath || result.data.changes.length !== 1 || result.data.changes[0].path !== repairPath : result.data.batch.source !== paths.research) || result.data.changes.some((item) => [paths.instructions, paths.research].some((control) => control.toLowerCase() === item.path.toLowerCase()))) return err(synapseError({ code: "SCHEMA_INVALID", retryable: false, message: "Proposal source or target is restricted", detail: { issueCode: "RESTRICTED_PROPOSAL_PATH" } }));
   return ok({ ...result.data, issues: result.data.issues.map((issue) => ({ code: issue.code, ...(issue.changeIndex === undefined ? {} : { changeIndex: issue.changeIndex }) })) });
 }
 

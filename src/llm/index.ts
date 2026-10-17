@@ -18,6 +18,7 @@ export {
   collectJsonSchemaKeywords,
   emitProviderJsonSchema,
   healthOutputSchema,
+  metadataOutputSchema,
   planOutputSchema,
   proposalOutputSchema,
   schemaSubsetViolations,
@@ -66,3 +67,6 @@ export {
   formatValidationFeedback,
   parseStructuredContent,
 } from "./validate";
+
+export { BonsaiClient } from "./client";
+export { buildBonsaiChatRequest } from "./request";

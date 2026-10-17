@@ -1,5 +1,7 @@
 # R3-T03 real Obsidian review smoke
 
+> Historical evidence: Security.md support was removed on 2026-10-17. Use [current access contracts](control-contracts.md) for active requirements.
+
 This is the remaining real-host acceptance check from PLAN R3-T03. Automated
 DOM and injected-host tests are separate evidence. This milestone approves only
 in memory and has no note writer; closing review discards approval.

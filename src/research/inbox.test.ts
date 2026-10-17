@@ -8,7 +8,7 @@ const emptyResearchLedger = (): ResearchLedger => ({ version: 1, blocked: false,
 const services: ResearchInbox[] = [];
 afterEach(() => { services.splice(0).forEach((service) => service.dispose()); vi.restoreAllMocks(); });
 function fixture(text = "Heading\r\n🧪 rough research\r\nTail", path = "Research.md") {
-  const validated = validateControlPaths({ instructions: "Synapse/Instructions.md", security: "Synapse/Security.md", research: path });
+  const validated = validateControlPaths({ instructions: "Synapse/Instructions.md", research: path });
   if (!validated.ok) throw new Error("fixture paths");
   const vault = new FakeVault();
   vault.addNote({ path, text });
@@ -202,7 +202,7 @@ describe("research capture", () => {
     f.inbox.dispose();
     expect(issue(await f.inbox.capture())).toBe("RESEARCH_CANCELLED");
     expect(issue(await f.inbox.validateSnapshot(captured.value.snapshot))).toBe("RESEARCH_CANCELLED");
-    const paths = validateControlPaths({ instructions: "I.md", security: "S.md", research: "Research.md" });
+    const paths = validateControlPaths({ instructions: "I.md", research: "Research.md" });
     if (!paths.ok) throw new Error("fixture");
     const newService = createResearchInbox({ vault: f.vault, activeNote: f.activeNote, paths: paths.value, clock: f.clock, readLedger: () => f.ledger, saveLedger: f.saveLedger });
     // Rebuilt services never accept an old service's in-memory snapshot.

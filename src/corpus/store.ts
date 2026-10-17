@@ -14,7 +14,7 @@ import type {
   VaultPath,
   VaultPort,
 } from "../core";
-import { asVaultPath, createObservable } from "../core";
+import { asVaultPath, createObservable, parseNoteFrontmatter, type MetadataIssue } from "../core";
 import type { ExclusionPolicy } from "../policy";
 import { createLinkGraph, type LinkGraph } from "./link-graph";
 import {
@@ -48,6 +48,8 @@ export interface CorpusIndexes {
 export interface CorpusStore {
   readonly status: Observable<CorpusStatus>;
   reader(): CorpusReader;
+  /** Local repair view only; never a model/tool corpus. */
+  repairs(): readonly { path: VaultPath; issues: readonly MetadataIssue[] }[];
   session(): SessionTracker;
   indexes(): CorpusIndexes;
   /** Frontmatter for an indexed note; null when not indexed. */
@@ -158,7 +160,9 @@ export function createCorpusStore(
   opts: CreateCorpusStoreOptions,
 ): CorpusStore {
   const { vault, metadata, exclusion, clock, sliceMs } = opts;
+  const revisions = new Map<VaultPath, number>();
   const docs = new Map<VaultPath, DocMeta>();
+  const repairs = new Map<VaultPath, readonly MetadataIssue[]>();
   const frontmatterByPath = new Map<VaultPath, Record<string, unknown>>();
   const unresolvedBySource = new Map<VaultPath, number>();
   const textIndex = createTextIndex();
@@ -182,7 +186,7 @@ export function createCorpusStore(
   let phase: CorpusStatus["phase"] = "warming";
 
   function publish(): void {
-    statusObs.set(recount(docs, totals, phase, textIndex.bytesCached()));
+    statusObs.set({ ...recount(docs, totals, phase, textIndex.bytesCached()), metadataAttention: repairs.size });
   }
 
   function rebuildLinks(): void {
@@ -205,8 +209,11 @@ export function createCorpusStore(
   }
 
   function removeDoc(path: VaultPath): void {
+    revisions.set(path, (revisions.get(path) ?? 0) + 1);
+    repairs.delete(path);
     if (!docs.delete(path)) {
       clearSecondary(path);
+      publish();
       return;
     }
     clearSecondary(path);
@@ -218,13 +225,8 @@ export function createCorpusStore(
     key: VaultPath,
     doc: DocMeta,
     meta: NoteMetadata,
+    text: string,
   ): Promise<void> {
-    let text = "";
-    try {
-      text = await vault.readText(key);
-    } catch {
-      text = "";
-    }
     textIndex.upsert(key, text);
     titleIndex.upsert(key, doc.title, doc.aliases);
     tagIndex.upsert(key, doc.tags);
@@ -236,7 +238,10 @@ export function createCorpusStore(
       return;
     }
     const key = asVaultPath(path);
+    const revision = (revisions.get(key) ?? 0) + 1;
+    revisions.set(key, revision);
     const stat = await vault.stat(key);
+    if (disposed || revisions.get(key) !== revision) return;
     if (!stat || !key.toLowerCase().endsWith(".md") || stat.kind !== "note") {
       removeDoc(key);
       return;
@@ -257,9 +262,21 @@ export function createCorpusStore(
       return;
     }
 
-    const doc = docFromNote(stat, meta);
+    let text: string;
+    try { text = await vault.readText(key); } catch { if (revisions.get(key) === revision) { removeDoc(key); repairs.set(key, [{ field: "frontmatter", reason: "invalid" }]); publish(); } return; }
+    if (disposed || revisions.get(key) !== revision) return;
+    const parsed = parseNoteFrontmatter(text);
+    if (parsed.issues.length) {
+      removeDoc(key);
+      repairs.set(key, parsed.issues);
+      publish();
+      return;
+    }
+    repairs.delete(key);
+    const doc = { ...docFromNote(stat, meta), description: parsed.value.description as string,
+      tags: parsed.value.tags as string[], aliases: parsed.value.aliases as string[] };
     docs.set(key, doc);
-    await indexNote(key, doc, meta);
+    await indexNote(key, doc, { ...meta, frontmatter: parsed.value }, text);
     rebuildLinks();
     publish();
   }
@@ -293,6 +310,7 @@ export function createCorpusStore(
 
     if (e.type === "rename") {
       const from = asVaultPath(e.from);
+      repairs.delete(from);
       const to = asVaultPath(e.to);
       const was = docs.get(from);
       if (was) {
@@ -324,6 +342,8 @@ export function createCorpusStore(
 
     // create | modify
     const path = asVaultPath(e.path);
+    removeDoc(path);
+    publish();
     if (e.type === "create") {
       const stat = await vault.stat(path);
       if (stat) {
@@ -341,6 +361,8 @@ export function createCorpusStore(
   );
   disposables.push(
     metadata.onChanged((path) => {
+      removeDoc(asVaultPath(path));
+      publish();
       void consider(asVaultPath(path));
     }),
   );
@@ -365,6 +387,7 @@ export function createCorpusStore(
 
   return {
     status: statusObs,
+    repairs: () => [...repairs].map(([path, issues]) => ({ path, issues })),
 
     reader(): CorpusReader {
       return reader;
@@ -472,6 +495,8 @@ export function createCorpusStore(
       }
       disposables.length = 0;
       docs.clear();
+      revisions.clear();
+      repairs.clear();
       frontmatterByPath.clear();
       unresolvedBySource.clear();
       textIndex.clear();

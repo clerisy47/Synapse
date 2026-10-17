@@ -15,8 +15,9 @@ writer calls supply an already authorized test gate; end-to-end local approval
 binding remains covered by the separate research-review integration suite.
 
 This is a test host, not an implementation of Obsidian's cache, locking or editor
-lifecycle. MCP HTTP endpoints are not implemented yet; add their authenticated
-client tests here when R4 lands. Live model tests must use `openrouter/free`.
+lifecycle. Authenticated MCP HTTP fixtures are covered by the integration suite. Live tests default to Bonsai through user-managed PrismML llama.cpp; OpenRouter is an explicit remote option.
+
+`Metadata/` contains ambiguous titles, useful aliases, searchable descriptions/tags, missing metadata and a deliberately misleading description. This README intentionally has no retrieval metadata and appears in the repair audit. See `docs/metadata-evaluation.md` for comparison results.
 Actual Obsidian load, UI, apply and client smoke remain final release checks in
 PLAN R5-T03/R5-T04. Existing `docs/r3-t03-review-smoke.md` and
 `docs/r3-t04-apply-smoke.md` are deferred operator checklists.

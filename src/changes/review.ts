@@ -1,4 +1,4 @@
-import { err, hashApprovalBinding, ok, synapseError, type Approval, type ApprovalBinding, type ChangeProposal, type ControlPaths, type Result } from "../core";
+import { err, parseNoteFrontmatter, hashApprovalBinding, ok, synapseError, type Approval, type ApprovalBinding, type ChangeProposal, type ControlPaths, type Result } from "../core";
 import { parseChangeProposal } from "./contracts";
 
 export type ReviewDecision = "undecided" | "accept" | "reject";
@@ -19,12 +19,13 @@ function freeze<T>(value: T): T {
 export function createReviewApproval(deps: {
   proposal: ChangeProposal;
   paths: ControlPaths;
+  repairPath?: string;
   /** Rechecks source, target, controls, editor and permission through read ports. */
   validate(): Promise<boolean>;
   /** Synchronous host/source generation, including changes during async hashing. */
   version(): string;
 }): ReviewApproval {
-  const parsed = parseChangeProposal(deps.proposal, deps.paths);
+  const parsed = parseChangeProposal(deps.proposal, deps.paths, deps.repairPath);
   const proposal = parsed.ok ? freeze(structuredClone(parsed.value)) : null;
   const version = deps.version();
   let invalid = false;
@@ -37,6 +38,7 @@ export function createReviewApproval(deps: {
   return {
     async approve(decisions) {
       if (busy || !current() || !proposal || proposal.issues.length || decisions.length !== proposal.changes.length
+        || proposal.changes.some((c) => parseNoteFrontmatter(c.after).issues.length)
         || decisions.some((d) => d !== "accept" && d !== "reject") || !decisions.includes("accept")) return refused();
       // Snapshot decisions before the first asynchronous boundary.
       const changes = proposal.changes.filter((_, i) => decisions[i] === "accept");

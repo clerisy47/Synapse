@@ -1,3 +1,5 @@
+import { BONSAI_MAX_OUTPUT, BONSAI_SAMPLING } from "../constants";
+import { MODEL_OUTPUT_JSON_SCHEMAS, type PromptKind } from "./schemas";
 /**
  * OpenRouter production request builder (DESIGN §5.4 / §5.6.1).
  * HealthChecker.full must use the same shape as every generate call.
@@ -16,7 +18,7 @@ export type OpenRouterChatRequest = {
   model: string;
   messages: OpenRouterChatMessage[];
   temperature: 0;
-  max_tokens: number;
+  max_tokens?: number;
   response_format: { type: "json_object" };
 };
 
@@ -24,7 +26,8 @@ export type BuildOpenRouterChatRequestArgs = {
   model: string;
   instructions: string;
   input: string;
-  maxTokens: number;
+  /** null leaves output length to the provider. */
+  maxTokens: number | null;
   /** Optional schema-retry feedback appended as a second user message. */
   validationFeedback?: string;
 };
@@ -47,7 +50,7 @@ export function buildOpenRouterChatRequest(
     model: args.model,
     messages,
     temperature: 0,
-    max_tokens: args.maxTokens,
+    ...(args.maxTokens === null ? {} : { max_tokens: args.maxTokens }),
     response_format: { type: "json_object" },
   };
 }
@@ -57,4 +60,15 @@ export function joinEndpoint(endpoint: string, path: string): string {
   const base = endpoint.replace(/\/+$/, "");
   const suffix = path.startsWith("/") ? path : `/${path}`;
   return `${base}${suffix}`;
+}
+
+/** Sole Prism llama.cpp request builder; grammar decoding never replaces Zod. */
+export function buildBonsaiChatRequest(args: BuildOpenRouterChatRequestArgs & { kind: PromptKind }) {
+  const base = buildOpenRouterChatRequest(args);
+  return { ...base, ...BONSAI_SAMPLING,
+    max_tokens: Math.min(args.maxTokens ?? BONSAI_MAX_OUTPUT, BONSAI_MAX_OUTPUT),
+    response_format: { type: "json_schema", json_schema: {
+      name: "synapse", strict: true, schema: MODEL_OUTPUT_JSON_SCHEMAS[args.kind],
+    } },
+  };
 }

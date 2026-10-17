@@ -10,6 +10,7 @@ import {
 import {
   createObservable,
   synapseError,
+  TransportError,
   type Clock,
   type MutableObservable,
   type Observable,
@@ -18,6 +19,7 @@ import {
 } from "../core";
 import {
   authHeaders,
+  mapBonsaiFailure,
   mapTransportFailure,
   type ModelPort,
   type OpenRouterClient,
@@ -57,6 +59,7 @@ export interface HealthChecker {
 }
 
 export type OpenRouterHealthCheckerOptions = {
+  provider?: "bonsai" | "openrouter";
   transport: Transport;
   model: ModelPort;
   endpoint: string;
@@ -68,6 +71,7 @@ export type OpenRouterHealthCheckerOptions = {
 };
 
 export class OpenRouterHealthChecker implements HealthChecker {
+  private readonly provider: "bonsai" | "openrouter";
   private readonly transport: Transport;
   private readonly model: ModelPort;
   private readonly endpoint: string;
@@ -81,6 +85,7 @@ export class OpenRouterHealthChecker implements HealthChecker {
   readonly availability: Observable<AiAvailability>;
 
   constructor(opts: OpenRouterHealthCheckerOptions) {
+    this.provider = opts.provider ?? "openrouter";
     this.transport = opts.transport;
     this.model = opts.model;
     this.endpoint = opts.endpoint;
@@ -102,7 +107,7 @@ export class OpenRouterHealthChecker implements HealthChecker {
   }
 
   async full(signal: AbortSignal): Promise<HealthReport> {
-    const base = await this.probeKey("skipped");
+    const base = await this.probeKey("skipped", signal);
     if (!base.server.ok) {
       this.publish(base);
       return base;
@@ -149,6 +154,12 @@ export class OpenRouterHealthChecker implements HealthChecker {
       return report;
     }
 
+    if (!generated.value.value.ok) {
+      const error = synapseError({ code: "SCHEMA_INVALID", message: "Model health response was negative", remediation: "schema_invalid" });
+      const report = { ...base, model: { ok: false, error }, structured: { ok: false, error } };
+      this.publish(report);
+      return report;
+    }
     const report: HealthReport = {
       ...base,
       checkedAt: this.clock.now(),
@@ -161,12 +172,13 @@ export class OpenRouterHealthChecker implements HealthChecker {
 
   private async probeKey(
     structured: HealthReport["structured"],
+    signal?: AbortSignal,
   ): Promise<HealthReport> {
     const checkedAt = this.clock.now();
-    const fingerprint = `${this.endpoint}|${this.modelId}|${this.numCtx}|openrouter`;
+    const fingerprint = `${this.endpoint}|${this.modelId}|${this.numCtx}|${this.provider}`;
     const key = this.apiKey?.trim() ?? "";
 
-    if (key.length === 0) {
+    if (this.provider === "openrouter" && key.length === 0) {
       const error = synapseError({
         code: "MODEL_HTTP_ERROR",
         message: "OpenRouter API key is missing",
@@ -184,12 +196,18 @@ export class OpenRouterHealthChecker implements HealthChecker {
 
     try {
       const res = await this.transport.getJson(
-        joinEndpoint(this.endpoint, "/key"),
+        this.provider === "bonsai" ? joinEndpoint(this.endpoint.replace(/\/v1\/?$/, ""), "/health") : joinEndpoint(this.endpoint, "/key"),
         {
           timeoutMs: this.getTimeoutMs,
-          headers: authHeaders(key),
+          ...(signal ? { signal } : {}),
+          headers: this.provider === "bonsai" ? {} : authHeaders(key),
         },
       );
+
+      if (this.provider === "bonsai" && (res.status < 200 || res.status >= 300)) {
+        const error = mapBonsaiFailure(new TransportError({ kind: "http", status: res.status, message: "Bonsai health unavailable" }));
+        return { checkedAt, fingerprint, server: { ok: false, error }, model: { ok: false, error }, structured, advisories: [] };
+      }
 
       if (res.status === 401 || res.status === 403) {
         const error = synapseError({
@@ -228,8 +246,8 @@ export class OpenRouterHealthChecker implements HealthChecker {
       if (res.status < 200 || res.status >= 300) {
         const error = synapseError({
           code: "MODEL_HTTP_ERROR",
-          message: `OpenRouter /key HTTP ${res.status}`,
-          remediation: "model_http_error",
+          message: this.provider === "bonsai" ? "Bonsai is loading or unavailable; check Prism runtime and model, then retry health." : `OpenRouter /key HTTP ${res.status}`,
+          remediation: this.provider === "bonsai" ? "bonsai_runtime" : "model_http_error",
           detail: { status: res.status },
         });
         return {
@@ -252,7 +270,7 @@ export class OpenRouterHealthChecker implements HealthChecker {
         advisories: [],
       };
     } catch (cause) {
-      const error = mapTransportFailure(cause);
+      const error = this.provider === "bonsai" ? mapBonsaiFailure(cause) : mapTransportFailure(cause);
       return {
         checkedAt,
         fingerprint,

@@ -1,5 +1,7 @@
 # R2-T02 — Editable control loaders
 
+> Historical evidence: Security.md support was removed on 2026-10-17. Use [current access contracts](control-contracts.md) for active requirements.
+
 ## Goal and implementation plan
 
 Load user-owned Instructions.md and Security.md through VaultPort without modifying

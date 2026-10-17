@@ -3,6 +3,7 @@
  * Zod is the single source; provider JSON Schema is emitted via a subset-safe walker.
  */
 
+import { NOTE_METADATA_LIMITS } from "../core";
 import { z } from "zod";
 import { CONTROL_LIMITS, PROPOSAL_LIMITS } from "../constants";
 
@@ -12,7 +13,8 @@ export type PromptKind =
   | "qa.plan"
   | "qa.select"
   | "qa.answer"
-  | "research.propose";
+  | "research.propose"
+  | "metadata.propose";
 
 /** JSON Schema keywords allowed for provider `format` (DESIGN §5.5). */
 export const ALLOWED_JSON_SCHEMA_KEYWORDS = [
@@ -80,6 +82,11 @@ export const proposalOutputSchema = z.strictObject({
     evidenceIds: z.array(z.string().max(CONTROL_LIMITS.identifierChars)).min(1).max(CONTROL_LIMITS.evidenceIds),
   })).min(1).max(PROPOSAL_LIMITS.targets),
 });
+export const metadataOutputSchema = z.strictObject({
+  description: z.string().max(NOTE_METADATA_LIMITS.description),
+  tags: z.array(z.string().max(NOTE_METADATA_LIMITS.tag)).min(1).max(NOTE_METADATA_LIMITS.tags),
+  aliases: z.array(z.string().max(NOTE_METADATA_LIMITS.alias)).max(NOTE_METADATA_LIMITS.aliases),
+});
 export type ProposalOutput = z.infer<typeof proposalOutputSchema>;
 
 export type HealthOutput = z.infer<typeof healthOutputSchema>;
@@ -88,6 +95,7 @@ export type SelectOutput = z.infer<typeof selectOutputSchema>;
 export type AnswerOutput = z.infer<typeof answerOutputSchema>;
 
 export const MODEL_OUTPUT_SCHEMAS = {
+  "metadata.propose": metadataOutputSchema,
   health: healthOutputSchema,
   "qa.plan": planOutputSchema,
   "qa.select": selectOutputSchema,
@@ -201,6 +209,7 @@ export function emitProviderJsonSchema(schema: z.ZodType): ProviderJsonSchema {
 }
 
 export const MODEL_OUTPUT_JSON_SCHEMAS: Record<PromptKind, ProviderJsonSchema> = {
+  "metadata.propose": emitProviderJsonSchema(metadataOutputSchema),
   health: emitProviderJsonSchema(healthOutputSchema),
   "qa.plan": emitProviderJsonSchema(planOutputSchema),
   "qa.select": emitProviderJsonSchema(selectOutputSchema),

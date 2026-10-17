@@ -1,18 +1,19 @@
+import { withMetadata } from "../../test/note-metadata-fixture";
 import { describe, expect, it, vi } from "vitest";
 import { RECOVERY_LIMITS } from "../constants";
 import { asVaultPath, contentHash, ok, type ApprovalBinding, type ChangeProposal, type ContentHash } from "../core";
 import { createRecoveryJournal, createReviewApproval, applyReviewedChanges } from "./index";
 import { FakeVault, MemoryStorage } from "../../test/fakes";
 
-const paths = { instructions: asVaultPath("Instructions.md"), security: asVaultPath("Security.md"), research: asVaultPath("Research.md") };
+const paths = { instructions: asVaultPath("Instructions.md"), research: asVaultPath("Research.md") };
 const hash = "a".repeat(64) as ContentHash;
 async function fixture() {
   const storage = new MemoryStorage(); const vault = new FakeVault();
   const before = await contentHash("before"); if (!before.ok) throw Error("hash");
   const binding: ApprovalBinding = { version: 1, proposalId: "proposal" as ApprovalBinding["proposalId"], instructionsHash: hash, policyHash: hash,
     batch: { id: "batch" as ApprovalBinding["batch"]["id"], source: paths.research, sourceHash: hash, selectedHash: hash, range: { start: 0, end: 5 }, provenance: "local" },
-    changes: [ { destinationId: "D1" as ApprovalBinding["changes"][number]["destinationId"], path: asVaultPath("One.md"), operation: "update", target: { exists: true, hash: before.value }, before: "before", after: "after", evidenceIds: ["E1"] },
-      { destinationId: "D2" as ApprovalBinding["changes"][number]["destinationId"], path: asVaultPath("Two.md"), operation: "create", target: { exists: false }, before: "", after: "new", evidenceIds: ["E1"] } ] };
+    changes: [ { destinationId: "D1" as ApprovalBinding["changes"][number]["destinationId"], path: asVaultPath("One.md"), operation: "update", target: { exists: true, hash: before.value }, before: "before", after: withMetadata("after"), evidenceIds: ["E1"] },
+      { destinationId: "D2" as ApprovalBinding["changes"][number]["destinationId"], path: asVaultPath("Two.md"), operation: "create", target: { exists: false }, before: "", after: withMetadata("new"), evidenceIds: ["E1"] } ] };
   vault.addNote({ path: "One.md", text: "before" });
   let now = 1;
   const restart = () => createRecoveryJournal({ storage, vault, now: () => now });
@@ -25,12 +26,12 @@ describe("durable recovery", () => {
   it.each(["before-write", "after-write", "divergent"])("reconciles %s without writing or authorizing replay", async (fault) => {
     const f = await fixture(); const id = unwrap(await f.journal.begin(f.binding));
     unwrap(await f.journal.outcome(id, 0, "pending"));
-    if (fault !== "before-write") f.vault.addNote({ path: "One.md", text: fault === "after-write" ? "after" : "edited" });
+    if (fault !== "before-write") f.vault.addNote({ path: "One.md", text: fault === "after-write" ? withMetadata("after") : "edited" });
     const restarted = f.restart();
     const records = unwrap(await restarted.reconcile());
     expect(records[0].outcomes).toEqual([fault === "before-write" ? "unchanged" : fault === "after-write" ? "applied" : "conflicted", "not-attempted"]);
     expect((await restarted.begin(f.binding)).ok).toBe(false);
-    expect(await f.vault.readText(asVaultPath("One.md"))).toBe(fault === "before-write" ? "before" : fault === "after-write" ? "after" : "edited");
+    expect(await f.vault.readText(asVaultPath("One.md"))).toBe(fault === "before-write" ? "before" : fault === "after-write" ? withMetadata("after") : "edited");
   });
   it("distinguishes created empty files from absent files", async () => {
     const f = await fixture(); const binding = { ...f.binding, changes: [{ ...f.binding.changes[1], after: "" }] };
@@ -74,7 +75,7 @@ describe("durable recovery", () => {
     const approval = unwrap(await authority.approve(["accept", "accept"]));
     const write = f.storage.writeJson.bind(f.storage); let writes = 0;
     vi.spyOn(f.storage, "writeJson").mockImplementation(async (path, data) => { if (++writes === 3) throw Error("completion fault"); await write(path, data); });
-    const apply = vi.fn(async () => { f.vault.addNote({ path: "One.md", text: "after" }); return ok(undefined); });
+    const apply = vi.fn(async () => { f.vault.addNote({ path: "One.md", text: withMetadata("after") }); return ok(undefined); });
     const result = unwrap(await applyReviewedChanges({ authority, approval, journal: f.journal, writer: { apply }, paths, signal: new AbortController().signal,
       begin: async () => ok(undefined), current: () => true, validate: async () => true, editorSnapshots: () => [], willCommit() {}, completed() {} }));
     expect(apply).toHaveBeenCalledOnce(); expect(result.outcomes.map((r) => r.status)).toEqual(["applied", "not-attempted"]);
@@ -82,13 +83,13 @@ describe("durable recovery", () => {
   });
   it("requires a new diff and refuses stale or repeated reverts", async () => {
     const f = await fixture(); const id = unwrap(await f.journal.begin(f.binding));
-    f.vault.addNote({ path: "One.md", text: "after" }); f.vault.addNote({ path: "Two.md", text: "new" });
+    f.vault.addNote({ path: "One.md", text: withMetadata("after") }); f.vault.addNote({ path: "Two.md", text: withMetadata("new") });
     unwrap(await f.journal.outcome(id, 0, "applied")); unwrap(await f.journal.outcome(id, 1, "applied"));
     const proposal = unwrap(await f.journal.revert(id, paths, hash, hash));
-    expect(proposal.changes.map((c) => [c.operation, c.before, c.after])).toEqual([["update", "after", "before"], ["update", "new", ""]]);
+    expect(proposal.changes.map((c) => [c.operation, c.before, c.after])).toEqual([["update", withMetadata("after"), "before"], ["update", withMetadata("new"), ""]]);
     f.vault.addNote({ path: "One.md", text: "user edit" });
     expect((await f.journal.revert(id, paths, hash, hash)).ok).toBe(false);
-    f.vault.addNote({ path: "One.md", text: "after" });
+    f.vault.addNote({ path: "One.md", text: withMetadata("after") });
     const revertBinding: ApprovalBinding = { ...proposal, proposalId: proposal.id };
     // Remove proposal-only fields; persisted bindings are strict.
     const { id: _id, issues: _issues, ...rest } = revertBinding as ApprovalBinding & { id: string; issues: unknown[] };
