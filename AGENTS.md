@@ -2,10 +2,9 @@
 
 Obsidian plugin: agentic Markdown vault search/chat, reviewed research-to-note updates, and policy-controlled MCP collaboration. **No embeddings, no vector DB, no telemetry.** Desktop only (`isDesktopOnly: true`).
 
-**Provider phasing (binding):**
+**Provider decision (user revision 2026-10-17, supersedes OpenRouter-first/Ollama-later):**
 
-1. **Phase A (now → feature-complete):** default LLM = **OpenRouter `openrouter/free` router**. Always use `openrouter/free` for live testing and default model selection. API key via settings or `OPENROUTER_API_KEY` (never commit `.env`).
-2. **Phase B (only after Must+Should complete):** add/validate **local Ollama**. Do not block feature work on local VRAM or Gate A.
+Default and live-test provider is local **Bonsai 2 4B PQ2_0 through PrismML llama.cpp**, numeric loopback HTTP only. Tested configuration: 127.0.0.1:18080, 4,096 context, one slot, thinking disabled. Runtime/weights are user-managed outside the repository; never launch/download on plugin load. OpenRouter remains an explicitly selected remote option with existing disclosure/policy requirements; no silent fallback. Ollama is not a Bonsai runtime substitute. Existing feature/release/host gates remain unfinished until evidenced.
 
 **Docs:** [SPEC.md](SPEC.md) · [DESIGN.md](DESIGN.md) · [PLAN.md](PLAN.md) · [PROGRESS.md](PROGRESS.md)
 
@@ -56,7 +55,7 @@ Ports-and-adapters. Layers and imports: DESIGN §2.
 - Import via each module’s **`index.ts` only** (no deep imports). `main.ts` is the sole composition root — no feature logic there.
 - **I/O only through ports** (`VaultPort`, `StoragePort`, `Transport`, …). Features never call Obsidian/Node APIs directly.
 - **Plugin state writes only via `StoragePort`** (plugin folder). User Markdown create/update only via the planned restricted `NoteWritePort` adapter after local diff approval; scoped MCP submission may append only to Research.md. Until that adapter/checker migration lands, the existing vault-write ban remains enforced. No deletion/rename or assistant updates to control files; a separate reviewed setup flow may create missing starter control files only.
-- **Network only in allowlisted transport files.** Phase A allowlist = OpenRouter API hosts; Phase B adds loopback Ollama. MCP may use a separately allowlisted authenticated local server adapter; this grants no arbitrary egress. No bare `fetch` in features; no telemetry.
+- **Network only in allowlisted transport files.** Provider allowlist = numeric loopback Bonsai and explicitly selected OpenRouter API hosts. MCP may use a separately allowlisted authenticated local server adapter; this grants no arbitrary egress. No bare `fetch` in features; no telemetry.
 - **Exclusion at ingest** (`corpus` + `policy`). Excluded notes must never appear in tools, model context, research proposals, or MCP responses. Internal access does not imply remote-model or external-client permission.
 - **Model I/O:** structured schemas only (zod); one request builder per provider; model returns bounded structured terms/enums/booleans/text/ledger or destination IDs. Proposed Markdown is untrusted; never accept model-supplied trusted paths, regex, quotes, security grants, or approval. Citations resolve from plugin-owned evidence.
 - **One model lane:** all model work through `JobQueue`. UI uses pure viewmodels + `textContent` (no `innerHTML` from untrusted text).
@@ -86,8 +85,8 @@ Ports-and-adapters. Layers and imports: DESIGN §2.
 - Never disable, skip, or weaken tests to make them pass; never delete failing tests without a real fix.
 - Never edit generated files (e.g. `recommended.generated.json`, built `main.js`) by hand — regenerate via harness/build.
 - Never commit secrets, API keys, or vault note content (`.env` is gitignored).
-- Never add embeddings, vector DBs, telemetry, autonomous note application, or runtimes beyond **OpenRouter (Phase A)** and **Ollama (Phase B)** (SPEC §3 / DESIGN §11 / ADR-21).
-- Never start Phase B local bake-off / Gate A before revised SPEC Must+Should feature-complete.
+- Never add embeddings, vector DBs, telemetry, autonomous note application, or runtimes beyond **Bonsai via PrismML llama.cpp** and **OpenRouter (explicit remote option)** (SPEC §3 / DESIGN §11 / ADR-21).
+- Bonsai integration/evaluation is authorized now; do not claim feature, quality or real-host gates complete without evidence.
 
 ---
 

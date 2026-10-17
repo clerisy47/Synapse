@@ -1,20 +1,18 @@
 # SPEC: Synapse
 
-Status: draft v2 · Revised 2026-10-14. This document replaces the previous release scope. Historical requirements are preserved under `docs/history/2026-10-14-scope-revision/` and are not binding.
+Status: draft v2 · Revised 2026-10-17. This document replaces the previous release scope. Historical requirements are preserved under `docs/history/2026-10-14-scope-revision/` and are not binding.
 
-## 0. Provider phases (binding)
+## 0. Provider decision (binding revision 2026-10-17)
 
-**Phase A — development and feature completion:** use OpenRouter `openrouter/free` for defaults and all live testing. Selected permitted vault content leaves the machine. Disclose this in settings and require first-use opt-in. Development and testing with OpenRouter are authorized; users still control exclusions and sharing settings. Never commit keys or real vault content.
+Local Bonsai 2 4B PQ2_0 through PrismML llama.cpp is the default and live-test runtime now, superseding OpenRouter-first/Ollama-later. Initial configuration: HTTP 127.0.0.1:18080, 4,096 context, one slot, thinking disabled. OpenRouter remains an explicit remote option requiring disclosure and existing access checks; never silently fall back. Ollama is not substituted. No automatic server launch, model download, embeddings, vector database or telemetry. Runtime binaries and weights stay outside the repository and release artifacts. Missing runtime must not block plugin loading.
 
-**Phase B — final local inference:** only after all Must + Should features below are implemented and verified, add and validate user-installed Ollama on loopback, then make local inference the default. No early local bake-off or dependency on local VRAM. OpenRouter may remain an explicitly enabled remote option; never silently fall back to it.
-
-No embeddings, vector database, telemetry, or automatic model downloads in either phase.
+This revision authorizes integration before feature completion; existing evaluation, host and release gates remain open. See [installation and compatibility](docs/bonsai.md).
 
 ## 1. Goal
 
 A desktop Obsidian assistant that searches Markdown notes agentically, chats with verified vault references, and turns rough research into proposed note changes using the user's formatting instructions. External frontier research agents collaborate through MCP with Synapse as the vault's policy enforcement boundary. They receive only permitted information and can submit rough research without direct vault access through Synapse.
 
-The final product uses local inference for vault reasoning. During Phase A, OpenRouter receives permitted context; this phase does not provide the final local privacy guarantee. Synapse cannot protect a vault from an external agent independently granted filesystem access by the user.
+The final product uses local inference for vault reasoning. Explicitly selected OpenRouter receives permitted context; default Bonsai inference stays local. Synapse cannot protect a vault from an external agent independently granted filesystem access by the user.
 
 ## 2. Release scope
 
@@ -64,10 +62,10 @@ The user enables an MCP connection and grants a client scoped read-disclosure an
 
 ### F1: Runtime
 
-- Default and live-test model is `openrouter/free`; health uses the production request builder. Auth, reachability, schema failure, and rate limits surface without preventing plugin load.
+- Default and live-test model is Bonsai 2 4B PQ2_0 via Prism llama.cpp; health uses the production request builder. Auth, reachability, schema failure, and rate limits surface without preventing plugin load.
 - Zod validates every model response; invalid output retries once and then fails visibly. No malformed output is treated as a successful answer or patch.
 - All model work runs through one cancellable JobQueue. Interactive chat/search takes priority over research proposals and MCP model work. Cancellation prevents late results from being applied.
-- Phase B uses loopback by default, passes the same feature suite locally, and never silently uses a remote provider.
+- Bonsai uses strict numeric loopback, bounded schema-constrained outputs and runtime validation; passes the same feature suite and never silently uses a remote provider.
 
 ### F2–F3: Agentic search and chat
 
@@ -110,10 +108,10 @@ The user enables an MCP connection and grants a client scoped read-disclosure an
 
 ## 6. Non-goals
 
-Daily resurfacing and automatic older-note suggestions; PDF ingestion, PDF text search, and page citations; contradiction/drift finding, claim extraction for flags, gutter flags, and on-save contradiction checks; embeddings/vector databases; OCR; telemetry; mobile; unrestricted external vault access; autonomous note application; deletion/rename; web browsing by Synapse; model runtimes beyond OpenRouter and Ollama.
+Daily resurfacing and automatic older-note suggestions; PDF ingestion, PDF text search, and page citations; contradiction/drift finding, claim extraction for flags, gutter flags, and on-save contradiction checks; embeddings/vector databases; OCR; telemetry; mobile; unrestricted external vault access; autonomous note application; deletion/rename; web browsing by Synapse; model runtimes beyond Bonsai via Prism llama.cpp and OpenRouter.
 
 ## 7. Remaining decisions
 
 - MCP transport and client onboarding implementation are selected in the MCP design task; the authentication and local-only requirements above are binding.
 - Exact instruction/policy frontmatter schema is frozen before implementation, including conflict messages and starter templates.
-- Phase B hardware/model recommendations are measured after feature completion.
+- Broader local hardware/model recommendations require measured evaluation; six compatibility cases do not establish workflow quality.

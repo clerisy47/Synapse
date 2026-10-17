@@ -2,10 +2,15 @@
 
 ## Current focus
 
-R5-T03 synthetic evaluation is underway; see [Phase A gate evidence](docs/r5-t03-evaluation.md). The deterministic suite passes. The latest production `openrouter/free` health probe passed after earlier failures; real Obsidian/native-client smoke and live quality evaluation remain pending. The Phase A gate is open.
-Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must + Should completion; **Phase B = local Ollama**, after validation.
+Local Bonsai 2 4B PQ2_0 through PrismML llama.cpp is now the default under the explicit 2026-10-17 user scope revision. See [integration evidence](docs/bonsai-integration.md), [quality revalidation](docs/r5-t03-evaluation.md) and [setup](docs/bonsai.md). R5-T03 remains the current feature gate: the live 40-question check passes and the operator confirmed Obsidian 1.14.4 host tests, but authenticated native MCP-client smoke remains unverified. Release validation remains pending. OpenRouter is an explicitly selected remote option; no silent fallback. The earlier OpenRouter-first/Ollama-later decision is superseded.
 
 ## Last session
+
+- 2026-10-17 delivery: Reproduced failed retrieval across all 40 live Bonsai fixtures (11/40), then measured planner guidance alone (15/40). A content-free diagnostic found grouped keywords treated as an absent literal substring. Normalizing planned keywords while preserving exact phrases and the term cap produced 40/40 expected answers with current citations (median 12.363 s; p95 14.232 s). Three new regressions cover retrieval, bounded expansion and exact phrases. Integrated tree: 926 tests passed, seven opt-in cases skipped; all required static checks/build passed. Verified the independent retrieval fix in an isolated tree (901 tests). Operator reported host tests passing on Obsidian 1.14.4, explicitly excluding authenticated MCP; keep R5-T03 open and PR #126 draft for native-client evidence. Reviewed pending Bonsai integration and retained it in separate delivery commits. Stopped the verification server. Preserve the unrelated AGENTS.md retry-rule edit.
+
+- 2026-10-17: Integrated local Bonsai as default with strict loopback transport policy, production schema builder/validation, migration/settings/health and actionable offline errors. Preserved existing AGENTS.md retry-rule edit and prior trial files. All 923 automated tests passed (5 opt-in live cases skipped); typecheck, lint (warnings only), boundaries, network/write/schema checks and build passed. Six production synthetic provider cases passed on the seeded repeat; initial exact-answer failure retained in evidence. Live production Q&A verified a current citation (9.576 s), research produced the expected fact/routed proposal without writing (5.090 s), and queued full health passed (0.961 s). A research failure that copied style text was corrected by clarifying the production prompt; the original fact assertion was retained. These are synthetic/headless checks, not real Obsidian host or full quality evidence. Runtime server stopped after checks; binaries/weights remain outside the repository.
+
+- 2026-10-17: User-requested Bonsai 2 4B compatibility trial on this 8 GiB Apple Silicon Mac passed all six synthetic schema/expected-result cases (1.4–4.6 seconds each). Added `scripts/try-bonsai.mjs` and [trial evidence](docs/bonsai-trial.md). Used production schemas/JobQueue with an isolated loopback llama.cpp server; no vault inputs or plugin provider switch. All 898 automated tests and required static/build checks passed. Full local provider integration and workflow evaluation remain outstanding; no Phase A gate closure claimed.
 
 - Removed the planning output token cap per user direction: omit `max_tokens` for planning and schema retries; retain other output limits and existing run budgets. All 898 tests, static checks and build passed. The first uncapped live check failed FORMAT_IGNORED in 3.28 seconds (finish stop, five completion tokens, zero reasoning tokens); no token exhaustion on that attempt. PR #126 remains draft pending live quality and real-host evidence.
 
@@ -30,7 +35,7 @@ Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must
 ## Known issues
 
 - `.env` previously had a trailing space in the key name and quoted value — normalized; keep `OPENROUTER_API_KEY=...` unquoted.
-- Use `openrouter/free` for all live tests and the default model (user decision 2026-10-13). The retired Qwen default returned HTTP 404; the `openrouter/free` live health probe failed with `FORMAT_IGNORED` on 2026-10-13. Automated checks pass (398 tests); no alternate live model will be used.
+- Historical provider issue (superseded by the Bonsai decision): use `openrouter/free` for all live tests and the default model (user decision 2026-10-13). The retired Qwen default returned HTTP 404; the `openrouter/free` live health probe failed with `FORMAT_IGNORED` on 2026-10-13. Automated checks pass (398 tests); no alternate live model will be used.
 - `npm run lint` targets `src` only. Supplemental `npx eslint src test` currently fails on pre-existing `@typescript-eslint/no-this-alias` at `test/fakes/fake-corpus.ts:210`; M3-T06 does not change that fake.
 - ESLint warns that `PluginSettingTab` lacks `getSettingDefinitions()` (Obsidian 1.13+ settings search); declarative settings deferred.
 

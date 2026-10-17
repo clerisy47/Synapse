@@ -1,11 +1,11 @@
 # DESIGN: Synapse
 
-Status: draft v2 · Revised 2026-10-14 · Binding input: SPEC.md v2.
+Status: draft v2 · Revised 2026-10-17 · Binding input: SPEC.md v2.
 This is the target architecture, not a claim that planned features already exist. The previous detailed design is historical under `docs/history/2026-10-14-scope-revision/`.
 
 ## 1. Product and provider phases
 
-Markdown agentic search, cited vault chat, instruction-guided research-to-note proposals, and policy-controlled MCP collaboration. Phase A uses OpenRouter `openrouter/free`; Phase B adds and defaults to local Ollama only after all Must + Should features are complete. Selected permitted context goes to OpenRouter during Phase A. No embeddings, vector DB, telemetry, PDFs, contradiction finding, or daily resurfacing.
+Markdown agentic search, cited vault chat, instruction-guided research-to-note proposals, and policy-controlled MCP collaboration. The 2026-10-17 user revision defaults to Bonsai 2 4B PQ2_0 via user-managed PrismML llama.cpp now. OpenRouter is an explicitly selected remote option; no fallback. No embeddings, vector DB, telemetry, PDFs, contradiction finding, or daily resurfacing.
 
 ## 2. Architecture
 
@@ -41,7 +41,7 @@ The port must enforce canonical path validation, file-kind restrictions, expecte
 
 ### 2.3 Network and MCP boundary
 
-Provider network APIs exist only in allowlisted transport adapters. Phase A egress is OpenRouter API hosts only; Phase B adds loopback Ollama. MCP introduces an explicitly allowlisted local server adapter with authentication and connection lifecycle. It does not add arbitrary outbound hosts. No feature uses bare fetch, filesystem APIs, or sockets.
+Provider network APIs exist only in allowlisted transport adapters. Bonsai allows HTTP numeric 127.0.0.1 only, with fixed inference/health routes, no credentials/query/fragment, no DNS aliases or redirects. Existing Node HTTP transport enforces endpoint policy and does not follow redirects. OpenRouter retains its host allowlist. MCP introduces an explicitly allowlisted local server adapter with authentication and connection lifecycle. It does not add arbitrary outbound hosts. No feature uses bare fetch, filesystem APIs, or sockets.
 
 R4-T01 selects authenticated IPv4 loopback Streamable HTTP with manually provisioned per-client bearer grants. The [MCP v1 contract](docs/contracts/mcp-v1.md) freezes transport version, strict semantic schemas, safe references, revocation, limits and lifecycle requirements. Provider credentials are never client credentials and are never exposed to clients. The [runtime adapter](docs/r4-t02-mcp-adapter-audit.md) now provides opt-in local pairing and lifecycle controls; the [collaboration facade](docs/r4-t03-collaboration-audit.md) provides intersected recipient queries with extractive masked answers and serialized, journaled inbox submission.
 
@@ -81,7 +81,7 @@ R2-T01 defines strict control schemas, canonical paths, recipient/capability dec
 
 Snapshot current access context → bounded model plan → deterministic tool search → evidence selection/read → answer → citation verification. Support follow-up retrieval when evidence is insufficient; all transitions share one hop/token/time/read budget and duplicate-call tracker. The existing Q&A pipeline is reused, then audited to prove iterative retrieval. Tool inputs/outputs, graph neighbors, traces, prompt construction, and final results all filter under current permissions.
 
-Planning has no client-imposed output token cap: omit OpenRouter `max_tokens`
+OpenRouter planning has no client-imposed output token cap: omit OpenRouter `max_tokens`
 for `qa.plan`, including schema retries. Plan structure remains schema-bounded;
 queue cancellation, transport timeouts and run hop/time/read budgets still apply.
 Selection and answer requests retain their configured output token limits.
@@ -141,7 +141,7 @@ R1-T01 removed obsolete PDF probe/build fixtures and PDF/contradiction scaffoldi
 
 ### 9.1 Test layers
 
-Unit tests for policies/routing/budgets/proposals; shared contracts for fakes and adapters; integration tests for recipient filtering, provider payloads, stale approval, write conflicts, partial recovery, MCP scopes, injection, revocation and unload. Synthetic evals measure known-answer correctness, citation validity, schema success, privacy violations and latency. Live Phase A calls use openrouter/free only; Phase B evals wait until feature completion.
+Unit tests for policies/routing/budgets/proposals; shared contracts for fakes and adapters; integration tests for recipient filtering, provider payloads, stale approval, write conflicts, partial recovery, MCP scopes, injection, revocation and unload. Synthetic evals measure known-answer correctness, citation validity, schema success, privacy violations and latency. Live default calls use the production Bonsai integration with synthetic inputs; optional cloud checks remain separately opt-in.
 
 ### 9.2 Manual evidence
 
@@ -157,7 +157,7 @@ SPEC acceptance criteria met, required tests/checks/build green, architecture an
 
 ## 10. Decisions
 
-- ADR-21 retained: OpenRouter-first feature completion, then local Ollama.
+- ADR-21 superseded by ADR-26 (user revision 2026-10-17): Bonsai 2 4B PQ2_0 via Prism llama.cpp default now; OpenRouter explicit only. No Ollama substitution.
 - ADR-22: Markdown-only release; remove PDFs/page citations and contradiction finding.
 - ADR-23: User-reviewed note creation/update via a dedicated restricted write port, superseding the old absolute no-note-editing rule.
 - ADR-24: In-vault editable formatting/security files; structured policy enforcement rather than prompt-only permissions.
@@ -165,4 +165,12 @@ SPEC acceptance criteria met, required tests/checks/build green, architecture an
 
 ## 11. Out of scope
 
-See SPEC §6. Local inference validation is a final Phase B milestone. Daily resurfacing is outside the current release scope.
+See SPEC §6. Bonsai integration is authorized now; full local quality and real-host release validation remain required. Daily resurfacing is outside the current release scope.
+
+## 12. Bonsai integration (ADR-26)
+
+`BonsaiClient` implements ModelPort using the shared OpenAI-compatible completion validator/cancellation/freshness machinery. One Bonsai builder supplies schema-constrained decoding and Prism's small-model non-thinking sampling profile explicitly. Bonsai caps every completion (including planning) at 1,024 tokens, retaining smaller caller limits; Zod validates all results and permits one schema retry. The local configuration uses 4,096 server context and one slot; settings do not resize the server. See docs/bonsai.md for compatibility and measured limitations.
+
+Composition selects Bonsai and Node HTTP transport without reading/passing cloud credentials. Health probes /health and runs the same production builder through JobQueue. Plugin load never starts a process or downloads weights. Settings migration moves legacy cloud defaults to local, preserving unrelated configuration and credentials; providerRevision=1 preserves subsequent explicit cloud selection. Custom cloud configurations remain explicit selections. No runtime failure changes providers.
+
+Conservative policy compatibility: local model context continues to require the existing internal AND `remote-model` grants and masking for chat/research/MCP. The historical recipient name describes a retained model-content restriction, not network egress. This revision does not broaden access or rewrite Security.md. External-client grants remain independent. A future policy vocabulary change needs its own migration.
