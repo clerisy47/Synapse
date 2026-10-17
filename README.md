@@ -8,16 +8,16 @@ A desktop Obsidian assistant for agentic Markdown vault search and cited chat. T
 
 OpenRouter runtime, vault tools, evidence, and sidebar chat are implemented with automated tests. Editable control files and recipient policy enforcement are implemented. Local research selection capture and its persistent provenance/processing ledger are implemented. Bounded proposal generation and local diff review/approval are implemented, with user-confirmed real Obsidian review smoke. Restricted note application, durable recovery and authenticated scoped MCP collaboration are implemented with synthetic/headless checks; actual Obsidian/client workflow validation remains at the Phase A gate. R1-T01 cleanup is complete: ingestion and citations are Markdown-only, and older settings/state drop retired feature data. PDF search/page citations, contradiction finding, and daily resurfacing are outside the revised release scope. See [SPEC.md](SPEC.md), [DESIGN.md](DESIGN.md), and [PLAN.md](PLAN.md).
 
-## Provider phases
+## Provider
 
-Phase A uses OpenRouter **`openrouter/free`** for development, testing, and feature completion. Selected permitted note content leaves the machine. Only after every Must + Should feature is complete and verified will Phase B add and default to local Ollama. No silent remote fallback is planned.
+Default inference uses local **Bonsai 2 4B PQ2_0 through PrismML llama.cpp**. See [installation, startup and troubleshooting](docs/bonsai.md). OpenRouter remains an explicit remote option; no silent fallback. Full quality and real Obsidian workflow verification remain pending.
 
 ## Requirements and development install
 
 - Obsidian desktop ≥ 1.8.7.
-- OpenRouter API key for Phase A. Dev: copy `.env.example` to `.env`, set `OPENROUTER_API_KEY`, and never commit it.
+- User-managed Prism llama.cpp runtime and Bonsai weights outside the repository; follow [Bonsai setup](docs/bonsai.md). OpenRouter needs a key only when explicitly selected.
 - Run `npm install` and `npm run build`; copy `main.js`, `manifest.json`, and `styles.css` to `<Vault>/.obsidian/plugins/vault-synapse/`.
-- Enable the plugin, configure the API key, and run health check.
+- Enable the plugin, start the local server, and run health check.
 
 ## Planned vault workflow
 
@@ -27,11 +27,11 @@ To capture research now, save the configured inbox, select nonempty material, an
 
 Run **Review research** on a saved inbox selection to choose configured destinations and an explicit daily-note date, generate complete before/after Markdown, and accept/reject each change before batch approval. Review and approvals stay in memory. After approval, **Apply approved changes** saves only the accepted subset with fresh conflict and permission checks. Closing discards unused approval and cancels remaining writes. Edits to source/targets/controls or settings invalidate review and remove its content. Per-file results distinguish applied, refused, unknown and unattempted writes; research is preserved. Attempted batches cannot be generated again. Run **Review recovery and revert** to inspect reconciled outcomes and review a fresh revert diff; a new approval and Apply are required. Reverting a created note leaves an empty Markdown file. Create destination folders yourself. See the [apply smoke checklist](docs/r3-t04-apply-smoke.md).
 
-Enable local MCP in settings and provision a bearer with explicit independent query/submission scopes. Queries use permitted OpenRouter context and return masked extractive answers with ordinal references. Submissions preserve the inbox and append quoted, unverified research; identical client/key/payload retries return the same durable receipt for 30 days. An append can invalidate its own HTTP response: initialize again and retry the same key/payload. Uncertain writes are reconciled conservatively. See the [collaboration audit](docs/r4-t03-collaboration-audit.md). External MCP clients can request permitted or masked information and submit research using granted capabilities. They cannot directly edit destination notes or approve changes. This protects access through Synapse; it cannot constrain an agent separately granted filesystem access.
+Enable local MCP in settings and provision a bearer with explicit independent query/submission scopes. Queries use permitted context through the selected provider and return masked extractive answers with ordinal references. Submissions preserve the inbox and append quoted, unverified research; identical client/key/payload retries return the same durable receipt for 30 days. An append can invalidate its own HTTP response: initialize again and retry the same key/payload. Uncertain writes are reconciled conservatively. See the [collaboration audit](docs/r4-t03-collaboration-audit.md). External MCP clients can request permitted or masked information and submit research using granted capabilities. They cannot directly edit destination notes or approve changes. This protects access through Synapse; it cannot constrain an agent separately granted filesystem access.
 
 ## Privacy
 
-- Phase A sends selected context to OpenRouter only through allowlisted transports, with first-use disclosure. Local-only privacy arrives in Phase B.
+- Bonsai inference stays on numeric loopback. Explicit OpenRouter selection sends permitted context remotely with existing disclosure and policy checks.
 - No telemetry, analytics, or update pings. Exclude notes with `vault-synapse: ignore` frontmatter or configured folder/tag rules.
 - Target-note changes require local review, approval and explicit Apply through a restricted adapter. Separately authorized MCP submissions can append only to the configured research inbox.
 - Diagnostics contain static event names only, with no exception messages, stacks, note paths, prompts, research or keys. The debug recent-notes command shows only a policy-filtered count.
@@ -54,3 +54,5 @@ current-policy Q/A pairs when multi-turn is enabled. Details and representation
 limits are in [control contracts](docs/control-contracts.md).
 
 Research proposals and chat history stay in memory. The research ledger retains bounded batch hashes, source paths and processing outcomes (no research body); MCP receipts retain hashes and inbox paths for 30 days, with unresolved intents retained. MCP grants persist hashed bearers until revoked or cleared. Settings, including a configured API key, live in `data.json` and may also be synced or backed up. Chat, research generation and MCP queries can send permitted/masked context, questions and recent chat history to OpenRouter and its routed provider; review/apply/revert and MCP inbox submission do not require model egress. No telemetry is sent.
+
+Local Bonsai retains the existing `remote-model` permission and masking checks as an additional model-content restriction. Grant those permissions explicitly in Security.md to use evidence; local inference does not rewrite or bypass policy. Runtime binaries/weights are never release artifacts.

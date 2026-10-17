@@ -1,6 +1,130 @@
 # R5-T03 Phase A evaluation evidence
 
-Measured 2026-10-16. The Phase A feature-complete gate remains open.
+Measured initially 2026-10-16; revalidated 2026-10-17. The Phase A feature-complete gate remains open.
+
+## Current provider and delivery revalidation — 2026-10-17
+
+The user-directed provider revision supersedes the OpenRouter requirements in
+the historical results below. Default/live validation now uses local Bonsai 2
+4B PQ2_0 through PrismML llama.cpp, numeric loopback only. OpenRouter remains
+an explicitly selected remote option, with no silent fallback.
+
+Revalidated the existing working tree on `test/r5-t03-phase-a-evaluation`:
+923 automated tests passed, five opt-in live tests were skipped; typecheck,
+lint (26 warnings, zero errors), boundaries, network/write/schema checks and
+production build passed. The scripted evaluation again had 40/40 expected
+answers and 40/40 valid citations.
+
+Explicitly started the existing external runtime with one slot, 4,096 context,
+thinking disabled and alias `bonsai-2-4b` on `127.0.0.1:18080`. Ran
+`SYNAPSE_LIVE_BONSAI=1 npm run test:live:bonsai` sequentially:
+
+| Production synthetic workflow | Result | Elapsed |
+|---|---|---|
+| Q&A retrieval and current evidence citation | Correct answer and valid citation; three model calls | 11.467 s |
+| Queued full health | Ready | 0.875 s |
+| Research proposal and daily routing | Valid proposal and correct fact; no application | 4.756 s |
+
+All three selected live tests passed; 49 unrelated cases were filtered out by
+the live command. No cloud provider was called. These are individual smoke
+measurements, not a full live quality evaluation or latency distribution.
+
+Then ran all 40 existing known-answer fixtures with the production Bonsai
+pipeline rather than scripted HTTP completions:
+
+```sh
+SYNAPSE_LIVE_BONSAI_QUALITY=1 npx vitest run test/integration/pipeline-e2e.test.ts -t 'Bonsai live known-answer quality evaluation'
+```
+
+| Live quality measurement | Result |
+|---|---|
+| Completed questions | 40 |
+| Expected answers | 11/40 (27.5%) |
+| Questions with expected answer and current expected-evidence citation | 11/40 (27.5%) |
+| Median / nearest-rank 95th percentile elapsed time | 14.097 / 19.150 seconds |
+| Quality test | Failed; expected all 40 known answers |
+
+The citation count here measures successful questions, not the validity rate
+among all emitted citations. It does not establish that the other 29 questions
+emitted invalid citations. All 40 pipeline calls returned successful Result
+values, but only 11 met the independent expected-answer and citation checks.
+No provider content was logged. Synthetic allowed/excluded notes remained
+unchanged and excluded sentinels were absent from checked results/events.
+The initial full run did not inspect outgoing Bonsai payloads; payload sentinel
+assertions and content-free status/tool-count diagnostics were subsequently
+added to the local harness. No full live adversarial/privacy result is claimed.
+
+The first failed fixture was repeated with content-free diagnostics after the
+required retry interval: `insufficient`, three model calls, zero reads, and
+zero results from both `search_text` and `search_by_title` (11.959 seconds).
+This narrows that case to failed retrieval, not proof of a general cause for
+all failures. Clarified production planning guidance: body search uses literal
+terms, starts with a distinctive entity/topic rather than question wording or
+possessive suffixes, and differs from title-only search.
+
+The unchanged diagnostic fixture then passed in 11.555 seconds: answered,
+three model calls and one read. A second text search found one result after
+the first returned none. This is a targeted improvement, not full quality
+gate evidence by itself.
+
+The full 40-case rerun with that guidance still failed: **15/40** expected
+answers with current expected-evidence citations (37.5%), median **10.016 s**,
+nearest-rank p95 **13.168 s**. In this run the 25 unsuccessful cases returned
+`insufficient` after zero-result searches and no reads. The outgoing-payload
+sentinel assertions also ran without failing. These two single runs do not
+establish reliability or a causal latency improvement. The guidance is a
+partial improvement only; model retrieval quality remains below the gate.
+
+A second-fixture diagnostic identified a two-word planned `terms` entry that
+did not literally occur in the note. It returned insufficient in 9.998 seconds.
+The pipeline now splits whitespace-separated planned keywords, deduplicates
+them, retains the six-term cap, and preserves exact `phrases`. Two regression
+cases failed before the fix and passed afterward; a third verifies that an
+absent exact phrase does not become separate keyword matches. The unchanged
+live second fixture then passed in 12.383 seconds with a current evidence read.
+All 926 automated tests passed (seven opt-in cases skipped), required static
+checks and build passed. Full live revalidation follows below.
+
+Verified committed retrieval fix `1550e53` in an isolated detached worktree
+without the pending Bonsai integration: **901 tests passed**, two opt-in cases
+skipped; typecheck, lint (26 warnings, zero errors), boundaries,
+network/write/schema checks and production build passed. The separate
+926-test workspace result includes the pending integration. The worktree
+verification establishes that the self-contained fix also passes independently.
+
+The ordinary suite passed after adding the quality/diagnostic harness and
+planner guidance: 923 passed, seven opt-in cases skipped; all required static
+checks and build passed. The live quality assertions were retained; no
+parser, expected fact, threshold or run budget was relaxed to obtain a pass.
+
+The final full live rerun with keyword normalization **passed: 40/40 expected
+answers and 40/40 questions with a current expected-evidence citation**.
+Median elapsed time was **12.363 seconds**, nearest-rank p95 **14.232 seconds**;
+the sequential test took 492.272 seconds overall. All 40 production pipeline
+results passed runtime validation. Checked requests/results/events contained
+no excluded sentinel/path, and both fixture notes remained unchanged for every
+question. This measures this synthetic single-fact dataset, not every possible
+input or the validity of every additional citation a model might emit.
+Automated checks overlapped portions of the live runs; timings are observational,
+not a controlled benchmark or reliability/hardware-floor claim.
+
+The integration and harness began as pending local changes and were reviewed
+and included in separate delivery commits, together with the retrieval fix and
+its regressions. The earlier isolated 901-test result predates those integration
+commits; the final integrated tree has 926 passing automated tests. The unrelated
+AGENTS.md retry-rule edit remains uncommitted. Runtime and weights remain external;
+the explicitly started verification server was stopped after the checks.
+
+The operator confirmed that the Obsidian host tests passed on **1.14.4**.
+This is operator-reported evidence; this session has no desktop-control tool
+to independently repeat those checks. The operator clarified that the passing
+tests did **not** include authenticated MCP workflows. Native MCP query and
+research submission therefore remain unverified; no MCP client/version or
+passing native-client result is claimed.
+
+R5-T03 remains IN_PROGRESS and PR #126 remains draft. The 40-question live
+quality check now passes, but authenticated native MCP-client evidence remains
+required. Passing headless checks does not establish native-client interoperability.
 
 ## Reproduce
 
