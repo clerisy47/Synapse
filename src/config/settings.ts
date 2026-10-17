@@ -48,7 +48,7 @@ const logLevelSchema = z.enum(["debug", "info", "warn", "error"]);
 
 /** Strict schema for a fully normalized Settings object. */
 export const settingsSchema: z.ZodType<Settings> = z.object({
-  controlPaths: z.object({ instructions: z.string(), security: z.string(), research: z.string() }).transform((value, ctx) => {
+  controlPaths: z.object({ instructions: z.string(), research: z.string() }).transform((value, ctx) => {
     const parsed = validateControlPaths(value);
     if (parsed.ok) return parsed.value;
     ctx.addIssue({ code: "custom", message: "Invalid control paths" });
@@ -78,8 +78,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function parseControlPaths(value: unknown, defaults: ControlPaths): ControlPaths {
-  if (!isPlainObject(value) || typeof value.instructions !== "string" || typeof value.security !== "string" || typeof value.research !== "string") return { ...defaults };
-  const parsed = validateControlPaths({ instructions: value.instructions, security: value.security, research: value.research });
+  if (!isPlainObject(value) || typeof value.instructions !== "string" || typeof value.research !== "string") return { ...defaults };
+  const parsed = validateControlPaths({ instructions: value.instructions, research: value.research });
   return parsed.ok ? parsed.value : { ...defaults };
 }
 

@@ -10,7 +10,7 @@
 
 The frontmatter uses JSON syntax within YAML frontmatter. Set `timezone` to your
 IANA timezone (for example `Asia/Kathmandu`). Routing settings are deterministic;
-style prose never grants permissions or overrides Security.md.
+style prose never grants permissions or overrides exclusions and local review.
 
 For daily-log research, resolve an explicit calendar date in the configured
 timezone before proposing `Daily/YYYY-MM-DD.md`. Ask for a date when ambiguous.

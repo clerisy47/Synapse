@@ -39,7 +39,7 @@ export function createCollaboration(o: { storage: StoragePort; environment(): Co
     let editors: { path: string; text: string }[] = [];
     const validate = async () => {
       if (!current() || !await controlsCurrent(e)) return false;
-      editors = await Promise.all([e.paths.instructions, e.paths.security].map(async (path) => ({ path, text: await e.vault.readText(path) })));
+      editors = await Promise.all([e.paths.instructions].map(async (path) => ({ path, text: await e.vault.readText(path) })));
       if (!await controlsCurrent(e)) return false;
       const meta = e.metadata.get(e.paths.research);
       return current() && evaluateAccessContract(e.policy, {
@@ -114,7 +114,7 @@ export function createCollaboration(o: { storage: StoragePort; environment(): Co
 /** Exact disk checks supplement synchronous host-event invalidation. */
 export async function controlsCurrent(e: CollaborationEnvironment): Promise<boolean> {
   const files = await e.vault.listFiles();
-  for (const [path, expected] of [[e.paths.security, e.policy.hash], [e.paths.instructions, e.instructions.hash]] as const) {
+  for (const [path, expected] of [[e.paths.instructions, e.instructions.hash]] as const) {
     const matches = files.filter((f) => f.path.toLowerCase() === path.toLowerCase());
     if (matches.length !== 1 || matches[0].path !== path) return false;
     const text = await e.vault.readText(path);

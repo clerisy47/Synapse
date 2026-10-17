@@ -1,8 +1,11 @@
 /**
  * Node `http`/`https` Transport (DESIGN §5.2, ADR-02).
- * Guarded dynamic import — only this file (+ requestUrl later) may open sockets.
+ * CommonJS-compatible imports for Obsidian's desktop plugin loader.
+ * Only allowlisted transport adapters may open sockets.
  */
 
+import * as http from "http";
+import * as https from "https";
 import {
   TransportError,
   type Transport,
@@ -16,23 +19,7 @@ export type NodeHttpTransportOptions = {
   checkEndpoint?: EndpointChecker;
 };
 
-type HttpModules = {
-  http: typeof import("http");
-  https: typeof import("https");
-};
-
 const ERROR_BODY_CLIP = 200;
-
-let modulesPromise: Promise<HttpModules> | undefined;
-
-async function loadHttpModules(): Promise<HttpModules> {
-  if (!modulesPromise) {
-    modulesPromise = Promise.all([import("http"), import("https")]).then(
-      ([http, https]) => ({ http, https }),
-    );
-  }
-  return modulesPromise;
-}
 
 export class NodeHttpTransport implements Transport {
   readonly capabilities: TransportCapabilities = {
@@ -57,9 +44,8 @@ export class NodeHttpTransport implements Transport {
     this.assertEndpoint(url);
     throwIfAborted(o.signal);
 
-    const mods = await loadHttpModules();
     const parsed = parseUrl(url);
-    const lib = parsed.protocol === "https:" ? mods.https : mods.http;
+    const lib = parsed.protocol === "https:" ? https : http;
     const headers = { Accept: "application/json", ...o.headers };
 
     return new Promise((resolve, reject) => {
@@ -171,9 +157,8 @@ export class NodeHttpTransport implements Transport {
     this.assertEndpoint(url);
     throwIfAborted(o.signal);
 
-    const mods = await loadHttpModules();
     const parsed = parseUrl(url);
-    const lib = parsed.protocol === "https:" ? mods.https : mods.http;
+    const lib = parsed.protocol === "https:" ? https : http;
     const payload = JSON.stringify(body);
 
     const queue: unknown[] = [];

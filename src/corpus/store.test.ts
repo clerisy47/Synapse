@@ -1,3 +1,4 @@
+import { withMetadata } from "../../test/note-metadata-fixture";
 /**
  * CorpusStore warm + exclusion-at-ingest (M2-T02).
  */
@@ -166,7 +167,7 @@ describe("CorpusStore", () => {
     const { vault, metadata, store } = setup();
     vault.addNote({
       path: "Notes/Idea.md",
-      text: "body",
+      text: withMetadata("body", { aliases: ["Alt", "Other"], tags: ["project"] }),
       mtime: 10,
       ctime: 5,
     });
@@ -220,7 +221,7 @@ describe("CorpusStore", () => {
 
   it("keeps unparsed metadata out until onChanged", async () => {
     const { vault, metadata, store } = setup();
-    vault.addNote({ path: "Notes/late.md", text: "hi" });
+    vault.addNote({ path: "Notes/late.md", text: withMetadata("hi", { tags: ["ok"] }) });
     // no metadata yet
 
     await store.warm();
@@ -332,7 +333,7 @@ describe("CorpusStore", () => {
 
   it("maintains text/title/tag indexes for allowed notes", async () => {
     const { vault, metadata, store } = setup();
-    vault.addNote({ path: "Notes/Idea.md", text: "hello Synapse body" });
+    vault.addNote({ path: "Notes/Idea.md", text: withMetadata("hello Synapse body", { tags: ["project/x"], aliases: ["Alt"] }) });
     metadata.set("Notes/Idea.md", {
       frontmatter: { aliases: ["Alt"] },
       tags: ["project/x"],
@@ -345,7 +346,7 @@ describe("CorpusStore", () => {
     expect(idx.text.has(path)).toBe(true);
     expect(idx.title.search("Idea").map((h) => h.path)).toContain(path);
     expect(idx.tag.pathsForTag("project")).toContain(path);
-    expect(store.getFrontmatter(path)).toEqual({ aliases: ["Alt"] });
+    expect(store.getFrontmatter(path)).toMatchObject({ aliases: ["Alt"], tags: ["project/x"], description: "Synthetic note subject and scope." });
     expect(store.reader().status().bytesCached).toBeGreaterThan(0);
     store.dispose();
   });
@@ -366,7 +367,7 @@ describe("CorpusStore", () => {
       clock,
       sliceMs: 10,
     });
-    vault.addNote({ path: "Open/a.md", text: "link" });
+    vault.addNote({ path: "Open/a.md", text: withMetadata("link") });
     vault.addNote({ path: "Private/secret.md", text: "hidden" });
     metadata.set("Open/a.md", noteMeta());
     metadata.set("Private/secret.md", noteMeta());
@@ -385,7 +386,7 @@ describe("CorpusStore", () => {
 
   it("drops secondary indexes when a note is excluded later", async () => {
     const { vault, metadata, store } = setup();
-    vault.addNote({ path: "n.md", text: "body" });
+    vault.addNote({ path: "n.md", text: withMetadata("body", { tags: ["ok"] }) });
     metadata.set("n.md", noteMeta({ tags: ["ok"] }));
     await store.warm();
     const path = asVaultPath("n.md");

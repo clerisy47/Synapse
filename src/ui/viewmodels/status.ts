@@ -6,7 +6,7 @@
 
 import type { ErrorCode, SynapseError } from "../../core";
 import type { QueueStatus } from "../../jobs";
-import { ACTIONS, ERROR_NOTICES, REMEDIATION, STATUS } from "../strings/en";
+import { METADATA, ACTIONS, ERROR_NOTICES, REMEDIATION, STATUS } from "../strings/en";
 import { interpolate } from "../strings/t";
 
 /** Codes that surface a Retry action on the notice (DESIGN §5.3 / AC-M1.8). */
@@ -24,6 +24,7 @@ const SILENT_CODES: ReadonlySet<ErrorCode> = new Set(["CANCELLED", "NOT_FOUND"])
 export interface IndexBarStatus {
   phase: "warming" | "ready";
   indexedNotes: number;
+  metadataAttention?: number;
   totalNotes: number;
 }
 
@@ -150,5 +151,6 @@ export function toMergedStatusVm(
       cssModifier: "indexing",
     };
   }
+  if (index?.metadataAttention) return { ...queueVm, barText: `${queueVm.barText} · ${METADATA.count(index.metadataAttention)}` };
   return queueVm;
 }

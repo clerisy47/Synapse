@@ -206,7 +206,7 @@ it("rejects conflicting control paths visibly and applies canonical paths", () =
   const invalidControlPaths = vi.fn();
   const dispose = mountSettingsPanel({ host, settings: store, actions: { applyPatch, invalidControlPaths } });
   const field = host.fields.find((value) => value.key === "instructions")!;
-  field.onChange("synapse/security.md");
+  field.onChange("research.md");
   expect(invalidControlPaths).toHaveBeenCalledOnce();
   expect(applyPatch).not.toHaveBeenCalled();
   field.onChange("Config\\Style.md");

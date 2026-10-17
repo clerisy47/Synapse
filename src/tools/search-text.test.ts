@@ -54,6 +54,18 @@ function fixtureCorpus(): FakeCorpus {
 }
 
 describe("search_text (AC-M2.1)", () => {
+  it("keeps complete bounded supporting paragraphs near an early match", async () => {
+    const paragraph = "Random forest combines decision trees. " + "Training uses random samples and features. ".repeat(5) + "Averaging reduces variance, with memory and interpretation costs.";
+    const corpus = new FakeCorpus([{ path: "forest.md", title: "Forest", text: paragraph + "\n\nUnrelated paragraph." }]);
+    const out = await registryFor(corpus.asDeps()).invoke("search_text", { terms: ["Random forest"] }, { signal: abortSignal() });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    const excerpt = (out.data as SearchTextResult).hits[0]?.excerpts[0];
+    expect(excerpt?.text).toBe(paragraph);
+    expect(excerpt?.locator).toMatchObject({ start: 0, end: paragraph.length });
+    expect(excerpt?.text.length).toBeLessThanOrEqual(600);
+  });
+
   it("typical: returns ranked hits with excerpts", async () => {
     const corpus = fixtureCorpus();
     const reg = registryFor(corpus.asDeps());
@@ -299,4 +311,15 @@ describe("read_note (AC-M2.1)", () => {
       expect(excluded.error.code).toBe("NOT_FOUND");
     }
   });
+});
+
+
+it("keeps metadata discovery inside the shared search time budget", async () => {
+  const clock = new FakeClock();
+  const corpus = new FakeCorpus([{ path: "Note.md", text: "Body", aliases: ["alternative"] }], { clock });
+  const deps = corpus.asDeps();
+  const search = createSearchTextHandler({ ...deps, scanText: async () => { clock.advance(3000); return { hits: [], truncated: false }; } });
+  const out = await search({ terms: ["alternative"], phrases: [], limit: 6 }, { signal: abortSignal() });
+  expect(out.ok).toBe(true);
+  if (out.ok) { expect((out.data as SearchTextResult).hits).toEqual([]); expect(out.truncated).toBe(true); }
 });

@@ -1,3 +1,5 @@
+import { mountMetadataView } from "./ui";
+import { METADATA } from "./ui/strings/en";
 /**
  * Composition root (DESIGN §2 / §6.1). Wiring only — no feature logic.
  * M1-T16 + M2-T10: adapters → config/state → corpus/tools → llm/jobs → UI.
@@ -81,8 +83,8 @@ import {
   type HealthReport,
 } from "./llm";
 import { bindToolAccess, guardToolRegistry, createPermittedTextReader, type ToolReadAccess } from "./tools";
-import { createAccessRuntime, createEndpointPolicy, createExclusionPolicy, guardNavigation, intersectReadSessions, type AccessRuntime } from "./policy";
-import { createResearchInbox, createResearchReviewSession, type ResearchInbox } from "./research";
+import { DEFAULT_ACCESS_POLICY, createAccessRuntime, createEndpointPolicy, createExclusionPolicy, guardNavigation, intersectReadSessions, type AccessRuntime } from "./policy";
+import { createMetadataRepair, createResearchInbox, createResearchReviewSession, type ResearchInbox } from "./research";
 import { createPrivacyStorage, loadStateStore, mergeResearchLedgers, type StateStore } from "./state";
 import {
   SEARCH_TEXT_BUDGET_MS,
@@ -377,6 +379,7 @@ export default class VaultSynapsePlugin extends Plugin {
   private recovery: RecoveryJournal | null = null;
   private reviewSession: ((revertId?: string) => ReviewRunner | null) | null = null;
   private closeReview: Disposable | null = null;
+  private metadataRepair: ((path: VaultPath) => ReturnType<typeof createMetadataRepair> | null) | null = null;
   private corpus: CorpusStore | null = null;
   private toolDeps: CoreToolDeps | null = null;
   private access: AccessRuntime | null = null;
@@ -423,6 +426,7 @@ export default class VaultSynapsePlugin extends Plugin {
       // ignore
     }
     this.reviewSession = null;
+    this.metadataRepair = null;
     this.research?.dispose();
     this.research = null;
     this.recovery = null;
@@ -499,9 +503,9 @@ export default class VaultSynapsePlugin extends Plugin {
       const tools = this.toolDeps;
       const lane = this.lane;
       const activeNote = this.activeNote;
-      if (this.unloaded || !access || !tools || !lane || !activeNote || status?.security.status !== "ready" || status.instructions.status !== "ready") return null;
+      if (this.unloaded || !access || !tools || !lane || !activeNote || status?.instructions.status !== "ready") return null;
       return { vault, metadata: createObsidianMetadataFromApp(this.app), activeNote, access, tools, jobs, model: lane.client,
-        paths: settings.controlPaths, policy: status.security.snapshot, instructions: status.instructions.snapshot,
+        paths: settings.controlPaths, policy: DEFAULT_ACCESS_POLICY, instructions: status.instructions.snapshot,
         exclusion: createExclusionPolicy({ folders: settings.excludedFolders, tags: settings.excludedTags,
           frontmatterKey: EXCLUSION_FRONTMATTER_KEY, frontmatterValue: EXCLUSION_FRONTMATTER_VALUE }), registry: (readAccess) => buildToolRegistry(tools, readAccess),
         appender: (gate) => createObsidianResearchAppenderFromApp(this.app, settings.controlPaths, gate),
@@ -571,7 +575,7 @@ export default class VaultSynapsePlugin extends Plugin {
       getDoc: (path) => corpus.reader().get(path),
       getFrontmatter: (path) => corpus.getFrontmatter(path),
       listDocs: () => corpus.reader().list(),
-      policy: () => { const state = controls.status.get().security; return state.status === "ready" ? state.snapshot : null; },
+      policy: () => DEFAULT_ACCESS_POLICY,
       subscribePolicy: (callback) => controls.status.subscribe(callback),
     });
     this.reviewSession = (revertId) => {
@@ -588,18 +592,27 @@ export default class VaultSynapsePlugin extends Plugin {
           frontmatterKey: EXCLUSION_FRONTMATTER_KEY, frontmatterValue: EXCLUSION_FRONTMATTER_VALUE }),
         controls: () => {
           const status = controls.status.get();
-          return status.instructions.status === "ready" && status.security.status === "ready"
-            ? { instructions: status.instructions.snapshot, policy: status.security.snapshot } : null;
+          return status.instructions.status === "ready"
+            ? { instructions: status.instructions.snapshot, policy: DEFAULT_ACCESS_POLICY } : null;
         },
         version: () => this.lane === lane && this.controls === controls && this.research === inbox ? "current" : "retired",
         subscribeSettings: (callback) => config.subscribe(callback),
         subscribeControls: (callback) => controls.status.subscribe(callback),
       });
     };
+    this.metadataRepair = (path) => {
+      const lane = this.lane, jobs = this.jobs, activeNote = this.activeNote, config = this.config;
+      if (!lane || !jobs || !activeNote || !config) return null;
+      return createMetadataRepair({ path, paths: settings.controlPaths, vault, metadata, activeNote, jobs, model: lane.client,
+        writer: createObsidianNoteWriterFromApp(this.app), exclusion: createExclusionPolicy({ folders: settings.excludedFolders, tags: settings.excludedTags, frontmatterKey: EXCLUSION_FRONTMATTER_KEY, frontmatterValue: EXCLUSION_FRONTMATTER_VALUE }),
+        version: () => `${this.corpus === corpus && this.lane === lane ? "current" : "retired"}:${DEFAULT_ACCESS_POLICY.hash}:${JSON.stringify(config.get())}:${controls.status.get().instructions.status === "ready" ? JSON.stringify(controls.status.get()) : "no-instructions"}`,
+        subscribe: (callback) => { const a = config.subscribe(callback), b = controls.status.subscribe(callback); return () => { a(); b(); }; },
+      });
+    };
     const access = this.access;
     const updateIndexStatus = () => {
       const count = access.internalCount();
-      this.indexStatus.set({ phase: corpus.status.get().phase, indexedNotes: count, totalNotes: count, bytesCached: 0 });
+      this.indexStatus.set({ phase: corpus.status.get().phase, indexedNotes: count, totalNotes: count, bytesCached: 0, metadataAttention: corpus.repairs().length });
     };
     updateIndexStatus();
     this.indexStatusUnsub = corpus.status.subscribe(updateIndexStatus);
@@ -742,12 +755,11 @@ export default class VaultSynapsePlugin extends Plugin {
   private async debugListRecent(): Promise<void> {
     const deps = this.toolDeps;
     const runtime = this.access;
-    const security = this.controls?.status.get().security;
-    if (!deps || !runtime || security?.status !== "ready") {
+    if (!deps || !runtime) {
       new Notice(`${PLUGIN_NAME}: tools not ready.`);
       return;
     }
-    const access = runtime.open({ recipient: "internal", purpose: "search", policyHash: security.snapshot.hash }, "raw-tools");
+    const access = runtime.open({ recipient: "internal", purpose: "search", policyHash: DEFAULT_ACCESS_POLICY.hash }, "raw-tools");
     const tools = buildToolRegistry(deps, access);
     const ac = new AbortController();
     const outcome = await tools.invoke(
@@ -830,16 +842,14 @@ export default class VaultSynapsePlugin extends Plugin {
       const lane = this.lane;
       const deps = this.toolDeps;
       const runtime = this.access;
-      const security = this.controls?.status.get().security;
       const corpus = this.corpus;
       const vault = this.vault;
       const settings = this.config?.get();
       if (!lane || !deps || !runtime || !corpus || !vault || !settings) {
         return Promise.resolve(err(synapseError({ code: "INTERNAL", message: "Q&A unavailable" })));
       }
-      if (security?.status !== "ready") return Promise.resolve(err(synapseError({ code: "ACCESS_DENIED", message: "Security policy unavailable" })));
-      const internal = runtime.open({ recipient: "internal", purpose: "chat", policyHash: security.snapshot.hash }, "raw-tools");
-      const remote = runtime.open({ recipient: "remote-model", purpose: "chat", policyHash: security.snapshot.hash }, "evidence");
+      const internal = runtime.open({ recipient: "internal", purpose: "chat", policyHash: DEFAULT_ACCESS_POLICY.hash }, "raw-tools");
+      const remote = runtime.open({ recipient: "remote-model", purpose: "chat", policyHash: DEFAULT_ACCESS_POLICY.hash }, "evidence");
       const access = intersectReadSessions(internal, remote);
       const tools = buildToolRegistry(deps, access);
       return createQaPipeline({
@@ -858,9 +868,8 @@ export default class VaultSynapsePlugin extends Plugin {
       resolveAnchor(text, { quote, hintStart, hintLine: 0, textHash: "" }));
     const navigation = guardNavigation(rawNavigation, () => {
       const runtime = this.access;
-      const security = this.controls?.status.get().security;
-      if (!runtime || security?.status !== "ready") return null;
-      return runtime.open({ recipient: "internal", purpose: "chat", policyHash: security.snapshot.hash }, "raw-tools");
+      if (!runtime) return null;
+      return runtime.open({ recipient: "internal", purpose: "chat", policyHash: DEFAULT_ACCESS_POLICY.hash }, "raw-tools");
     });
     this.registerView(VIEW_TYPE_CHAT, createChatItemViewFactory({
       viewType: VIEW_TYPE_CHAT,
@@ -884,9 +893,17 @@ export default class VaultSynapsePlugin extends Plugin {
 
   private registerCommands(jobs: JobQueue, openChat: () => Promise<void>): void {
     try {
+      let closeMetadata: Disposable | null = null;
+      this.addCommand({ id: "review-note-metadata", name: METADATA.command, callback: () => {
+        closeMetadata?.();
+        closeMetadata = showResearchReview(this.app, (el, close) => mountMetadataView(el, {
+          repairs: () => this.corpus?.repairs() ?? [], create: (path) => this.metadataRepair?.(path) ?? null, close,
+        }), () => { closeMetadata = null; });
+      } });
+      this.disposables.push(() => closeMetadata?.());
       this.addCommand({ id: "control-file-status", name: CONTROLS.statusCommand, callback: () => {
         const state = this.controls?.status.get();
-        if (state) presentObsidianNotice({ message: CONTROLS.status(state.instructions.status, state.security.status) });
+        if (state) presentObsidianNotice({ message: CONTROLS.status(state.instructions.status) });
       } });
       this.addCommand({ id: "review-control-setup", name: CONTROLS.setupCommand, callback: () => {
         const controls = this.controls;

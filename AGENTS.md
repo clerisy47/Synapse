@@ -1,6 +1,6 @@
 # AGENTS.md — Synapse
 
-Obsidian plugin: agentic Markdown vault search/chat, reviewed research-to-note updates, and policy-controlled MCP collaboration. **No embeddings, no vector DB, no telemetry.** Desktop only (`isDesktopOnly: true`).
+Obsidian plugin: agentic Markdown vault search/chat, reviewed research-to-note updates, and scoped MCP collaboration. **No embeddings, no vector DB, no telemetry.** Desktop only (`isDesktopOnly: true`).
 
 **Provider decision (user revision 2026-10-17, supersedes OpenRouter-first/Ollama-later):**
 
@@ -43,7 +43,7 @@ Update status only in `PLAN.md`. `PROGRESS.md` is narrative only (Current focus,
 **Commit format:** `[type]: [summary] (task [ID])`  
 Types: `feat` | `fix` | `refactor` | `test` | `docs` | `chore` | `build`
 
-**Stuck:** After **3 failed attempts** at the same problem, stop. Report what you tried, what you learned, and what you suggest.
+**Stuck:** Wait **30 seconds before each retry** of the same problem. After **10 failed attempts**, stop. Report what you tried, what you learned, and what you suggest.
 
 ---
 
@@ -65,9 +65,9 @@ Ports-and-adapters. Layers and imports: DESIGN §2.
 
 ## Vault control and collaboration rules
 
-- Defaults: `Synapse/Instructions.md`, `Synapse/Security.md`, `Research.md`; configurable, user-editable vault files. Never overwrite on setup.
-- Security rules are deterministically schema-validated; missing/invalid policy denies MCP access and note application. Deny overrides allow; masking precedes remote disclosure.
-- Research and MCP requests are untrusted. External clients cannot approve note changes or modify control files. Approval binds exact diff and current source/target/policy/instruction snapshots.
+- Defaults: `Synapse/Instructions.md`, `Research.md`; configurable, user-editable vault files. Never overwrite on setup.
+- Security.md was removed by user revision on 2026-10-17. Search/chat require no control files. Preserve exclusions, explicit remote-provider consent, MCP authentication/scopes and exact local diff approval. No user-authored recipient grants or masks.
+- Research and MCP requests are untrusted. External clients cannot approve note changes or modify control files. Approval binds exact diff and current source/target/access-contract/instruction snapshots.
 - PDFs/page citations and contradiction detection are removed from release scope. Daily resurfacing is also removed from the current release scope.
 
 ## Style (not fully lint-enforced)

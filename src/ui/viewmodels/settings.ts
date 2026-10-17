@@ -18,7 +18,7 @@ export const HEALTH_INVALIDATING_KEYS = [
 export type HealthInvalidatingKey = (typeof HEALTH_INVALIDATING_KEYS)[number];
 
 export type SettingsFieldKey =
-  | "instructions" | "security" | "research"
+  | "instructions" | "research"
   | "endpoint"
   | "apiKey"
   | "model"
@@ -143,7 +143,7 @@ export function toSettingsVm(settings: Settings): SettingsVm {
   }
 
   const fields: SettingsFieldVm[] = [
-    ...(["instructions", "security", "research"] as const).map((key) => ({ key, label: CONTROLS.labels[key], description: CONTROLS.description, value: settings.controlPaths[key] })),
+    ...(["instructions", "research"] as const).map((key) => ({ key, label: CONTROLS.labels[key], description: CONTROLS.description, value: settings.controlPaths[key] })),
     {
       key: "endpoint",
       label: SETTINGS.endpoint,

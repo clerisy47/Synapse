@@ -298,7 +298,13 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
   let followupPending: PlannedSearch[] | null = null;
 
   const apply = (event: Parameters<typeof next>[1]): Result<void> => {
-    const r = next(state, event, budget, ctx.activeMs());
+    const r = next(state, event.type === "toolHop" ? {
+      ...event,
+      evidenceAvailable: allIds.some(id => {
+        const excerpt = ledger.get(id);
+        return excerpt !== undefined && access.project(excerpt) !== null;
+      }),
+    } : event, budget, ctx.activeMs());
     if (isRejected(r)) {
       return err(
         synapseError({
@@ -450,6 +456,10 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
           trace,
           hopSerial: ++hopSerial,
         });
+        // Include the final allowed search result before evaluating the hop cap.
+        if (hop.data !== undefined && hop.rejected === undefined) {
+          ingestSearchResult(search.tool, hop.data, ledger, scored, allIds);
+        }
         const t = apply({
           type: "toolHop",
           ...(hop.rejected !== undefined
@@ -462,14 +472,17 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
         if (phaseOf(state) === "INSUFFICIENT") {
           break;
         }
-        if (hop.data !== undefined && hop.rejected === undefined) {
-          ingestSearchResult(
-            search.tool,
-            hop.data,
-            ledger,
-            scored,
-            allIds,
-          );
+        // Metadata chooses candidate notes; only current body reads mint evidence.
+        const candidatePaths = hop.rejected || !hop.data ? [] : search.tool === "search_by_title"
+          ? (hop.data as SearchByTitleResult).hits.map((h) => h.ref.path)
+          : search.tool === "search_by_tag" ? (hop.data as SearchByTagResult).refs.map((r) => r.path) : [];
+        for (const path of [...new Set(candidatePaths)]) {
+          if (state.phase !== "SEARCH" || !canSearch(budget, ctx.activeMs(), state.hops) || remainingReads(budget, state.reads + graphReads) === 0) break;
+          const read = await invokeToolHop({ tools: args.tools, dup, tool: "read_note", rawArgs: { path }, ctx, emit, trace, hopSerial: ++hopSerial });
+          graphReads += 1;
+          if (!read.rejected && read.data) for (const excerpt of (read.data as ReadNoteResult).excerpts) pushExcerpt(excerpt, 0, ledger, scored, allIds);
+          const transition = apply({ type: "toolHop", ...(read.rejected ? { rejected: read.rejected } : {}) });
+          if (!transition.ok) return transition;
         }
       }
 
@@ -517,8 +530,6 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
                 const read = await invokeToolHop({ tools: args.tools, dup, tool: "read_note",
                   rawArgs: { path }, ctx, emit, trace, hopSerial: ++hopSerial });
                 graphReads += 1;
-                const transition = apply({ type: "toolHop", ...(read.rejected ? { rejected: read.rejected } : {}) });
-                if (!transition.ok) return transition;
                 if (read.rejected === undefined && read.data !== undefined) {
                   for (const excerpt of (read.data as ReadNoteResult).excerpts) {
                     const id = ledger.add(excerpt);
@@ -528,6 +539,8 @@ async function runPipeline(args: RunArgs): Promise<Result<QaResult>> {
                     }
                   }
                 }
+                const transition = apply({ type: "toolHop", ...(read.rejected ? { rejected: read.rejected } : {}) });
+                if (!transition.ok) return transition;
               }
             }
           }

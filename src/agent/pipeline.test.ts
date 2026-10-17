@@ -327,7 +327,7 @@ describe("QaPipeline.run", () => {
     expect(result.value.stats.modelCalls).toBeGreaterThanOrEqual(3);
   });
 
-  it("hop cap → insufficient with empty claims (AC-M3.6)", async () => {
+  it("hop cap still allows the model to decline unsupported claims (AC-M3.6)", async () => {
     const clock = new FakeClock();
     const corpus = fixtureCorpus(clock);
     const model = new ScriptedModel();
@@ -361,6 +361,8 @@ describe("QaPipeline.run", () => {
       },
     });
 
+    model.enqueue({ kind: "qa.answer", value: { status: "insufficient", claims: [], followup: null } });
+
     const ctx = new JobContextImpl(clock);
     ctx.beginAttempt();
     const pipeline = createQaPipeline({
@@ -380,7 +382,9 @@ describe("QaPipeline.run", () => {
     if (!result.ok) return;
     expect(result.value.status).toBe("insufficient");
     expect(result.value.claims).toEqual([]);
-    expect(result.value.stats.hops).toBeGreaterThanOrEqual(2);
+    expect(result.value.stats.hops).toBe(2);
+    expect(result.value.stats.modelCalls).toBe(2);
+    expect(model.remaining()).toBe(0);
   });
 
   it("emits hop trace (AC-M3.5)", async () => {

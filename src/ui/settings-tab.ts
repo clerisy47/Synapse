@@ -92,7 +92,7 @@ function applyFieldChange(
   invalidControlPaths?: () => void,
 ): void {
   switch (key) {
-    case "instructions": case "security": case "research": {
+    case "instructions": case "research": {
       const paths = validateControlPaths({ ...settings.controlPaths, [key]: value });
       if (paths.ok) applyPatch({ controlPaths: paths.value }); else invalidControlPaths?.();
       return;

@@ -48,7 +48,7 @@ For conservative compatibility, Bonsai retains existing internal plus `remote-mo
 - **Schema/format error:** use the tested Prism version, non-thinking mode and full sampling profile. Grammar decoding is followed by runtime Zod validation; invalid JSON is never accepted as an answer/proposal.
 - **Timeout/memory/context:** stop other memory-heavy work, shorten input and keep one slot/4096 context. This configuration is a measured starting point, not a hardware floor or reliability guarantee.
 - **Stalled Hugging Face/Xet download:** the trial completed with `HF_HUB_DISABLE_XET=1`; retry the external download explicitly. No credentials belong in this repository.
-- **Evidence unavailable:** inspect your Security.md grants and exclusions. Local inference does not bypass policy or missing/invalid controls.
+- **Evidence unavailable:** inspect exclusions and index status. Search/chat require no control files; research requires valid Instructions.md routing.
 
 ## Repeat synthetic verification
 

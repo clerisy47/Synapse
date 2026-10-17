@@ -20,6 +20,8 @@ export interface SourceRef {
 export interface DocMeta {
   ref: SourceRef;
   title: string;
+  /** Validated in the production corpus; optional for legacy injected ports. */
+  description?: string;
   aliases: string[];
   tags: string[];
   folder: string;

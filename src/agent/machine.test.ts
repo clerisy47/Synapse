@@ -112,6 +112,19 @@ describe("next — happy path", () => {
 });
 
 describe("next — hop cap (AC-M2.3)", () => {
+  it.each([
+    { evidenceAvailable: true, activeMs: 0, maxModelCalls: 6, phase: "ANSWER" },
+    { evidenceAvailable: false, activeMs: 0, maxModelCalls: 6, phase: "INSUFFICIENT" },
+    { evidenceAvailable: true, activeMs: 45_000, maxModelCalls: 6, phase: "INSUFFICIENT" },
+    { evidenceAvailable: true, activeMs: 0, maxModelCalls: 1, phase: "INSUFFICIENT" },
+  ])("honors evidence, time and model limits at the hop cap: $phase", ({ evidenceAvailable, activeMs, maxModelCalls, phase }) => {
+    const budget = createRunBudget({ maxHops: 1, maxModelCalls });
+    let state = apply(initialState(), { type: "planAccepted" }, budget);
+    state = apply(state, { type: "toolHop", evidenceAvailable }, budget, activeMs);
+    expect(state.hops).toBe(1);
+    expect(state.phase).toBe(phase);
+  });
+
   it("never-satisfied query hits hop cap → insufficient", () => {
     const budget = createRunBudget({ maxHops: 6 });
     let s = initialState();

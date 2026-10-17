@@ -18,6 +18,8 @@ export const CHAT = {
   insufficient: "There is insufficient evidence in your vault to answer this question.",
   unverified: "Unverified",
   located: "Quote located in source",
+  sources: "Sources",
+  truncated: "[excerpt truncated]",
   trace: "Search trace",
   results: "results",
   milliseconds: "ms",
@@ -104,7 +106,7 @@ export const ERROR_NOTICES: Record<ErrorCode, string> = {
   CONTEXT_OVERFLOW: "The prompt was too large. Try a narrower question.",
   MODEL_TIMEOUT: "The model timed out. You can retry.",
   MODEL_HTTP_ERROR: "The model request failed. You can retry.",
-  ACCESS_DENIED: "Access is unavailable or changed. Check Security.md and retry.",
+  ACCESS_DENIED: "Access is unavailable or changed. Check exclusions and retry.",
   ENDPOINT_BLOCKED: "That endpoint is blocked. Confirm it in settings.",
   CANCELLED: "",
   TOOL_ARGS_INVALID: "A tool call was rejected.",
@@ -138,8 +140,8 @@ export const CONTROLS = {
   noMissing: "No missing control files. Existing files are preserved.",
   failed: "Unable to inspect control files.",
   invalidPaths: "Control paths must be distinct canonical Markdown paths.",
-  status: (instructions: string, security: string) => `Instructions: ${instructions}. Security: ${security}.`,
-  labels: { instructions: "Instructions file", security: "Security file", research: "Research inbox" },
+  status: (instructions: string) => `Instructions: ${instructions}.`,
+  labels: { instructions: "Instructions file", research: "Research inbox" },
   description: "Vault-relative Markdown path. Control files and the inbox are excluded from ordinary search.",
 } as const;
 
@@ -167,7 +169,7 @@ export const REVIEW = {
   title: "Review research changes",
   disclosure: "Generating sends selected research, formatting instructions and permitted destination context to the selected provider (local Bonsai by default). Review and approval stay local.",
   milestone: "Apply saves only accepted changes after another conflict check. Writes run one at a time; closing cancels remaining writes. Research is preserved. Recovery saves full before/after note text in plugin storage for up to 30 days (unresolved writes retained), subject to a size cap. Sync and backups may copy it.",
-  unavailable: "Research review unavailable. Select saved material in the configured research inbox and check instructions and security rules.",
+  unavailable: "Research review unavailable. Select saved material in the configured research inbox and check instructions and exclusions.",
   destinations: "Choose destinations",
   dailyDate: "Daily note date (YYYY-MM-DD)",
   daily: (folder: string, timezone: string) => `Daily note in ${folder} (${timezone})`,
@@ -226,4 +228,18 @@ export const PRIVACY = {
   cancel: "Cancel",
   done: "Plugin data cleared. Reload Synapse to continue.",
   failed: "Could not fully clear plugin data. Synapse is stopped; reload and retry.",
+} as const;
+
+export const METADATA = {
+  command: "Review note metadata",
+  title: "Note metadata repair",
+  explanation: "Notes needing metadata repair stay visible here and are excluded from normal search, chat and MCP retrieval until repaired. Excluded notes and control files are not audited. Search/chat need no control files.",
+  count: (n: number) => `${n} notes need metadata attention.`,
+  modelDisclosure: "Metadata proposals use the selected provider. Explicitly selected OpenRouter sends this note to that remote service; Bonsai uses local numeric loopback. No note is changed by generation.",
+  guidance: "Required: description (1–240 characters); tags (1–12 nonempty strings, max 64 each); aliases (0–12 nonempty strings, max 80 each; [] is valid). Describe subject and scope, use relevant tags and only useful alternative names. Existing values are never replaced by migration. Edit invalid YAML or incomplete existing fields in Obsidian, then reopen this view. Generation supports notes up to 6000 characters; larger notes can be repaired manually.",
+  propose: "Propose missing fields", approve: "Approve exact change", apply: "Apply approved change", before: "Before", after: "After", close: "Close",
+  failed: "Repair unavailable or stale. Edit existing invalid fields manually or reopen the view. Check provider status and consent before proposing again.",
+  applied: "Applied. Metadata indexing will refresh automatically.",
+  refused: "Write refused or outcome unknown. Inspect the note and reopen the repair view before retrying.",
+  generating: "Generating proposal; no notes have been changed.",
 } as const;

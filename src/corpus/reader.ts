@@ -9,6 +9,7 @@ export interface CorpusStatus {
   indexedNotes: number;
   totalNotes: number;
   bytesCached: number;
+  metadataAttention?: number;
 }
 
 export interface CorpusReader {

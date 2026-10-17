@@ -167,9 +167,9 @@ describe("createConfigStore", () => {
 
 it("normalizes configured control paths and safely migrates absent/invalid paths", () => {
   expect(parseSettings({}).controlPaths).toEqual(DEFAULT_SETTINGS.controlPaths);
-  expect(parseSettings({ controlPaths: { instructions: "Config\\Style.md", security: "Config/Rules.md", research: "Inbox.md" } }).controlPaths).toEqual({ instructions: "Config/Style.md", security: "Config/Rules.md", research: "Inbox.md" });
-  expect(parseSettings({ controlPaths: { instructions: "Same.md", security: "same.md", research: "Inbox.md" } }).controlPaths).toEqual(DEFAULT_SETTINGS.controlPaths);
-  expect(parseSettings({ controlPaths: { instructions: "../Style.md", security: "Rules.md", research: "Inbox.md" } }).controlPaths).toEqual(DEFAULT_SETTINGS.controlPaths);
+  expect(parseSettings({ controlPaths: { instructions: "Config\\Style.md", research: "Inbox.md" } }).controlPaths).toEqual({ instructions: "Config/Style.md", research: "Inbox.md" });
+  expect(parseSettings({ controlPaths: { instructions: "Same.md", research: "same.md" } }).controlPaths).toEqual(DEFAULT_SETTINGS.controlPaths);
+  expect(parseSettings({ controlPaths: { instructions: "../Style.md", research: "Inbox.md" } }).controlPaths).toEqual(DEFAULT_SETTINGS.controlPaths);
 });
 
 it("migration preserves exclusions, controls and explicit cloud choices on subsequent loads", () => {
@@ -186,4 +186,11 @@ it("migration preserves exclusions, controls and explicit cloud choices on subse
   const cloud = { ...local, provider: "openrouter", endpoint: "https://openrouter.ai/api/v1", model: "openrouter/free" };
   expect(parseSettings(cloud)).toEqual(cloud);
   expect(parseSettings({ ...raw, model: "custom/cloud" }).provider).toBe("openrouter");
+});
+
+it("drops retired security paths while preserving configured instructions and inbox", () => {
+  const controlPaths = { instructions: "Config/Style.md", research: "Inbox.md", security: "../retired-invalid.md" };
+  const parsed = parseSettings({ controlPaths });
+  expect(parsed.controlPaths).toEqual({ instructions: "Config/Style.md", research: "Inbox.md" });
+  expect(controlPaths.security).toBe("../retired-invalid.md");
 });

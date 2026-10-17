@@ -1,5 +1,7 @@
 # R4-T03 — Scoped collaboration semantics
 
+> Historical evidence: Security.md support was removed on 2026-10-17. Use [current access contracts](control-contracts.md) for active requirements.
+
 `collaboration` owns semantic work behind authenticated, schema-validated MCP calls.
 Its dependencies are public feature facades and injected ports. No transport or write
 allowlist expansion is needed. `main.ts` composes current services; settings rebuild,

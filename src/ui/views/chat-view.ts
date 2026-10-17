@@ -70,18 +70,29 @@ export function mountChatView({ el, state, actions, navigation, onNavigationErro
       if (message.status === "insufficient") append(row, "p", "chat-answer", CHAT.insufficient);
       if (message.status === "cancelled") append(row, "p", "chat-answer", CHAT.cancelled);
       if (message.status === "failed") append(row, "p", "chat-answer", message.errorHint === "bonsai_runtime" ? REMEDIATION.bonsai_runtime : ERROR_NOTICES[message.errorCode ?? "INTERNAL"]);
+      const sources: { key: string; citation: ChatCitation; sourced: boolean }[] = [];
+      const sourceKey = (citation: ChatCitation, sourced: boolean): string => JSON.stringify([
+        citation.excerpt.ref, citation.excerpt.locator, citation.excerpt.textHash,
+        citation.excerpt.sourceMtime, citation.excerpt.text, sourced,
+      ]);
       for (const claim of message.claims) {
-        append(row, "p", "chat-answer", claim.text);
+        const paragraph = append(row, "p", "chat-answer", claim.text);
+        const seen = new Set<string>();
         if (!claim.sourced) append(row, "span", "chat-unverified", CHAT.unverified);
         for (const citation of claim.citations) {
           const sourced = claim.sourced && citation.status === "sourced";
           const path = citation.excerpt.ref.path;
           const title = path.slice(path.lastIndexOf("/") + 1);
-          const labelText = title;
-          const button = append(row, "button", "chat-citation", labelText);
+          const key = sourceKey(citation, sourced);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          let index = sources.findIndex(source => source.key === key);
+          if (index < 0) { index = sources.length; sources.push({ key, citation, sourced }); }
+          const button = append(paragraph, "button", "chat-citation", `[${index + 1}]`);
+          button.setAttribute("aria-label", `[${index + 1}] ${title}`);
           button.type = "button";
           button.disabled = !sourced || !actions.openCitation && !navigation;
-          button.title = sourced ? CHAT.located : CHAT.unverified;
+          button.title = `${title} — ${sourced ? CHAT.located : CHAT.unverified}`;
           button.addEventListener("click", () => {
             if (disposed || !sourced || !state.get().messages.some((m) => m.id === message.id && m.claims.some((c) => c.citations.includes(citation)))) return;
             if (navigation) {
@@ -90,8 +101,19 @@ export function mountChatView({ el, state, actions, navigation, onNavigationErro
                 .catch(() => { if (!disposed) onNavigationError?.(); });
             } else actions.openCitation?.(citation);
           });
-          append(row, "blockquote", "chat-quote", citation.excerpt.text.slice(0, QUOTE_DISPLAY_CHARS));
+
         }
+      }
+      if (sources.length > 0) {
+        const details = append(row, "details", "chat-sources");
+        append(details, "summary", "chat-sources-summary", `${CHAT.sources} (${sources.length})`);
+        sources.forEach(({ citation, sourced }, index) => {
+          const path = citation.excerpt.ref.path;
+          append(details, "p", "chat-source-title", `[${index + 1}] ${path.slice(path.lastIndexOf("/") + 1)}${sourced ? "" : ` — ${CHAT.unverified}`}`);
+          const text = readableExcerpt(citation.excerpt.text);
+          append(details, "blockquote", "chat-quote", text.length > QUOTE_DISPLAY_CHARS
+            ? `${text.slice(0, QUOTE_DISPLAY_CHARS).trimEnd()}… ${CHAT.truncated}` : text);
+        });
       }
       if (message.indexStatus?.phase === "warming") {
         append(row, "p", "chat-index", `${CHAT.indexing} ${message.indexStatus.indexedNotes}/${message.indexStatus.totalNotes}`);
@@ -106,7 +128,7 @@ export function mountChatView({ el, state, actions, navigation, onNavigationErro
         else expanded.delete(message.id);
       });
       for (const hop of message.trace) {
-        append(details, "p", "chat-hop", `${hop.n}. ${hop.tool} ${JSON.stringify(hop.args)} — ${hop.resultCount} ${CHAT.results}, ${hop.ms} ${CHAT.milliseconds}${hop.rejected ? ` (${CHAT.rejections[hop.rejected]})` : ""}`);
+        append(details, "p", "chat-hop", `${hop.n}. ${hop.tool} ${hop.args && typeof hop.args === "object" && Object.keys(hop.args).length > 0 ? JSON.stringify(hop.args) + " " : ""}— ${hop.resultCount} ${CHAT.results}, ${Math.round(hop.ms)} ${CHAT.milliseconds}${hop.rejected ? ` (${CHAT.rejections[hop.rejected]})` : ""}`);
       }
     }
     updateControls();
@@ -125,4 +147,14 @@ export function mountChatView({ el, state, actions, navigation, onNavigationErro
     el.replaceChildren();
     el.classList.remove(`${CSS_PREFIX}-chat`);
   };
+}
+
+/** Display-only plain text. Original evidence remains untouched for verification/navigation. */
+function readableExcerpt(text: string): string {
+  return text
+    .replace(/!?\[\[([^\]\n]+)\]\]/gu, (_match, target: string) => target.split("|").pop() ?? target)
+    .replace(/!?\[([^\]\n]+)\]\([^\n)]*\)/gu, "$1")
+    .replace(/^\s{0,3}#{1,6}\s+/gmu, "")
+    .replace(/(\*\*|__|~~|`)/gu, "")
+    .trim();
 }

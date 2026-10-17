@@ -29,3 +29,5 @@ export type { ReadSession, ReadSessionOptions } from "./read-session";
 export { createAccessRuntime } from "./access-runtime";
 export type { AccessRuntime } from "./access-runtime";
 export { guardNavigation } from "./navigation";
+
+export { DEFAULT_ACCESS_POLICY } from "./default-access";

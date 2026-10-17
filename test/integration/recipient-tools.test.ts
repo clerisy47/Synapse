@@ -9,7 +9,7 @@ import {
   createListRecentHandler, type ToolName,
 } from "../../src/tools";
 
-const paths = { instructions: asVaultPath("Synapse/Instructions.md"), security: asVaultPath("Synapse/Security.md"), research: asVaultPath("Research.md") };
+const paths = { instructions: asVaultPath("Synapse/Instructions.md"), research: asVaultPath("Research.md") };
 const hash = "a".repeat(64) as ContentHash;
 function fixture(recipient: AccessRecipient = "internal", mode: "deny" | "mask" = "deny") {
   const corpus = new FakeCorpus([

@@ -22,6 +22,40 @@ Latest gate evidence: the 40-question live Bonsai check passes after planned-key
 | R5 | Search/chat completion, privacy validation, evaluation and release readiness. |
 | R6 | Local Bonsai integration and full local release validation. |
 
+## Security.md removal — user revision 2026-10-17
+
+This revision supersedes Security.md requirements in completed R2/R3/R4 tasks.
+Historical task descriptions below record prior implementation only.
+
+### R7-T01 — Remove the Security.md feature
+
+- **Description:** Remove the policy-file loader, starter, configured path and UI; make chat/search independent of control files; preserve exclusions, provider consent, MCP scopes and exact local approval. Split into control/settings, runtime/review, regression and documentation slices.
+- **Dependencies:** none (user-directed revision)
+- **Acceptance criteria:** Missing/malformed Security.md cannot block chat, research review or scoped MCP submission; no Security.md setup/settings; old path settings ignored; instruction/source/target conflicts still reject writes.
+- **How to verify:** Full automated tests, typecheck, lint, boundary/network/write/schema checks and build. Real host smoke remains part of the existing final gate.
+- **Status:** DONE
+
+## Chat readability — user revision 2026-10-17
+
+### R7-T02 — Improve grounded overviews and compact citation presentation
+
+- **Description:** Retain complete search paragraphs within the existing excerpt cap; prompt supported overview coverage; inline compact references with consolidated, collapsed readable excerpts; rounded trace timings and omitted empty arguments. Preserve evidence, navigation, budgets and six-hop behavior.
+- **Dependencies:** none (user-directed revision)
+- **How to verify:** DOM regressions, six-hop regression, live synthetic Bonsai overview and unsupported question, required checks/build; install only three artifacts. Real-host acceptance remains pending under R5-T03.
+- **Status:** DONE
+
+## User-directed metadata revision
+
+### R8-T01 — Mandatory note metadata and reviewed migration
+
+- **Description:** Reviewable slices: shared bounded contract; exclusion-first audit and repair view; queued missing-field proposals and exact local approval through NoteWritePort; retrieval discovery/body verification; creation/edit validation; mini-vault comparison and documentation.
+- **Dependencies:** none (user-directed scope revision)
+- **Acceptance criteria:** mandatory description/tags/aliases; preserve existing metadata/content; visible repair count; no noncompliant model retrieval; preserved exclusion/consent/MCP/snapshot boundaries. No Dataview.
+- **How to verify:** focused contract/audit/migration/discovery/security tests, mini-vault before/after measurements, full tests/typecheck/lint/boundary/network/write/schema/build. Real-host gates stay open until evidenced.
+- **Status:** DONE
+
+- **Evidence:** [metadata evaluation](docs/metadata-evaluation.md); automated and narrow live checks complete. Real-host repair UI/editor/reload and native-client evidence remain under R5-T03/R5-T04/R6-T02; no release gate closure.
+
 ## Tasks
 
 ### R1-T01 — Revise implementation to match the new scope

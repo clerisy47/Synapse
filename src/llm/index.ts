@@ -18,6 +18,7 @@ export {
   collectJsonSchemaKeywords,
   emitProviderJsonSchema,
   healthOutputSchema,
+  metadataOutputSchema,
   planOutputSchema,
   proposalOutputSchema,
   schemaSubsetViolations,

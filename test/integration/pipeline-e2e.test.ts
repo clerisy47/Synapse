@@ -1,3 +1,4 @@
+import { withMetadata } from "../note-metadata-fixture";
 import { fixtureDisclosureAccess } from "../fakes";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { DEFAULT_BONSAI_ENDPOINT, DEFAULT_BONSAI_MODEL, DEFAULT_OPENROUTER_BASE_URL, DEFAULT_OPENROUTER_MODEL, OPENROUTER_API_KEY_ENV } from "../../src/constants";
@@ -32,7 +33,7 @@ afterEach(async () => {
   for (const dispose of cleanup.splice(0).reverse()) await dispose();
 });
 
-async function run(outputs: unknown[], opts: { bonsai?: boolean; live?: boolean; graph?: boolean; stale?: boolean; maxReads?: number; fixture?: { note: string; question: string } } = {}) {
+async function run(outputs: unknown[], opts: { bonsai?: boolean; live?: boolean; graph?: boolean; graphCount?: number; maxHops?: number; stale?: boolean; maxReads?: number; fixture?: { note: string; question: string } } = {}) {
   const server = await startMockOpenRouterServer(outputs);
   cleanup.push(server.close);
   const clock = new FakeClock(1_700_000_000_000);
@@ -43,13 +44,16 @@ async function run(outputs: unknown[], opts: { bonsai?: boolean; live?: boolean;
   const vault = new FakeVault();
   const metadata = new FakeMetadata();
   for (const path of ["notes/alpha.md", "private/secret.md"]) {
-    vault.addNote({ path, text: path.startsWith("private/") ? PRIVATE : (opts.fixture?.note ?? NOTE) });
+    vault.addNote({ path, text: path.startsWith("private/") ? PRIVATE : withMetadata(opts.fixture?.note ?? NOTE) });
     metadata.set(path, { frontmatter: {}, tags: [], headings: [] });
   }
   if (opts.graph) {
-    vault.addNote({ path: "notes/linked.md", text: "The rendezvous location is Beta, as confirmed by the linked schedule. This schedule is the authoritative destination for the team meeting." });
-    metadata.set("notes/linked.md", { frontmatter: {}, tags: [], headings: [] });
-    metadata.setResolvedLinks({ "notes/alpha.md": { "notes/linked.md": 1 } });
+    for (let i = 0; i < (opts.graphCount ?? 1); i++) {
+      const linkedPath = i === 0 ? "notes/linked.md" : `notes/linked${i}.md`;
+      vault.addNote({ path: linkedPath, text: withMetadata("The rendezvous location is Beta, as confirmed by the linked schedule. This schedule is the authoritative destination for the team meeting.") });
+      metadata.set(linkedPath, { frontmatter: {}, tags: [], headings: [] });
+    }
+    metadata.setResolvedLinks({ "notes/alpha.md": Object.fromEntries(Array.from({ length: opts.graphCount ?? 1 }, (_, i) => [i === 0 ? "notes/linked.md" : `notes/linked${i}.md`, 1])) });
   }
   const corpus = createCorpusStore({
     vault, metadata, clock, sliceMs: 12,
@@ -57,7 +61,7 @@ async function run(outputs: unknown[], opts: { bonsai?: boolean; live?: boolean;
   });
   cleanup.push(() => corpus.dispose());
   await corpus.warm();
-  expect(corpus.reader().list()).toHaveLength(opts.graph ? 2 : 1);
+  expect(corpus.reader().list()).toHaveLength(opts.graph ? 1 + (opts.graphCount ?? 1) : 1);
   const deps: CoreToolDeps = {
     getDoc: (path) => corpus.reader().get(path),
     listDocs: () => corpus.reader().list(),
@@ -101,7 +105,7 @@ async function run(outputs: unknown[], opts: { bonsai?: boolean; live?: boolean;
   const model = opts.bonsai ? new BonsaiClient({ transport: measuredTransport, endpoint: DEFAULT_BONSAI_ENDPOINT, model: DEFAULT_BONSAI_MODEL }) : new OpenRouterClient({ transport: measuredTransport, endpoint: opts.live ? DEFAULT_OPENROUTER_BASE_URL : server.endpoint, model: DEFAULT_OPENROUTER_MODEL, apiKey: opts.live ? (process.env[OPENROUTER_API_KEY_ENV] ?? null) : "synthetic-test-key" });
   const pipeline = createQaPipeline({
     access: fixtureDisclosureAccess(),
-    budget: opts.maxReads === undefined ? {} : { maxReads: opts.maxReads },
+    budget: { ...(opts.maxReads === undefined ? {} : { maxReads: opts.maxReads }), ...(opts.maxHops === undefined ? {} : { maxHops: opts.maxHops }) },
     model: { async generate(request, signal) {
       const result = await model.generate(request, signal);
       if (opts.bonsai && process.env.SYNAPSE_LIVE_BONSAI_DIAGNOSTIC === "1" && request.kind === "qa.plan" && result.ok) {
@@ -109,10 +113,16 @@ async function run(outputs: unknown[], opts: { bonsai?: boolean; live?: boolean;
         if (parsed.success) console.info("Bonsai live plan shape", JSON.stringify(parsed.data.searches.map(search => ({
           tool: search.tool,
           terms: search.terms.map(term => ({ characters: term.length, words: term.split(/\s+/u).length,
-            occursInNote: (opts.fixture?.note ?? NOTE).toLowerCase().includes(term.toLowerCase()) })),
+            occursInNote: withMetadata(opts.fixture?.note ?? NOTE).toLowerCase().includes(term.toLowerCase()) })),
           phrases: search.phrases.map(phrase => ({ characters: phrase.length,
-            occursInNote: (opts.fixture?.note ?? NOTE).toLowerCase().includes(phrase.toLowerCase()) })),
+            occursInNote: withMetadata(opts.fixture?.note ?? NOTE).toLowerCase().includes(phrase.toLowerCase()) })),
         }))));
+      }
+      if (opts.bonsai && process.env.SYNAPSE_LIVE_BONSAI_DIAGNOSTIC === "1") {
+        console.info("Bonsai live stage shape", JSON.stringify({ kind: request.kind, ok: result.ok,
+          ...(result.ok ? { status: (result.value.value as { status?: string }).status,
+            evidenceIds: [...request.input.matchAll(/\[E\d+\]/g)].length,
+            inputCharacters: request.input.length } : { code: result.error.code }) }));
       }
       return result;
     } },
@@ -141,7 +151,7 @@ async function run(outputs: unknown[], opts: { bonsai?: boolean; live?: boolean;
     expect(body.messages[0]).toEqual({ role: "system", content: SHARED_SYSTEM_PREFIX });
     expect(body.messages[1]?.role).toBe("user");
   }
-  expect(await vault.readText("notes/alpha.md" as Parameters<typeof vault.readText>[0])).toBe(opts.fixture?.note ?? NOTE);
+  expect(await vault.readText("notes/alpha.md" as Parameters<typeof vault.readText>[0])).toBe(withMetadata(opts.fixture?.note ?? NOTE));
   expect(await vault.readText("private/secret.md" as Parameters<typeof vault.readText>[0])).toBe(PRIVATE);
   const visible = JSON.stringify({ requests: server.requests, result: result.value, events });
   expect(visible).not.toContain("EXCLUDED_SENTINEL_73");
@@ -230,6 +240,29 @@ it("does not read graph targets when the read budget is zero", async () => {
   const { value } = await run([{ ...plan, expand_graph: true }, { read: [], enough: true }, answer(["E1"])], { graph: true, maxReads: 0 });
   expect(value.stats.reads).toBe(0);
   expect(value.trace.some((hop) => hop.tool === "read_note")).toBe(false);
+});
+
+it("answers from evidence after graph expansion uses all six tool hops", async () => {
+  const { value, events, server } = await run([
+    { ...plan, expand_graph: true }, answer(["E1"]),
+  ], { graph: true, graphCount: 4 });
+  expect(value.status).toBe("answered");
+  expect(value.trace.map(hop => hop.tool)).toEqual(["search_text", "get_links", "read_note", "read_note", "read_note", "read_note"]);
+  expect(value.stats.hops).toBe(6);
+  expect(value.stats.reads).toBe(4);
+  expect(value.stats.modelCalls).toBe(2);
+  expect(events.some(event => event.type === "stage" && event.stage === "answering")).toBe(true);
+  expect(value.claims[0]?.sourced).toBe(true);
+  expect(JSON.stringify(server.requests[1]?.body)).toContain("[E5] linked3");
+  expect(JSON.stringify(server.requests[1]?.body)).toContain(value.claims[0]!.citations[0]!.excerpt.text);
+});
+
+it("retains evidence returned by the final permitted search hop", async () => {
+  const { value, server } = await run([plan, answer(["E1"])], { maxHops: 1 });
+  expect(value.status).toBe("answered");
+  expect(value.stats.hops).toBe(1);
+  expect(value.claims[0]?.sourced).toBe(true);
+  expect(JSON.stringify(server.requests[1]?.body)).toContain(value.claims[0]!.citations[0]!.excerpt.text);
 });
 
 // Known answers are independently stored in the fixture table. Scripted HTTP
@@ -328,6 +361,33 @@ describe("Bonsai live Q&A workflow", () => {
   }, 180_000);
 });
 
+it.skipIf(process.env.SYNAPSE_LIVE_BONSAI !== "1")("Bonsai live answers a random forest overview with current evidence", async () => {
+  const note = "A random forest combines many decision trees trained with randomized sampling. Typical implementations bootstrap training examples and consider a subset of features at each split. Averaging predictions reduces variance compared with an individual deep tree. Large forests use more memory and are harder to explain than a single tree.";
+  const { value } = await run([], { bonsai: true, graph: true, graphCount: 4,
+    fixture: { note, question: "tell me about random forest algorithm" } });
+  expect(value.status).toBe("answered");
+  expect(value.claims.some(claim => /tree/i.test(claim.text) && claim.sourced && claim.citations.some(citation => citation.status === "sourced" && citation.excerpt.ref.path === "notes/alpha.md"))).toBe(true);
+  const overview = value.claims.map(claim => claim.text).join(" ");
+  expect(overview).toMatch(/bootstrap|sampl/i);
+  expect(overview).toMatch(/feature/i);
+  expect(overview).toMatch(/variance/i);
+  expect(overview).toMatch(/memory|explain|interpret/i);
+  expect(value.claims.every(claim => claim.sourced && claim.citations.some(c => c.status === "sourced"))).toBe(true);
+  expect(value.stats.hops).toBeLessThanOrEqual(6);
+  expect(value.stats.reads).toBeLessThanOrEqual(4);
+  console.info("Bonsai live random forest", JSON.stringify({ status: value.status, hops: value.stats.hops, reads: value.stats.reads, modelCalls: value.stats.modelCalls }));
+}, 180_000);
+
+it.skipIf(process.env.SYNAPSE_LIVE_BONSAI !== "1")("Bonsai live rejects an unsupported random forest question", async () => {
+  const { value } = await run([], { bonsai: true, fixture: {
+    note: "A random forest combines decision trees. Training uses bootstrap sampling and subsets of features. Averaging can reduce variance, but forests require more memory than a single tree.",
+    question: "What exact accuracy percentage did the random forest achieve on the lunar beetle benchmark?",
+  } });
+  expect(value.status).toBe("insufficient");
+  expect(value.claims).toEqual([]);
+  console.info("Bonsai live unsupported", JSON.stringify({ status: value.status, modelCalls: value.stats.modelCalls }));
+}, 180_000);
+
 describe("Bonsai live known-answer quality evaluation", () => {
   const measurements: { correct: boolean; cited: boolean; elapsedMs: number }[] = [];
   afterAll(() => {
@@ -388,3 +448,15 @@ it.skipIf(process.env.SYNAPSE_LIVE_BONSAI_DIAGNOSTIC !== "1")(
     expect(value.claims.some(claim => claim.text.includes(expected))).toBe(true);
   }, 180_000,
 );
+
+
+it("reads current body evidence after alias-only title discovery within the existing hop/read limits", async () => {
+  const aliasPlan = { searches: [{ tool: "search_by_title", terms: ["Stargazer"], phrases: [], tag: null, days: null }], expand_graph: false };
+  const result = await run([aliasPlan, { read: ["E1"], enough: true }, answer(["E1"])], {
+    fixture: { note: withMetadata(NOTE, { aliases: ["Stargazer"] }), question: "Where is the Stargazer rendezvous?" },
+  });
+  expect(result.value.status).toBe("answered");
+  expect(result.value.trace.map((h) => h.tool)).toEqual(["search_by_title", "read_note"]);
+  expect(result.value.stats.reads).toBe(1);
+  expect(result.value.claims[0].citations[0].excerpt.text).not.toContain("aliases:");
+});

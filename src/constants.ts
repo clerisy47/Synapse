@@ -94,7 +94,7 @@ export const CONTROL_LIMITS = {
   headingChars: 200,
 } as const;
 
-export const DEFAULT_CONTROL_PATHS = { instructions: "Synapse/Instructions.md", security: "Synapse/Security.md", research: "Research.md" } as const;
+export const DEFAULT_CONTROL_PATHS = { instructions: "Synapse/Instructions.md", research: "Research.md" } as const;
 
 /** Provisional inbox ledger cap; never silently evict processing history. */
 export const RESEARCH_LEDGER_MAX_RECORDS = 1000;

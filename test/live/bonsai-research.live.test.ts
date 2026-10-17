@@ -11,7 +11,7 @@ const cleanups: (() => void)[] = [];
 afterEach(() => { cleanups.splice(0).forEach((cleanup) => cleanup()); });
 const hash = "a".repeat(64) as ContentHash;
 async function fixture() {
-  const paths = validateControlPaths({ instructions: "Synapse/Instructions.md", security: "Synapse/Security.md", research: "Research.md" });
+  const paths = validateControlPaths({ instructions: "Synapse/Instructions.md", research: "Research.md" });
   if (!paths.ok) throw Error("paths");
   const vault = new FakeVault();
   const activeNote = new FakeActiveNote();
