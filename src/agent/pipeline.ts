@@ -27,6 +27,7 @@ import {
 import {
   createDuplicateTracker,
   SEARCH_TEXT_TERM_CHARS,
+  SEARCH_TEXT_TERMS_MAX,
   type ToolName,
   type ToolRegistry,
   type SearchTextResult,
@@ -793,14 +794,19 @@ function mapPlanSearch(
   s: PlanOutput["searches"][number],
 ): PlannedSearch | null {
   switch (s.tool) {
-    case "search_text":
-      if (s.terms.length < 1) {
+    case "search_text": {
+      // Models sometimes put a keyword group in one term. Exact wording has
+      // its own phrases field; keep keywords individually literal and bounded.
+      const terms = [...new Set(s.terms.flatMap(term => term.trim().split(/\s+/u)).filter(Boolean))]
+        .slice(0, SEARCH_TEXT_TERMS_MAX);
+      if (terms.length < 1) {
         return null;
       }
       return {
         tool: "search_text",
-        args: { terms: s.terms, phrases: s.phrases },
+        args: { terms, phrases: s.phrases },
       };
+    }
     case "search_by_title": {
       const query = s.terms[0]?.trim() ?? "";
       if (query.length === 0) {

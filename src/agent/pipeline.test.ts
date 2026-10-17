@@ -93,6 +93,51 @@ describe("historyForPrompt", () => {
 });
 
 describe("QaPipeline.run", () => {
+  it.each(["quantum alpha", "quantum alpha beta gamma delta epsilon zeta"])(
+    "retrieves separated keywords from a bounded planned group: %s", async terms => {
+      const clock = new FakeClock();
+      const corpus = fixtureCorpus(clock);
+      const model = new ScriptedModel();
+      model.enqueue(
+        { kind: "qa.plan", value: { searches: [{ tool: "search_text", terms: [terms], phrases: [], tag: null, days: null }], expand_graph: false } },
+        { kind: "qa.select", value: { read: ["E1"], enough: false } },
+        { kind: "qa.answer", value: { status: "answered", claims: [{ text: "The rendezvous is in alpha.", sources: ["E1"] }], followup: null } },
+      );
+      const ctx = new JobContextImpl(clock);
+      ctx.beginAttempt();
+      const pipeline = createQaPipeline({ access: fixtureDisclosureAccess(), model,
+        tools: fullRegistry(corpus), readText: path => corpus.vault.readText(path) });
+      const result = await pipeline.run({ question: "Where is the quantum rendezvous?", history: [] }, ctx, () => undefined);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.status).toBe("answered");
+      expect(result.value.trace.find(hop => hop.tool === "search_text")?.resultCount).toBeGreaterThan(0);
+      expect(result.value.claims[0]?.sourced).toBe(true);
+      expect(result.value.claims[0]?.citations[0]?.status).toBe("sourced");
+    },
+  );
+
+  it("preserves nonmatching exact phrases while normalizing keywords", async () => {
+    const clock = new FakeClock();
+    const corpus = fixtureCorpus(clock);
+    const model = new ScriptedModel();
+    model.enqueue(
+      { kind: "qa.plan", value: { searches: [{ tool: "search_text", terms: ["absent missing"], phrases: ["quantum alpha"], tag: null, days: null }], expand_graph: false } },
+      { kind: "qa.select", value: { read: [], enough: false } },
+      { kind: "qa.answer", value: { status: "insufficient", claims: [], followup: null } },
+    );
+    const ctx = new JobContextImpl(clock);
+    ctx.beginAttempt();
+    const pipeline = createQaPipeline({ access: fixtureDisclosureAccess(), model,
+      tools: fullRegistry(corpus), readText: path => corpus.vault.readText(path) });
+    const result = await pipeline.run({ question: "Find the exact phrase.", history: [] }, ctx, () => undefined);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.status).toBe("insufficient");
+    expect(result.value.trace.find(hop => hop.tool === "search_text")?.resultCount).toBe(0);
+    expect(result.value.claims).toEqual([]);
+  });
+
   it("happy path: plan→search→select→read→answer→verify with sourced claims", async () => {
     const clock = new FakeClock(1_700_000_000_000);
     const corpus = fixtureCorpus(clock);

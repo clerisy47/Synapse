@@ -52,6 +52,8 @@ export function buildPlanPrompt(
     "Plan vault searches for the question.",
     "Return JSON matching the schema: 1–4 searches (search_text, search_by_title, search_by_tag, or list_recent) and expand_graph.",
     "Use short terms and phrases only — no paths.",
+    "search_text matches literal text in note bodies; start with the distinctive entity or topic alone, without question wording, possessive suffixes, or a guessed answer. Add separate searches when needed.",
+    "search_by_title matches note titles only; a fact about an entity may be inside a note with a different title, so use search_text for body facts. Use phrases only for wording explicitly quoted in the question.",
     NO_PATHS,
   ].join(" ");
 
