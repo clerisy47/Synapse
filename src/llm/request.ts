@@ -16,7 +16,7 @@ export type OpenRouterChatRequest = {
   model: string;
   messages: OpenRouterChatMessage[];
   temperature: 0;
-  max_tokens: number;
+  max_tokens?: number;
   response_format: { type: "json_object" };
 };
 
@@ -24,7 +24,8 @@ export type BuildOpenRouterChatRequestArgs = {
   model: string;
   instructions: string;
   input: string;
-  maxTokens: number;
+  /** null leaves output length to the provider. */
+  maxTokens: number | null;
   /** Optional schema-retry feedback appended as a second user message. */
   validationFeedback?: string;
 };
@@ -47,7 +48,7 @@ export function buildOpenRouterChatRequest(
     model: args.model,
     messages,
     temperature: 0,
-    max_tokens: args.maxTokens,
+    ...(args.maxTokens === null ? {} : { max_tokens: args.maxTokens }),
     response_format: { type: "json_object" },
   };
 }

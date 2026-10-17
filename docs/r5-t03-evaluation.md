@@ -182,3 +182,26 @@ cases remain green. Real Obsidian/native-client evidence is still unavailable
 through this session's tools and was requested from the operator. No live
 quality pass is claimed. Keep R5-T03 IN_PROGRESS and PR #126 draft; do not
 merge or begin the dependent milestones until the remaining gate evidence passes.
+
+## Planning output cap removed by user direction
+
+On 2026-10-17, a further unchanged-budget retry failed FORMAT_IGNORED after
+10.35 seconds. Metadata showed finish `length`, 200 completion tokens and 195
+reasoning tokens: this request exhausted its planning output allowance.
+
+Per user direction, planning now has no client-imposed output token limit.
+The shared client/builder accepts an explicit null allowance and omits
+`max_tokens` entirely; planning defaults use null. Schema retries preserve
+that omission. Other prompt kinds retain their existing limits, and planning
+still uses the queue, strict schema validation and existing run/transport budgets.
+The HTTP pipeline fixture asserts omission for planning and positive limits
+for later calls; request-builder coverage verifies omission on schema retries.
+
+The first uncapped live attempt failed FORMAT_IGNORED after 3.28 seconds:
+finish `stop`, non-JSON content, five completion tokens, zero reasoning tokens.
+This failure did not exhaust a client token allowance. No provider content or
+credentials were printed. The Phase A gate remains open.
+
+Validation: 898 tests passed, two opt-in live tests skipped; typecheck, lint
+(26 warnings, zero errors), boundaries, network/write/schema checks and
+production build passed. All 40 scripted answer/citation cases passed.

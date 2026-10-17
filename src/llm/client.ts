@@ -49,7 +49,8 @@ export type StructuredRequest<T> = {
   instructions: string;
   input: string;
   schema: z.ZodType<T>;
-  numPredict: number;
+  /** null omits the provider output token cap (used for planning). */
+  numPredict: number | null;
 };
 
 export interface ModelPort {

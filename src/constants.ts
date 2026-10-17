@@ -48,7 +48,7 @@ export const NUM_PREDICT = {
   // Router-selected reasoning models share this budget with visible JSON output.
   health: 512,
   select: 100,
-  plan: 200,
+  plan: null, // Planning has no client-imposed output token cap.
   answer: 600,
 } as const;
 

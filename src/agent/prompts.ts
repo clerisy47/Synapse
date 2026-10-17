@@ -8,7 +8,7 @@ import { estimateTokens, type ExcerptId } from "../core";
 
 /** Mirror of constants.NUM_PREDICT for plan/select/answer (local to agent). */
 export const QA_NUM_PREDICT = {
-  plan: 200,
+  plan: null, // Planning has no client-imposed output token cap.
   select: 100,
   answer: 600,
 } as const;

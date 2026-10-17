@@ -114,12 +114,13 @@ async function run(outputs: unknown[], opts: { live?: boolean; graph?: boolean; 
   expect(handle.state.get()).toBe("done");
   expect(server.remaining()).toBe(0);
   if (!opts.live) expect(server.requests).toHaveLength(outputs.length);
-  for (const request of server.requests) {
+  for (const [index, request] of server.requests.entries()) {
     expect(request.url).toBe("/api/v1/chat/completions");
     expect(request.headers.authorization).toBe("Bearer synthetic-test-key");
     const body = request.body as OpenRouterChatRequest;
     expect(body).toMatchObject({ model: "openrouter/free", temperature: 0, response_format: { type: "json_object" } });
-    expect(body.max_tokens).toBeGreaterThan(0);
+    if (index === 0) expect(body).not.toHaveProperty("max_tokens");
+    else expect(body.max_tokens).toBeGreaterThan(0);
     expect(body.messages[0]).toEqual({ role: "system", content: SHARED_SYSTEM_PREFIX });
     expect(body.messages[1]?.role).toBe("user");
   }

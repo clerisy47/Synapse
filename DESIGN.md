@@ -81,6 +81,11 @@ R2-T01 defines strict control schemas, canonical paths, recipient/capability dec
 
 Snapshot current access context → bounded model plan → deterministic tool search → evidence selection/read → answer → citation verification. Support follow-up retrieval when evidence is insufficient; all transitions share one hop/token/time/read budget and duplicate-call tracker. The existing Q&A pipeline is reused, then audited to prove iterative retrieval. Tool inputs/outputs, graph neighbors, traces, prompt construction, and final results all filter under current permissions.
 
+Planning has no client-imposed output token cap: omit OpenRouter `max_tokens`
+for `qa.plan`, including schema retries. Plan structure remains schema-bounded;
+queue cancellation, transport timeouts and run hop/time/read budgets still apply.
+Selection and answer requests retain their configured output token limits.
+
 Only current allowed evidence enters the ledger. Before each remote request, apply egress checks and masking to context and history. On policy changes, discard stale evidence and responses. User chat and MCP queries have separate access contexts; an internal answer cannot simply be forwarded externally.
 
 ### 5.2 Research proposals
