@@ -7,6 +7,8 @@ Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must
 
 ## Last session
 
+- 2026-10-17: Added fixed-category, content-free completion diagnostics to the opt-in live Q&A smoke, with four projection tests. One live attempt failed FORMAT_IGNORED in 10.95 seconds; a later attempt parsed two JSON completions but failed expected-answer/citation checks in 46.43 seconds, beyond the default 45-second pipeline budget. Cause remains unproven. All 897 automated tests and required static/build checks passed. Requested missing real Obsidian/native-client evidence; keep PR #126 draft and R5-T03 IN_PROGRESS. Preserved the user's AGENTS.md edit.
+
 - Added an explicit opt-in live synthetic Q&A pipeline smoke, checking the expected fact and current verified citation through production retrieval/HTTP parsing. The first attempt failed FORMAT_IGNORED after 2.26 seconds; no answer quality result or gate closure is claimed. Real host/native-client evidence remains unavailable; PR #126 stays draft. Preserved the user’s AGENTS.md edit.
 
 - Production live health passed with `openrouter/free` and the 512-token budget in 14.79 seconds. All 893 automated tests and required static/build checks passed. One health success does not establish router reliability or live Q&A/research quality. PR #126 stays draft; real host/client evidence is still unavailable. Preserved the user's uncommitted AGENTS.md retry-rule edit.

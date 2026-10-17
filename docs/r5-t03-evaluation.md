@@ -152,3 +152,33 @@ Validation: 893 automated tests passed, with two explicitly opt-in live tests
 skipped. Typecheck, lint (26 warnings, zero errors), boundaries, network/write/
 schema checks and production build passed. The final clock adjustment also
 passed typecheck and all 48 deterministic pipeline tests.
+
+## 2026-10-17 delivery follow-up
+
+Continued the existing evaluation branch and draft PR #126, preserving the
+user's uncommitted AGENTS.md change. A production `openrouter/free` Q&A smoke
+failed FORMAT_IGNORED after 10.95 seconds, before answer evaluation.
+
+Added metadata-only instrumentation to the explicitly opt-in live pipeline
+transport. It reports fixed finish/content categories and validated numeric
+completion/reasoning token counts. It does not output provider text, reasoning,
+questions, paths, model identifiers or credentials. Four tests exercise missing
+responses, hostile metadata/counts, empty content and JSON content. The smoke
+also reports locally computed status and model/read/hop counts.
+
+A subsequent attempt, after more than the required 30-second retry interval,
+parsed two completions with finish `stop` and JSON content. Their completion /
+reasoning token counts were 100 / 0 and 1467 / 1365. The smoke then failed both
+the expected-answer and verified-citation checks after 46.43 seconds. The run
+exceeded the default 45-second pipeline budget; this is a possible contributor,
+not an established cause. The upstream token counts are observations, not proof
+that requested token caps were honored. No provider output was retained or
+parser/budget relaxed, and no alternate model was used.
+
+Validation: 897 automated tests passed, two opt-in live tests skipped;
+typecheck, lint (26 warnings, zero errors), boundaries, network/write/schema
+checks and production build passed. All 40 scripted known-answer/citation
+cases remain green. Real Obsidian/native-client evidence is still unavailable
+through this session's tools and was requested from the operator. No live
+quality pass is claimed. Keep R5-T03 IN_PROGRESS and PR #126 draft; do not
+merge or begin the dependent milestones until the remaining gate evidence passes.

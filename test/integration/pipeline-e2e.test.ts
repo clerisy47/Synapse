@@ -2,6 +2,8 @@ import { fixtureDisclosureAccess } from "../fakes";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { DEFAULT_OPENROUTER_BASE_URL, DEFAULT_OPENROUTER_MODEL, OPENROUTER_API_KEY_ENV } from "../../src/constants";
 import { NodeHttpTransport } from "../../src/adapters/node";
+import type { Transport } from "../../src/core";
+import { completionMetadata } from "../live/completion-metadata";
 import { createQaPipeline, type QaEvent } from "../../src/agent";
 import { createCorpusStore } from "../../src/corpus";
 import { createJobQueue } from "../../src/jobs";
@@ -83,10 +85,20 @@ async function run(outputs: unknown[], opts: { live?: boolean; graph?: boolean; 
   const transport = new NodeHttpTransport(opts.live ? {} : { checkEndpoint: (url) => {
     if (new URL(url).origin !== server.origin) throw new Error("Unexpected test endpoint");
   } });
+  const measuredTransport: Transport = opts.live ? {
+    capabilities: transport.capabilities,
+    getJson: (url, options) => transport.getJson(url, options),
+    async *postStream(url, body, options) {
+      for await (const response of transport.postStream(url, body, options)) {
+        console.info("Phase A live completion metadata", JSON.stringify(completionMetadata(response)));
+        yield response;
+      }
+    },
+  } : transport;
   const pipeline = createQaPipeline({
     access: fixtureDisclosureAccess(),
     budget: opts.maxReads === undefined ? {} : { maxReads: opts.maxReads },
-    model: new OpenRouterClient({ transport, endpoint: opts.live ? DEFAULT_OPENROUTER_BASE_URL : server.endpoint, model: DEFAULT_OPENROUTER_MODEL, apiKey: opts.live ? (process.env[OPENROUTER_API_KEY_ENV] ?? null) : "synthetic-test-key" }),
+    model: new OpenRouterClient({ transport: measuredTransport, endpoint: opts.live ? DEFAULT_OPENROUTER_BASE_URL : server.endpoint, model: DEFAULT_OPENROUTER_MODEL, apiKey: opts.live ? (process.env[OPENROUTER_API_KEY_ENV] ?? null) : "synthetic-test-key" }),
     tools, readText: (path) => opts.stale ? Promise.resolve("replacement text without the cited passage") : vault.readText(path),
   });
   const queue = createJobQueue({ clock, abortable: transport.capabilities.abortable });
@@ -275,6 +287,10 @@ describe("Phase A live Q&A smoke", () => {
           && NOTE.includes(citation.excerpt.text) && citation.excerpt.text.includes("Alpha")));
       console.info("Phase A live Q&A smoke", JSON.stringify({
         correct, validCitation: cited, elapsedMs: Math.round(performance.now() - started),
+        status: value.status,
+        modelCalls: value.stats.modelCalls,
+        reads: value.stats.reads,
+        hops: value.stats.hops,
       }));
       expect(correct).toBe(true);
       expect(cited).toBe(true);
