@@ -1,14 +1,14 @@
 import { fixtureDisclosureAccess } from "../fakes";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
-import { DEFAULT_OPENROUTER_BASE_URL, DEFAULT_OPENROUTER_MODEL, OPENROUTER_API_KEY_ENV } from "../../src/constants";
+import { DEFAULT_BONSAI_ENDPOINT, DEFAULT_BONSAI_MODEL, DEFAULT_OPENROUTER_BASE_URL, DEFAULT_OPENROUTER_MODEL, OPENROUTER_API_KEY_ENV } from "../../src/constants";
 import { NodeHttpTransport } from "../../src/adapters/node";
 import type { Transport } from "../../src/core";
 import { completionMetadata } from "../live/completion-metadata";
 import { createQaPipeline, type QaEvent } from "../../src/agent";
 import { createCorpusStore } from "../../src/corpus";
 import { createJobQueue } from "../../src/jobs";
-import { OpenRouterClient, SHARED_SYSTEM_PREFIX, type OpenRouterChatRequest } from "../../src/llm";
-import { createExclusionPolicy } from "../../src/policy";
+import { BonsaiClient, OpenRouterClient, planOutputSchema, SHARED_SYSTEM_PREFIX, type OpenRouterChatRequest } from "../../src/llm";
+import { createEndpointPolicy, createExclusionPolicy } from "../../src/policy";
 import {
   createGetBacklinksHandler, createGetFrontmatterHandler, createGetLinksHandler,
   createListRecentHandler, createReadNoteHandler, createSearchByTagHandler,
@@ -32,11 +32,11 @@ afterEach(async () => {
   for (const dispose of cleanup.splice(0).reverse()) await dispose();
 });
 
-async function run(outputs: unknown[], opts: { live?: boolean; graph?: boolean; stale?: boolean; maxReads?: number; fixture?: { note: string; question: string } } = {}) {
+async function run(outputs: unknown[], opts: { bonsai?: boolean; live?: boolean; graph?: boolean; stale?: boolean; maxReads?: number; fixture?: { note: string; question: string } } = {}) {
   const server = await startMockOpenRouterServer(outputs);
   cleanup.push(server.close);
   const clock = new FakeClock(1_700_000_000_000);
-  if (opts.live) {
+  if (opts.live || opts.bonsai) {
     clock.now = () => Date.now();
     clock.mono = () => performance.now();
   }
@@ -82,23 +82,40 @@ async function run(outputs: unknown[], opts: { live?: boolean; graph?: boolean; 
     list_recent: createListRecentHandler(deps),
     read_note: createReadNoteHandler(deps),
   } });
-  const transport = new NodeHttpTransport(opts.live ? {} : { checkEndpoint: (url) => {
+  const transport = new NodeHttpTransport(opts.bonsai ? { checkEndpoint: createEndpointPolicy({ provider: "bonsai", endpointAckHost: null }).assertAllowed } : opts.live ? {} : { checkEndpoint: (url) => {
     if (new URL(url).origin !== server.origin) throw new Error("Unexpected test endpoint");
   } });
-  const measuredTransport: Transport = opts.live ? {
+  const measuredTransport: Transport = opts.live || opts.bonsai ? {
     capabilities: transport.capabilities,
     getJson: (url, options) => transport.getJson(url, options),
     async *postStream(url, body, options) {
+      const serialized = JSON.stringify(body);
+      expect(serialized).not.toContain("EXCLUDED_SENTINEL_73");
+      expect(serialized).not.toContain("private/secret.md");
       for await (const response of transport.postStream(url, body, options)) {
-        console.info("Phase A live completion metadata", JSON.stringify(completionMetadata(response)));
+        if (opts.live) console.info("Phase A live completion metadata", JSON.stringify(completionMetadata(response)));
         yield response;
       }
     },
   } : transport;
+  const model = opts.bonsai ? new BonsaiClient({ transport: measuredTransport, endpoint: DEFAULT_BONSAI_ENDPOINT, model: DEFAULT_BONSAI_MODEL }) : new OpenRouterClient({ transport: measuredTransport, endpoint: opts.live ? DEFAULT_OPENROUTER_BASE_URL : server.endpoint, model: DEFAULT_OPENROUTER_MODEL, apiKey: opts.live ? (process.env[OPENROUTER_API_KEY_ENV] ?? null) : "synthetic-test-key" });
   const pipeline = createQaPipeline({
     access: fixtureDisclosureAccess(),
     budget: opts.maxReads === undefined ? {} : { maxReads: opts.maxReads },
-    model: new OpenRouterClient({ transport: measuredTransport, endpoint: opts.live ? DEFAULT_OPENROUTER_BASE_URL : server.endpoint, model: DEFAULT_OPENROUTER_MODEL, apiKey: opts.live ? (process.env[OPENROUTER_API_KEY_ENV] ?? null) : "synthetic-test-key" }),
+    model: { async generate(request, signal) {
+      const result = await model.generate(request, signal);
+      if (opts.bonsai && process.env.SYNAPSE_LIVE_BONSAI_DIAGNOSTIC === "1" && request.kind === "qa.plan" && result.ok) {
+        const parsed = planOutputSchema.safeParse(result.value.value);
+        if (parsed.success) console.info("Bonsai live plan shape", JSON.stringify(parsed.data.searches.map(search => ({
+          tool: search.tool,
+          terms: search.terms.map(term => ({ characters: term.length, words: term.split(/\s+/u).length,
+            occursInNote: (opts.fixture?.note ?? NOTE).toLowerCase().includes(term.toLowerCase()) })),
+          phrases: search.phrases.map(phrase => ({ characters: phrase.length,
+            occursInNote: (opts.fixture?.note ?? NOTE).toLowerCase().includes(phrase.toLowerCase()) })),
+        }))));
+      }
+      return result;
+    } },
     tools, readText: (path) => opts.stale ? Promise.resolve("replacement text without the cited passage") : vault.readText(path),
   });
   const queue = createJobQueue({ clock, abortable: transport.capabilities.abortable });
@@ -113,7 +130,7 @@ async function run(outputs: unknown[], opts: { live?: boolean; graph?: boolean; 
   if (!result.ok) throw new Error(result.error.code);
   expect(handle.state.get()).toBe("done");
   expect(server.remaining()).toBe(0);
-  if (!opts.live) expect(server.requests).toHaveLength(outputs.length);
+  if (!opts.live && !opts.bonsai) expect(server.requests).toHaveLength(outputs.length);
   for (const [index, request] of server.requests.entries()) {
     expect(request.url).toBe("/api/v1/chat/completions");
     expect(request.headers.authorization).toBe("Bearer synthetic-test-key");
@@ -299,3 +316,75 @@ describe("Phase A live Q&A smoke", () => {
     180_000,
   );
 });
+
+describe("Bonsai live Q&A workflow", () => {
+  it.skipIf(process.env.SYNAPSE_LIVE_BONSAI !== "1")("retrieves current synthetic evidence and verifies plugin-owned citations", async () => {
+    const started = performance.now();
+    const { value } = await run([], { bonsai: true });
+    const correct = value.status === "answered" && value.claims.some(c => c.text.includes("Alpha"));
+    const cited = value.claims.some(c => c.sourced && c.citations.some(ref => ref.status === "sourced" && NOTE.includes(ref.excerpt.text) && ref.excerpt.text.includes("Alpha")));
+    console.info("Bonsai live Q&A", JSON.stringify({ correct, validCitation: cited, elapsedMs: Math.round(performance.now() - started), modelCalls: value.stats.modelCalls }));
+    expect(correct).toBe(true); expect(cited).toBe(true);
+  }, 180_000);
+});
+
+describe("Bonsai live known-answer quality evaluation", () => {
+  const measurements: { correct: boolean; cited: boolean; elapsedMs: number }[] = [];
+  afterAll(() => {
+    if (measurements.length === 0) return;
+    const elapsed = measurements.map(m => m.elapsedMs).sort((a, b) => a - b);
+    console.info("Bonsai live quality aggregate", JSON.stringify({
+      questions: measurements.length,
+      correct: measurements.filter(m => m.correct).length,
+      validCitations: measurements.filter(m => m.cited).length,
+      p50Ms: Math.round(elapsed[Math.ceil(elapsed.length * 0.5) - 1] ?? 0),
+      p95Ms: Math.round(elapsed[Math.ceil(elapsed.length * 0.95) - 1] ?? 0),
+    }));
+  });
+  it.skipIf(process.env.SYNAPSE_LIVE_BONSAI_QUALITY !== "1")(
+    "answers forty independent synthetic questions with current evidence",
+    async () => {
+      for (const [project, field, expected] of facts) {
+        const started = performance.now();
+        const note = `${project}'s ${field} is ${expected}. This synthetic project record is the authoritative schedule and ownership register for evaluation purposes.`;
+        const { value } = await run([], { bonsai: true, fixture: {
+          note, question: `What is ${project}'s ${field}?`,
+        } });
+        const relevant = value.claims.filter(claim => claim.text.includes(expected));
+        const correct = value.status === "answered" && relevant.length > 0;
+        const cited = correct && relevant.some(claim => claim.sourced && claim.citations.some(
+          citation => citation.status === "sourced" && citation.excerpt.ref.path === "notes/alpha.md"
+            && note.includes(citation.excerpt.text) && citation.excerpt.text.includes(expected),
+        ));
+        measurements.push({ correct, cited, elapsedMs: performance.now() - started });
+        console.info("Bonsai live quality case", JSON.stringify({
+          case: measurements.length, correct, validCitation: cited,
+          elapsedMs: Math.round(performance.now() - started),
+          status: value.status, modelCalls: value.stats.modelCalls,
+          reads: value.stats.reads,
+          tools: value.trace.map(hop => ({ tool: hop.tool, resultCount: hop.resultCount })),
+        }));
+      }
+      expect(measurements).toHaveLength(facts.length);
+      expect(measurements.filter(m => m.correct)).toHaveLength(facts.length);
+      expect(measurements.filter(m => m.cited).length / facts.length).toBeGreaterThanOrEqual(0.95);
+    }, 1_800_000,
+  );
+});
+
+it.skipIf(process.env.SYNAPSE_LIVE_BONSAI_DIAGNOSTIC !== "1")(
+  "Bonsai live diagnoses the first quality fixture without content logging",
+  async () => {
+    const [project, field, expected] = process.env.SYNAPSE_LIVE_BONSAI_DIAGNOSTIC_CASE === "2" ? facts[1] : facts[0];
+    const { value } = await run([], { bonsai: true, fixture: {
+      note: `${project}'s ${field} is ${expected}. This synthetic project record is the authoritative schedule and ownership register for evaluation purposes.`,
+      question: `What is ${project}'s ${field}?`,
+    } });
+    console.info("Bonsai live fixture diagnosis", JSON.stringify({
+      status: value.status, modelCalls: value.stats.modelCalls, reads: value.stats.reads,
+      tools: value.trace.map(hop => ({ tool: hop.tool, resultCount: hop.resultCount, rejected: hop.rejected })),
+    }));
+    expect(value.status).toBe("answered");
+    expect(value.claims.some(claim => claim.text.includes(expected))).toBe(true);
+  }, 180_000,
+);

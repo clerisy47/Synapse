@@ -2,7 +2,7 @@
   "name": "vault-synapse",
   "version": "0.1.0",
   "private": true,
-  "description": "Obsidian plugin: OpenRouter free-model Q&A (Phase A), then local Ollama (Phase B)",
+  "description": "Obsidian plugin: local Bonsai Markdown search, cited chat and reviewed research",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
@@ -17,7 +17,9 @@
     "test:eval": "vitest run test/integration/pipeline-e2e.test.ts test/integration/recipient-pipeline.test.ts test/integration/recipient-tools.test.ts test/integration/control-ingest.test.ts test/integration/research-inbox.test.ts test/integration/research-review.test.ts test/integration/research-plugin.test.ts test/integration/mini-vault.test.ts test/integration/mcp-semantics.test.ts test/integration/mcp-server.test.ts test/integration/chat-plugin.test.ts",
     "test:live:qa": "vitest run test/integration/pipeline-e2e.test.ts -t \"Phase A live Q&A smoke\"",
     "test:live": "vitest run test/live/openrouter.live.test.ts",
-    "test:vault": "vitest run test/integration/mini-vault.test.ts test/integration/pipeline-e2e.test.ts test/integration/recipient-pipeline.test.ts test/integration/control-ingest.test.ts test/integration/recipient-tools.test.ts test/integration/research-inbox.test.ts"
+    "test:vault": "vitest run test/integration/mini-vault.test.ts test/integration/pipeline-e2e.test.ts test/integration/recipient-pipeline.test.ts test/integration/control-ingest.test.ts test/integration/recipient-tools.test.ts test/integration/research-inbox.test.ts",
+    "test:live:bonsai": "vitest run test/integration/pipeline-e2e.test.ts test/live/bonsai-research.live.test.ts test/live/bonsai-health.live.test.ts --no-file-parallelism -t \"Bonsai live\"",
+    "test:live:bonsai:quality": "vitest run test/integration/pipeline-e2e.test.ts -t \"Bonsai live known-answer quality evaluation\""
   },
   "keywords": [
     "obsidian",
