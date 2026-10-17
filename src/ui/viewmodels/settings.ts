@@ -177,7 +177,7 @@ export function toSettingsVm(settings: Settings): SettingsVm {
       value: settings.provider,
       options: [
         { value: "openrouter", label: "OpenRouter" },
-        { value: "ollama", label: "Ollama (Phase B)" },
+        { value: "bonsai", label: "Bonsai (local Prism llama.cpp)" },
       ],
     },
     {

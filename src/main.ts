@@ -75,6 +75,7 @@ import { resolveAnchor } from "./evidence";
 import { createJobQueue, type JobQueue } from "./jobs";
 import {
   OpenRouterClient,
+  BonsaiClient,
   createOpenRouterHealthChecker,
   type HealthChecker,
   type HealthReport,
@@ -218,15 +219,16 @@ type AiLane = {
 
 function buildAiLane(settings: Settings, clock: Clock): AiLane {
   const checkEndpoint = endpointCheckerFor(settings);
-  const transport = createTransport(settings.transport, checkEndpoint);
-  const apiKey = resolveApiKey(settings);
-  const client = new OpenRouterClient({
+  const transport = createTransport(settings.provider === "bonsai" ? "node" : settings.transport, checkEndpoint);
+  const apiKey = settings.provider === "bonsai" ? null : resolveApiKey(settings);
+  const client = settings.provider === "bonsai" ? new BonsaiClient({ transport, endpoint: settings.endpoint, model: settings.model }) : new OpenRouterClient({
     transport,
     endpoint: settings.endpoint,
     model: settings.model,
     apiKey,
   });
   const health = createOpenRouterHealthChecker(client, {
+    provider: settings.provider === "bonsai" ? "bonsai" : "openrouter",
     transport,
     endpoint: settings.endpoint,
     modelId: settings.model,
@@ -721,7 +723,8 @@ export default class VaultSynapsePlugin extends Plugin {
       dedupeKey: "health-full",
       run: async (ctx) => {
         const report = await lane.health.full(ctx.signal);
-        return ok(report);
+        const failure = report.server.error ?? report.model.error ?? (report.structured === "skipped" ? undefined : report.structured.error);
+        return failure ? err(failure) : ok(report);
       },
     });
   }

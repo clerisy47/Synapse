@@ -87,9 +87,9 @@ function createFakeHost(): SettingsTabHost & {
 }
 
 describe("mountSettingsPanel", () => {
-  it("renders egress warning and connection fields for defaults", () => {
+  it("renders egress warning and connection fields for explicit cloud settings", () => {
     const host = createFakeHost();
-    const store = createObservable<Settings>({ ...DEFAULT_SETTINGS });
+    const store = createObservable<Settings>({ ...DEFAULT_SETTINGS, provider: "openrouter", endpoint: "https://openrouter.ai/api/v1" });
     const applyPatch = vi.fn();
 
     const dispose = mountSettingsPanel({

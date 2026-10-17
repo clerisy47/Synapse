@@ -18,6 +18,7 @@ export type ChatMessage = {
   id: number; question: string; status: "running" | "answered" | "insufficient" | "failed" | "cancelled";
   stage: ChatStage; trace: ChatHop[]; claims: ChatClaim[];
   errorCode?: SynapseError["code"];
+  errorHint?: "bonsai_runtime";
   indexStatus?: ChatResult["indexStatus"];
 };
 export type ChatState = { messages: ChatMessage[]; activeId: number | null; nextId: number };
@@ -53,7 +54,7 @@ export function reduceChat(state: ChatState, event: ChatEvent): ChatState {
         case "stage": return { ...message, stage: event.stage };
         case "hop": return { ...message, trace: [...message.trace, event.hop] };
         case "complete": return { ...message, status: event.result.status, ...(event.result.accessVersion ? { accessVersion: event.result.accessVersion } : {}), claims: event.result.status === "insufficient" ? [] : event.result.claims, trace: event.result.trace, indexStatus: event.result.indexStatus };
-        case "fail": return { ...message, status: event.error.code === "CANCELLED" ? "cancelled" : "failed", errorCode: event.error.code };
+        case "fail": return { ...message, status: event.error.code === "CANCELLED" ? "cancelled" : "failed", errorCode: event.error.code, ...(event.error.remediation === "bonsai_runtime" ? { errorHint: "bonsai_runtime" as const } : {}) };
         case "cancel": return { ...message, status: "cancelled" };
       }
     }),

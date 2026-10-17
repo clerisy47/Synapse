@@ -8,16 +8,15 @@ import {
   settingsSchema,
 } from "./index";
 import {
-  DEFAULT_OPENROUTER_BASE_URL,
-  DEFAULT_OPENROUTER_MODEL,
+  DEFAULT_BONSAI_ENDPOINT,
+  DEFAULT_BONSAI_MODEL,
 } from "../constants";
 
 describe("DEFAULT_SETTINGS", () => {
-  it("uses Phase A OpenRouter endpoint and free router", () => {
-    expect(DEFAULT_SETTINGS.endpoint).toBe(DEFAULT_OPENROUTER_BASE_URL);
-    expect(DEFAULT_SETTINGS.model).toBe(DEFAULT_OPENROUTER_MODEL);
-    expect(DEFAULT_OPENROUTER_MODEL).toBe("openrouter/free");
-    expect(DEFAULT_SETTINGS.provider).toBe("openrouter");
+  it("uses local Bonsai endpoint and tested 4B alias", () => {
+    expect(DEFAULT_SETTINGS.endpoint).toBe(DEFAULT_BONSAI_ENDPOINT);
+    expect(DEFAULT_SETTINGS.model).toBe(DEFAULT_BONSAI_MODEL);
+    expect(DEFAULT_SETTINGS.provider).toBe("bonsai");
     expect(DEFAULT_SETTINGS.apiKey).toBeNull();
     expect(DEFAULT_SETTINGS.numCtx).toBe(4096);
     expect(DEFAULT_SETTINGS.transport).toBe("auto");
@@ -64,6 +63,7 @@ describe("parseSettings", () => {
 
   it("clamps out-of-range integers instead of resetting to defaults", () => {
     const parsed = parseSettings({
+      providerRevision: 1,
       numCtx: 99999,
       qa: { maxHops: 1, wallClockSec: 500 },
     });
@@ -74,7 +74,7 @@ describe("parseSettings", () => {
   });
 
   it("accepts valid http(s) endpoints and rejects others", () => {
-    expect(parseSettings({ endpoint: "https://openrouter.ai/api/v1" }).endpoint).toBe(
+    expect(parseSettings({ providerRevision: 1, provider: "openrouter", endpoint: "https://openrouter.ai/api/v1" }).endpoint).toBe(
       "https://openrouter.ai/api/v1",
     );
     expect(parseSettings({ endpoint: "http://127.0.0.1:11434" }).endpoint).toBe(
@@ -124,12 +124,12 @@ describe("migrateSettings", () => {
     expect(JSON.stringify(raw)).toBe(snapshot);
     expect(parseSettings(parsed)).toEqual(parsed);
   });
-  it("moves the retired OpenRouter default to the free router without mutation", () => {
+  it("moves legacy cloud defaults to local without mutation", () => {
     const raw = { provider: "openrouter", model: "qwen/qwen3.8-27b:free", unknown: 42 };
-    expect(migrateSettings(raw)).toEqual({ ...raw, model: "openrouter/free" });
+    expect(migrateSettings(raw)).toMatchObject({ provider: "bonsai", model: DEFAULT_BONSAI_MODEL, endpoint: DEFAULT_BONSAI_ENDPOINT, unknown: 42 });
     expect(raw.model).toBe("qwen/qwen3.8-27b:free");
-    expect(parseSettings(raw).model).toBe("openrouter/free");
-    expect(parseSettings({ model: raw.model }).model).toBe("openrouter/free");
+    expect(parseSettings(raw).model).toBe(DEFAULT_BONSAI_MODEL);
+    expect(parseSettings({ model: raw.model }).model).toBe(DEFAULT_BONSAI_MODEL);
     expect(migrateSettings({ ...raw, provider: "ollama" })).toEqual({ ...raw, provider: "ollama" });
   });
   it("preserves unrelated settings and non-object input", () => {
@@ -170,4 +170,20 @@ it("normalizes configured control paths and safely migrates absent/invalid paths
   expect(parseSettings({ controlPaths: { instructions: "Config\\Style.md", security: "Config/Rules.md", research: "Inbox.md" } }).controlPaths).toEqual({ instructions: "Config/Style.md", security: "Config/Rules.md", research: "Inbox.md" });
   expect(parseSettings({ controlPaths: { instructions: "Same.md", security: "same.md", research: "Inbox.md" } }).controlPaths).toEqual(DEFAULT_SETTINGS.controlPaths);
   expect(parseSettings({ controlPaths: { instructions: "../Style.md", security: "Rules.md", research: "Inbox.md" } }).controlPaths).toEqual(DEFAULT_SETTINGS.controlPaths);
+});
+
+it("migration preserves exclusions, controls and explicit cloud choices on subsequent loads", () => {
+  const raw = { provider: "openrouter", model: "openrouter/free", excludedFolders: ["Private"], excludedTags: ["secret"], apiKey: "synthetic", qa: { multiTurn: true } };
+  const snapshot = JSON.stringify(raw);
+  const local = parseSettings(raw);
+  expect(local.provider).toBe("bonsai");
+  expect(local.excludedFolders).toEqual(raw.excludedFolders);
+  expect(local.excludedTags).toEqual(raw.excludedTags);
+  expect(local.apiKey).toBe("synthetic");
+  expect(local.qa.multiTurn).toBe(true);
+  expect(JSON.stringify(raw)).toBe(snapshot);
+  expect(parseSettings(local)).toEqual(local);
+  const cloud = { ...local, provider: "openrouter", endpoint: "https://openrouter.ai/api/v1", model: "openrouter/free" };
+  expect(parseSettings(cloud)).toEqual(cloud);
+  expect(parseSettings({ ...raw, model: "custom/cloud" }).provider).toBe("openrouter");
 });

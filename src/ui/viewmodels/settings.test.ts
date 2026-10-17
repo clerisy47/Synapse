@@ -39,7 +39,7 @@ describe("settingsChangeEffects", () => {
 
 describe("toSettingsVm", () => {
   it("shows egress warning for default OpenRouter endpoint", () => {
-    const vm = toSettingsVm(settings());
+    const vm = toSettingsVm(settings({ provider: "openrouter", endpoint: "https://openrouter.ai/api/v1" }));
     expect(vm.showEgressWarning).toBe(true);
     expect(vm.showNonLoopbackWarning).toBe(false);
     expect(vm.showEndpointBlocked).toBe(false);
@@ -113,16 +113,16 @@ describe("toSettingsVm", () => {
   });
 
   it("flags missing API key for OpenRouter", () => {
-    expect(toSettingsVm(settings({ apiKey: null })).missingApiKey).toBe(true);
-    expect(toSettingsVm(settings({ apiKey: "" })).missingApiKey).toBe(true);
-    expect(toSettingsVm(settings({ apiKey: "sk-test" })).missingApiKey).toBe(
+    expect(toSettingsVm(settings({ provider: "openrouter", apiKey: null })).missingApiKey).toBe(true);
+    expect(toSettingsVm(settings({ provider: "openrouter", apiKey: "" })).missingApiKey).toBe(true);
+    expect(toSettingsVm(settings({ provider: "openrouter", apiKey: "sk-test" })).missingApiKey).toBe(
       false,
     );
   });
 
   it("never puts API key material into warning strings", () => {
     const secret = "sk-live-super-secret-key-do-not-leak";
-    const vm = toSettingsVm(settings({ apiKey: secret }));
+    const vm = toSettingsVm(settings({ provider: "openrouter", apiKey: secret }));
     for (const warning of vm.warnings) {
       expect(warning.text).not.toContain(secret);
     }
@@ -164,4 +164,11 @@ describe("toSettingsVm", () => {
       "secret",
     );
   });
+});
+
+it("Bonsai defaults require no key, no remote warning or acknowledgement", () => {
+  const vm = toSettingsVm(DEFAULT_SETTINGS);
+  expect(vm.missingApiKey).toBe(false);
+  expect(vm.warnings).toEqual([]);
+  expect(vm.acknowledgeLabel).toBeNull();
 });

@@ -57,16 +57,16 @@ export const SETTINGS = {
   sectionExclusions: "Exclusions",
 
   endpoint: "API endpoint",
-  endpointDesc: "OpenRouter base URL (Phase A). Other hosts are blocked.",
+  endpointDesc: "Bonsai uses numeric loopback (default http://127.0.0.1:18080/v1). OpenRouter uses https://openrouter.ai/api/v1.",
   apiKey: "OpenRouter API key",
-  apiKeyDesc: "Required for Phase A. Never committed; stored only in plugin data.",
+  apiKeyDesc: "Required only when OpenRouter is selected; stored in plugin data.",
   apiKeyMissing: "Add an API key to enable AI features.",
   model: "Model",
-  modelDesc: "Use openrouter/free to route to currently available free models.",
+  modelDesc: "Bonsai default: bonsai-2-4b (server alias). Model weights are selected at server startup.",
   numCtx: "Context window (num_ctx)",
   numCtxDesc: "Tokens of context sent to the model (2048–8192).",
   provider: "Provider",
-  providerDesc: "Phase A uses OpenRouter. Local Ollama arrives in Phase B.",
+  providerDesc: "Bonsai runs locally through user-managed Prism llama.cpp. OpenRouter is an explicit cloud option.",
   transport: "Transport mode",
   transportDesc: "auto prefers Node HTTP; requestUrl is degraded (no stream/cancel).",
   transportAuto: "Auto",
@@ -85,7 +85,7 @@ export const SETTINGS = {
   nonLoopbackWarning:
     "This endpoint is not loopback. Acknowledge the host below before Synapse will use it.",
   endpointBlocked:
-    "This endpoint is blocked by policy. Fix the URL or acknowledge the host.",
+    "This endpoint is blocked by policy. Use numeric loopback for Bonsai or an allowlisted OpenRouter URL.",
   degradedTransport:
     "Degraded mode: requestUrl cannot stream and cannot cancel in-flight model calls.",
 } as const;
@@ -117,6 +117,7 @@ export const ERROR_NOTICES: Record<ErrorCode, string> = {
 
 /** Remediation hints keyed by llm remediation strings. */
 export const REMEDIATION: Record<string, string> = {
+  bonsai_runtime: "Start Prism llama-server on 127.0.0.1:18080 with Bonsai 2 4B, then run the health check. See docs/bonsai.md.",
   set_api_key: "Add an OpenRouter API key in settings.",
   auth_failed: "API key was rejected. Check it in settings.",
   rate_limited: "Rate limited. Wait a moment, then retry.",
@@ -164,7 +165,7 @@ export const RESEARCH = {
 export const REVIEW = {
   command: "Review research",
   title: "Review research changes",
-  disclosure: "Generating sends selected research, formatting instructions and permitted destination context to your configured OpenRouter model. Review and approval stay local.",
+  disclosure: "Generating sends selected research, formatting instructions and permitted destination context to the selected provider (local Bonsai by default). Review and approval stay local.",
   milestone: "Apply saves only accepted changes after another conflict check. Writes run one at a time; closing cancels remaining writes. Research is preserved. Recovery saves full before/after note text in plugin storage for up to 30 days (unresolved writes retained), subject to a size cap. Sync and backups may copy it.",
   unavailable: "Research review unavailable. Select saved material in the configured research inbox and check instructions and security rules.",
   destinations: "Choose destinations",
@@ -210,7 +211,7 @@ export const RECOVERY = {
 } as const;
 
 export const MCP_SETTINGS = {
-  title: "Local MCP collaboration", description: "Opt-in native clients on IPv4 loopback. Changing plugin settings disables the listener; enable it again when ready. Choose scopes locally, then provision a bearer once. Queries use OpenRouter and return permitted masked excerpts with ordinal references. Submission appends unverified research only; local review is required for target-note changes. Local OS processes can steal credentials. Submission deduplication covers 30 days; older retries may append again.",
+  title: "Local MCP collaboration", description: "Opt-in native clients on IPv4 loopback. Changing plugin settings disables the listener; enable it again when ready. Choose scopes locally, then provision a bearer once. Queries use the selected provider and return permitted masked excerpts with ordinal references. Submission appends unverified research only; local review is required for target-note changes. Local OS processes can steal credentials. Submission deduplication covers 30 days; older retries may append again.",
   disabled: "Listener disabled", failed: "MCP unavailable. Check local grant storage before enabling again.",
   enable: "Enable local listener", disable: "Disable local listener", label: "Client label",
   query: "Allow vault queries", submit: "Allow research submission", pair: "Confirm scopes and pair client",

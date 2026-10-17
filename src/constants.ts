@@ -9,7 +9,7 @@
 export const PLUGIN_ID = "vault-synapse" as const;
 export const PLUGIN_NAME = "Vault Synapse" as const;
 export const PLUGIN_DESCRIPTION =
-  "OpenRouter free-model Q&A (Phase A), then local Ollama (Phase B): Markdown vault search and cited chat — no embeddings, no telemetry." as const;
+  "Local Bonsai Q&A: Markdown vault search and cited chat — no embeddings, no telemetry." as const;
 export const PLUGIN_AUTHOR = "Utsav Acharya" as const;
 export const PLUGIN_VERSION = "0.1.0" as const;
 export const MIN_APP_VERSION = "1.8.7" as const;
@@ -119,3 +119,13 @@ export const MCP_LIMITS = {
 } as const;
 
 export const COLLABORATION_LIMITS = { receipts: 1000, retentionMs: 30 * 24 * 60 * 60 * 1000, references: 12, excerptPoints: 600, answerPoints: 12000 } as const;
+
+/** Tested local Prism llama.cpp configuration; runtime remains user-managed. */
+export const DEFAULT_BONSAI_ENDPOINT = "http://127.0.0.1:18080/v1";
+export const DEFAULT_BONSAI_MODEL = "bonsai-2-4b";
+export const BONSAI_MAX_OUTPUT = 1024;
+export const BONSAI_SAMPLING = {
+  seed: 42, temperature: 0.7, top_p: 0.8, top_k: 20, min_p: 0,
+  presence_penalty: 1.5, repeat_penalty: 1, repeat_last_n: 64,
+  chat_template_kwargs: { enable_thinking: false },
+} as const;

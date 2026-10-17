@@ -79,6 +79,15 @@ export function createEndpointPolicy(
       return { ok: false, reason: "not_allowlisted" };
     }
 
+    if (opts.provider === "bonsai") {
+      const parsed = new URL(url);
+      // Numeric IPv4 only: avoid DNS/proxy aliases and URL credentials.
+      return hostname === "127.0.0.1" && parsed.protocol === "http:" &&
+        !parsed.username && !parsed.password && !parsed.search && !parsed.hash &&
+        ["/v1", "/v1/", "/v1/chat/completions", "/health"].includes(parsed.pathname)
+        ? { ok: true } : { ok: false, reason: "not_allowlisted" };
+    }
+
     // Phase B (ollama): loopback default; other hosts need acknowledgement.
     if (isLoopback(hostname)) {
       return { ok: true };

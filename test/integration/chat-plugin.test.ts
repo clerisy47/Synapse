@@ -1,3 +1,5 @@
+import { NodeHttpTransport } from "../../src/adapters/node";
+import { TransportError } from "../../src/core";
 // @vitest-environment happy-dom
 import { get } from "node:http";
 import { afterEach, expect, it, vi } from "vitest";
@@ -32,6 +34,10 @@ afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); host.commands.clear(
 
 it.each(["ready", "missing", "invalid"] as const)("loads without a key, opens chat, respects %s policy and unloads cleanly", async (policyState) => {
   vi.stubEnv("OPENROUTER_API_KEY", "");
+  vi.spyOn(NodeHttpTransport.prototype, "getJson").mockRejectedValue(new TransportError({ kind: "refused", message: "offline" }));
+  vi.spyOn(NodeHttpTransport.prototype, "postStream").mockImplementation(async function* () {
+    throw new TransportError({ kind: "refused", message: "offline" });
+  });
   const consoleError = vi.spyOn(console, "error");
   const contentEl = document.createElement("div");
   let view: { onOpen(): Promise<void>; onClose(): Promise<void> } | undefined;
@@ -76,7 +82,7 @@ it.each(["ready", "missing", "invalid"] as const)("loads without a key, opens ch
   const question = contentEl.querySelector("textarea")!;
   question.value = "What is in my vault?";
   contentEl.querySelector("form")!.dispatchEvent(new Event("submit", { cancelable: true }));
-  await vi.waitFor(() => expect(contentEl.querySelector(".syn-chat-answer")?.textContent).toBe(policyState === "ready" ? "The model request failed. You can retry." : "Access is unavailable or changed. Check Security.md and retry."));
+  await vi.waitFor(() => expect(contentEl.querySelector(".syn-chat-answer")?.textContent).toBe(policyState === "ready" ? "Start Prism llama-server on 127.0.0.1:18080 with Bonsai 2 4B, then run the health check. See docs/bonsai.md." : "Access is unavailable or changed. Check Security.md and retry."));
   const mcp = (plugin as unknown as { mcp: McpServerPort }).mcp;
   expect(mcp.status()).toMatchObject({ enabled: false, failed: false, url: null });
   await mcp.pair("host synthetic", []);

@@ -4,7 +4,7 @@
  */
 
 import type { Settings } from "../config";
-import { CSS_PREFIX } from "../constants";
+import { DEFAULT_BONSAI_ENDPOINT, DEFAULT_BONSAI_MODEL, DEFAULT_OPENROUTER_BASE_URL, DEFAULT_OPENROUTER_MODEL, CSS_PREFIX } from "../constants";
 import { validateControlPaths, type Disposable, type Observable } from "../core";
 import {
   type SettingsFieldKey,
@@ -114,8 +114,8 @@ function applyFieldChange(
       return;
     }
     case "provider":
-      if (value === "openrouter" || value === "ollama") {
-        applyPatch({ provider: value });
+      if (value === "openrouter" || value === "bonsai") {
+        applyPatch({ provider: value, endpoint: value === "bonsai" ? DEFAULT_BONSAI_ENDPOINT : DEFAULT_OPENROUTER_BASE_URL, model: value === "bonsai" ? DEFAULT_BONSAI_MODEL : DEFAULT_OPENROUTER_MODEL, endpointAckHost: null });
       }
       return;
     case "transport":

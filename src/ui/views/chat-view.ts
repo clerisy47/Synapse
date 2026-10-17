@@ -1,7 +1,7 @@
 /** Safe DOM shell. The composition root supplies state and action callbacks. */
 import { CSS_PREFIX, QUOTE_DISPLAY_CHARS } from "../../constants";
 import type { Disposable, Observable, NavigationPort } from "../../core";
-import { CHAT, ERROR_NOTICES } from "../strings/en";
+import { CHAT, ERROR_NOTICES, REMEDIATION } from "../strings/en";
 import type { ChatCitation, ChatState } from "../viewmodels/chat";
 
 export type ChatActions = {
@@ -69,7 +69,7 @@ export function mountChatView({ el, state, actions, navigation, onNavigationErro
       append(row, "p", "chat-question", message.question);
       if (message.status === "insufficient") append(row, "p", "chat-answer", CHAT.insufficient);
       if (message.status === "cancelled") append(row, "p", "chat-answer", CHAT.cancelled);
-      if (message.status === "failed") append(row, "p", "chat-answer", ERROR_NOTICES[message.errorCode ?? "INTERNAL"]);
+      if (message.status === "failed") append(row, "p", "chat-answer", message.errorHint === "bonsai_runtime" ? REMEDIATION.bonsai_runtime : ERROR_NOTICES[message.errorCode ?? "INTERNAL"]);
       for (const claim of message.claims) {
         append(row, "p", "chat-answer", claim.text);
         if (!claim.sourced) append(row, "span", "chat-unverified", CHAT.unverified);
