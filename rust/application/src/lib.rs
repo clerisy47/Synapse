@@ -13,3 +13,6 @@ pub fn open_workspace(
 
 mod corpus;
 pub use corpus::{Corpus, EvidenceId, Hit, Passage};
+
+mod jobs;
+pub use jobs::{JobPriority, JobQueue, MAX_PENDING_JOBS, QUEUE_TIMEOUT};

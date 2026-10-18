@@ -15,3 +15,5 @@ Obsolete host audits, deployment guides and historical specifications were remov
 The native Cargo foundation is implemented. Existing npm/TypeScript tooling is historical and outside native CI/artifacts. See foundation decisions and PROGRESS for evidence and remaining feature gates.
 
 - [Rust workspace reader and corpus](rust-workspace.md): descriptor-scoped reads, exclusions, metadata, lexical/graph retrieval, evidence freshness and dependency review.
+
+- [Rust provider foundation](rust-providers.md): typed health, provider builders, queue, cross-process lease and opt-in probe.
