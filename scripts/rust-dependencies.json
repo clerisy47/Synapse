@@ -1,0 +1,197 @@
+[
+  {
+    "name": "bitflags",
+    "version": "2.13.2",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "std"
+    ],
+    "build_script": false
+  },
+  {
+    "name": "equivalent",
+    "version": "1.0.3",
+    "license": "Apache-2.0 OR MIT",
+    "features": [],
+    "build_script": false
+  },
+  {
+    "name": "errno",
+    "version": "0.3.14",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "std"
+    ],
+    "build_script": false
+  },
+  {
+    "name": "hashbrown",
+    "version": "0.17.1",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": false
+  },
+  {
+    "name": "indexmap",
+    "version": "2.14.2",
+    "license": "Apache-2.0 OR MIT",
+    "features": [
+      "default",
+      "std"
+    ],
+    "build_script": false
+  },
+  {
+    "name": "itoa",
+    "version": "1.0.18",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": false
+  },
+  {
+    "name": "libc",
+    "version": "0.2.191",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "std"
+    ],
+    "build_script": true
+  },
+  {
+    "name": "linux-raw-sys",
+    "version": "0.12.1",
+    "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+    "features": [
+      "auxvec",
+      "elf",
+      "errno",
+      "general",
+      "ioctl",
+      "no_std"
+    ],
+    "build_script": false
+  },
+  {
+    "name": "proc-macro2",
+    "version": "1.0.107",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "proc-macro"
+    ],
+    "build_script": true
+  },
+  {
+    "name": "quote",
+    "version": "1.0.47",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "proc-macro"
+    ],
+    "build_script": true
+  },
+  {
+    "name": "rustix",
+    "version": "1.1.5",
+    "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+    "features": [
+      "alloc",
+      "default",
+      "fs",
+      "std"
+    ],
+    "build_script": true
+  },
+  {
+    "name": "ryu",
+    "version": "1.0.23",
+    "license": "Apache-2.0 OR BSL-1.0",
+    "features": [],
+    "build_script": false
+  },
+  {
+    "name": "serde",
+    "version": "1.0.229",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "build_script": true
+  },
+  {
+    "name": "serde_core",
+    "version": "1.0.229",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "result",
+      "std"
+    ],
+    "build_script": true
+  },
+  {
+    "name": "serde_derive",
+    "version": "1.0.229",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "default"
+    ],
+    "build_script": false
+  },
+  {
+    "name": "serde_yaml_ng",
+    "version": "0.10.0",
+    "license": "MIT",
+    "features": [],
+    "build_script": false
+  },
+  {
+    "name": "syn",
+    "version": "3.0.9",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "clone-impls",
+      "derive",
+      "parsing",
+      "printing",
+      "proc-macro"
+    ],
+    "build_script": false
+  },
+  {
+    "name": "unicode-ident",
+    "version": "1.0.27",
+    "license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+    "features": [],
+    "build_script": false
+  },
+  {
+    "name": "unsafe-libyaml",
+    "version": "0.2.11",
+    "license": "MIT",
+    "features": [],
+    "build_script": false
+  },
+  {
+    "name": "windows-link",
+    "version": "0.2.1",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": false
+  },
+  {
+    "name": "windows-sys",
+    "version": "0.61.2",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "Win32",
+      "Win32_Foundation",
+      "Win32_Networking",
+      "Win32_Networking_WinSock",
+      "Win32_System",
+      "Win32_System_Diagnostics",
+      "Win32_System_Diagnostics_Debug",
+      "default"
+    ],
+    "build_script": false
+  }
+]
