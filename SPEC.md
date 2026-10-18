@@ -1,6 +1,6 @@
 # Synapse product specification
 
-Revision: 2026-10-18 · Rust terminal platform baseline · Native foundation implemented; feature implementation pending.
+Revision: 2026-10-18 · Rust terminal platform baseline · Native read-only chat/ask implemented; reviewed research/writes and MCP pending.
 
 This specification supersedes all previous application-host and TypeScript CLI implementation requirements and task plans. The implementation language is Rust; ship a native `synapse` executable built with Cargo, with no Node.js, JavaScript, TypeScript or Koffi runtime requirement. The subsequent `$deliver` request authorizes the native foundation; feature implementation follows PLAN. Synapse is a standalone terminal application for Markdown knowledge work, inspired by the interaction model of Codex CLI. It does not require a note editor, editor extension, browser, or GUI host. “Codex CLI-style” describes the interface; it does not authorize a coding shell, arbitrary commands, or new inference providers.
 

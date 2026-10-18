@@ -6,7 +6,7 @@ Revision: 2026-10-18 · Rust baseline. Target design; not a description of the c
 
 A native Rust executable built with Cargo owns one canonical Markdown workspace per invocation. The foundation pins edition 2024, development toolchain 1.85.1 and MSRV 1.85.0, verified separately in CI. End users do not need Rust, Cargo, Node.js or an FFI bridge installed to run a distributed binary. Startup parses arguments, canonicalizes the explicit root, loads external local state/configuration, applies exclusions, and builds a bounded Markdown index. A missing model runtime leaves deterministic search/diagnostics available and yields an actionable model error. It never starts a server or downloads weights.
 
-Interactive terminal mode, one-shot read-only mode, and explicitly started MCP service share application facades. Terminal exit closes watchers/listeners, cancels jobs, invalidates approvals and restores terminal state. A separate MCP process uses the same workspace locking and journal discipline; no implicit background daemon. One model lane per process and a workspace-level provider lease prevent concurrent invocations from exceeding the configured single local slot.
+Interactive terminal mode, one-shot read-only mode, and explicitly started MCP service share application facades. Terminal exit closes watchers/listeners, cancels jobs, invalidates approvals and restores terminal state. A separate MCP process uses the same workspace locking and journal discipline; no implicit background daemon. One model lane per process and a provider-wide lease in global state shared across workspaces prevent concurrent invocations from exceeding the configured single local slot.
 
 ## 2. Layers and ports
 
@@ -55,7 +55,7 @@ MCP uses an explicit loopback service process and durable hashed scoped credenti
 
 Use pure domain tests, real temporary-directory adapter tests, subprocess tests, pseudo-terminal tests, crash injection, and opt-in synthetic live-model evaluation. Terminal tests must prove behavior rather than mirror rendering internals. Required security regressions cover excluded content, malicious terminal controls, traversal/symlinks, stale approvals, competing processes, remote consent and untrusted research instructions.
 
-Binding decisions: Rust native executable built with Cargo; standalone CLI; Markdown only; no generic shell tool; explicit workspace; independent local state; local Bonsai default; no silent fallback; exact local approval; scoped optional MCP; no obligation to reuse code. Foundation choices are recorded in [foundation decisions](docs/cli-scaffold.md). Deferred choices: serialization/schema validation and YAML libraries, HTTP/TLS transport, filesystem capability/replacement strategy and MCP protocol/Rust SDK pin. Commit Cargo.lock for the application when establishing the scaffold; dependency features, build scripts, native requirements and licenses are reviewed before adoption. Resolve these with evidence in their implementation tasks rather than inheriting host-specific choices.
+Binding decisions: Rust native executable built with Cargo; standalone CLI; Markdown only; no generic shell tool; explicit workspace; independent local state; local Bonsai default; no silent fallback; exact local approval; scoped optional MCP; no obligation to reuse code. Foundation choices are recorded in [foundation decisions](docs/cli-scaffold.md). Workspace and provider choices are recorded in their implementation documents. Deferred choices include note replacement/recovery strategy and MCP protocol/Rust SDK pin. Commit Cargo.lock for the application when establishing the scaffold; dependency features, build scripts, native requirements and licenses are reviewed before adoption. Resolve these with evidence in their implementation tasks rather than inheriting host-specific choices.
 
 ## 8. Build and verification contract
 
@@ -65,4 +65,8 @@ Unit tests live beside Rust modules under `#[cfg(test)]`; Cargo integration test
 
 ## Implemented workspace boundary
 
-RUST-T02 provides a Unix descriptor-relative reader and a bounded corpus library. [Workspace decisions](docs/rust-workspace.md) describe no-follow traversal, policy/metadata gates, graph and evidence limits, on-demand polling invalidation and concurrent-editor limitations. Future terminal/model/research callers must use the refreshed application facade; the foundation CLI does not yet expose these APIs. YAML parsing is a pure core dependency; syscalls stay in adapters.
+RUST-T02 provides a Unix descriptor-relative reader and a bounded corpus library. [Workspace decisions](docs/rust-workspace.md) describe no-follow traversal, policy/metadata gates, graph and evidence limits, on-demand polling invalidation and concurrent-editor limitations. Future terminal/model/research callers must use the refreshed application facade; the native chat/ask/search/source flows now use these APIs. YAML parsing is a pure core dependency; syscalls stay in adapters.
+
+## Implemented terminal boundary
+
+[Chat contract](docs/rust-chat.md) records extractive answers, bounded model-guided retrieval, fresh evidence, three-turn history, versioned JSON, private-state provisioning, explicit remote consent and cooperative signal handling. Domain/model/terminal schema and filesystem/network/write boundaries remain enforced. Reviewed research, persistence, note writes/recovery and MCP are later tasks.

@@ -1,10 +1,18 @@
 use crate::Cancellation;
 
 pub const CONTEXT_TOKENS: usize = 4096;
-pub const OUTPUT_TOKENS: usize = 128;
+pub const OUTPUT_TOKENS: usize = 256;
 pub const MAX_RESPONSE_BYTES: usize = 16_384;
 const TEMPLATE_RESERVE: usize = 1024;
 const MAX_MODEL_BYTES: usize = 128;
+pub const MAX_QUESTION_BYTES: usize = 384;
+pub const MAX_CONTEXT_TURNS: usize = 3;
+pub const MAX_CANDIDATE_PASSAGES: usize = 6;
+pub const MAX_PASSAGE_BYTES: usize = 1024;
+pub const MAX_SELECTED_PASSAGES: usize = 3;
+pub const MAX_SEARCH_TERMS: usize = 3;
+pub const MAX_TERM_BYTES: usize = 64;
+const MAX_TERM_WORDS: usize = 4;
 
 /// Fixed codes only. No provider body, prompt, credential or OS error is retained.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -74,14 +82,86 @@ impl Provider {
     }
 }
 
-/// Health is the first closed structured task. Future tasks add explicit variants
-/// with application-owned evidence IDs; arbitrary schemas/tool calls are not accepted.
+/// Closed health/retrieval tasks use application-owned passage ordinals.
+/// Arbitrary schemas, paths and tool calls are not accepted.
 pub struct ModelRequest {
     provider: Provider,
+    task: ModelTask,
+}
+#[derive(Clone, Debug)]
+pub enum ModelTask {
+    Health,
+    Retrieve {
+        question: String,
+        history: Vec<String>,
+        passages: Vec<String>,
+    },
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RetrievalDecision {
+    Supported(Vec<usize>),
+    Search(Vec<String>),
+    Insufficient,
+}
+impl RetrievalDecision {
+    pub fn supported(ids: Vec<usize>, count: usize) -> Result<Self, ModelError> {
+        if ids.is_empty()
+            || ids.len() > MAX_SELECTED_PASSAGES
+            || ids.iter().any(|id| *id >= count)
+            || ids.iter().enumerate().any(|(n, id)| ids[..n].contains(id))
+        {
+            return Err(ModelError::Format);
+        }
+        Ok(Self::Supported(ids))
+    }
+    pub fn search(terms: Vec<String>) -> Result<Self, ModelError> {
+        if terms.is_empty()
+            || terms.len() > MAX_SEARCH_TERMS
+            || terms.iter().any(|t| {
+                t.trim().is_empty()
+                    || t.len() > MAX_TERM_BYTES
+                    || t.chars().any(char::is_control)
+                    || t.split_whitespace().count() > MAX_TERM_WORDS
+            })
+        {
+            return Err(ModelError::Format);
+        }
+        Ok(Self::Search(terms))
+    }
 }
 impl ModelRequest {
     pub fn health(provider: Provider) -> Self {
-        Self { provider }
+        Self {
+            provider,
+            task: ModelTask::Health,
+        }
+    }
+    pub fn retrieve(
+        provider: Provider,
+        question: &str,
+        history: Vec<String>,
+        passages: Vec<String>,
+    ) -> Result<Self, ModelError> {
+        if question.trim().is_empty()
+            || question.len() > MAX_QUESTION_BYTES
+            || history.len() > MAX_CONTEXT_TURNS
+            || history.iter().any(|q| q.len() > MAX_QUESTION_BYTES)
+            || passages.len() > MAX_CANDIDATE_PASSAGES
+            || passages.iter().map(String::len).sum::<usize>() > MAX_PASSAGE_BYTES
+        {
+            return Err(ModelError::Budget);
+        }
+        Ok(Self {
+            provider,
+            task: ModelTask::Retrieve {
+                question: question.to_owned(),
+                history,
+                passages,
+            },
+        })
+    }
+    pub fn task(&self) -> &ModelTask {
+        &self.task
     }
     pub fn provider(&self) -> &Provider {
         &self.provider
@@ -103,9 +183,10 @@ impl ModelRequest {
         }
     }
 }
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ModelResponse {
     Healthy,
+    Retrieval(RetrievalDecision),
 }
 
 pub trait ModelTransport: Send + Sync {
@@ -127,8 +208,8 @@ mod tests {
     #[test]
     fn budget_refuses_instead_of_truncating() {
         let request = ModelRequest::health(Provider::bonsai());
-        assert_eq!(request.check_budget(2944), Ok(()));
-        assert_eq!(request.check_budget(2945), Err(ModelError::Budget));
+        assert_eq!(request.check_budget(2816), Ok(()));
+        assert_eq!(request.check_budget(2817), Err(ModelError::Budget));
         assert_eq!(request.check_budget(usize::MAX), Err(ModelError::Budget));
     }
 }

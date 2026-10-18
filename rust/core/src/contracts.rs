@@ -6,6 +6,8 @@ pub enum PublicError {
     InteractiveRequired,
     NotImplemented,
     Output,
+    Interrupted,
+    Runtime,
 }
 
 impl PublicError {
@@ -16,6 +18,8 @@ impl PublicError {
             Self::InteractiveRequired => "INTERACTIVE_REQUIRED",
             Self::NotImplemented => "NOT_IMPLEMENTED",
             Self::Output => "OUTPUT_FAILED",
+            Self::Interrupted => "CANCELLED",
+            Self::Runtime => "RUNTIME_FAILED",
         }
     }
 
@@ -23,7 +27,8 @@ impl PublicError {
         match self {
             Self::Usage | Self::InvalidWorkspace => 2,
             Self::InteractiveRequired => 3,
-            Self::NotImplemented | Self::Output => 1,
+            Self::NotImplemented | Self::Output | Self::Runtime => 1,
+            Self::Interrupted => 130,
         }
     }
 }

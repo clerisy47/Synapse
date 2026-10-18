@@ -45,6 +45,9 @@ impl WorkspaceCorpus {
         reader.check_root()?;
         Ok(reader)
     }
+    pub fn canonical_root(&self) -> &Path {
+        &self.root_path
+    }
     fn check_root(&self) -> Result<(), CorpusError> {
         let m = fs::symlink_metadata(&self.root_path).map_err(|_| CorpusError::Stale)?;
         if !m.is_dir() || (m.dev(), m.ino()) != self.identity {

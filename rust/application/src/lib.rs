@@ -1,6 +1,6 @@
 use synapse_core::{PublicError, WorkspaceInfo, WorkspaceReadPort};
 
-/// Read-only foundation facade. No note, provider, state or write capabilities exist yet.
+/// Validate an explicit root through its narrow read-only port.
 pub fn open_workspace(
     reader: &dyn WorkspaceReadPort,
     selected: &str,
@@ -16,3 +16,6 @@ pub use corpus::{Corpus, EvidenceId, Hit, Passage};
 
 mod jobs;
 pub use jobs::{JobPriority, JobQueue, MAX_PENDING_JOBS, QUEUE_TIMEOUT};
+
+mod chat;
+pub use chat::{Answer, ChatError, ChatPort, ChatSession, SessionFactory, SessionOptions};

@@ -185,6 +185,50 @@ impl<R: CorpusReadPort> Corpus<R> {
             text: text.to_owned(),
         })
     }
+    /// Mint bounded adjacent body-line IDs from an already trusted hit. No model paths.
+    pub fn context(&mut self, id: &EvidenceId) -> Result<Vec<EvidenceId>, CorpusError> {
+        self.resolve(id)?;
+        let doc = self
+            .snapshot
+            .as_ref()
+            .and_then(|s| s.documents.get(id.ordinal))
+            .ok_or(CorpusError::Stale)?;
+        let mut ids = vec![id.clone()];
+        for line in id.line.saturating_sub(1)..=id.line.saturating_add(2) {
+            if line != id.line
+                && doc
+                    .body
+                    .lines()
+                    .nth(line)
+                    .is_some_and(|s| !s.trim().is_empty())
+            {
+                let mut adjacent = id.clone();
+                adjacent.line = line;
+                ids.push(adjacent);
+            }
+        }
+        Ok(ids)
+    }
+    pub fn first_passage(&mut self, path: &NotePath) -> Result<Option<EvidenceId>, CorpusError> {
+        self.refresh()?;
+        let scan = self.snapshot.as_ref().ok_or(CorpusError::Stale)?;
+        Ok(scan
+            .documents
+            .iter()
+            .enumerate()
+            .find(|(_, d)| &d.path == path)
+            .and_then(|(ordinal, doc)| {
+                doc.body
+                    .lines()
+                    .position(|s| !s.trim().is_empty())
+                    .map(|line| EvidenceId {
+                        owner: self.owner.clone(),
+                        generation: self.generation,
+                        ordinal,
+                        line,
+                    })
+            }))
+    }
     /// Resolve local Markdown and wikilinks only against the permitted corpus.
     /// URL and traversing destinations grant nothing. Fragments select a file,
     /// never a trusted passage; evidence still requires a separately minted ID.

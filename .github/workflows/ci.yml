@@ -23,6 +23,7 @@ jobs:
       - run: cargo test --locked --workspace
       - run: python3 scripts/check-rust-boundaries.py
       - run: cargo build --locked --release
+      - run: cargo build --locked --release --example terminal-driver
       - run: python3 scripts/test-native-pty.py
       - run: python3 scripts/smoke-native.py
   msrv:

@@ -13,3 +13,10 @@ pub use model::{MODEL_TIMEOUT, ProviderTransport};
 mod model_lease;
 #[cfg(unix)]
 pub use model_lease::LocalModelLease;
+
+#[cfg(unix)]
+mod session;
+#[cfg(unix)]
+mod state;
+#[cfg(unix)]
+pub use session::{NativeSessions, NativeSignals};
