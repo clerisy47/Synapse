@@ -7,3 +7,5 @@ data.json
 .vitest-cache/
 test/.mini-vault-run-*/
 dist/
+
+/target/
