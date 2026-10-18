@@ -1,11 +1,46 @@
 [
   {
+    "name": "base64",
+    "version": "0.22.1",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ],
+    "build_script": false
+  },
+  {
     "name": "bitflags",
     "version": "2.13.2",
     "license": "MIT OR Apache-2.0",
     "features": [
       "std"
     ],
+    "build_script": false
+  },
+  {
+    "name": "bytes",
+    "version": "1.12.1",
+    "license": "MIT",
+    "features": [
+      "default",
+      "std"
+    ],
+    "build_script": false
+  },
+  {
+    "name": "cc",
+    "version": "1.8.0",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": false
+  },
+  {
+    "name": "cfg-if",
+    "version": "1.0.5",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
     "build_script": false
   },
   {
@@ -25,11 +60,41 @@
     "build_script": false
   },
   {
+    "name": "find-msvc-tools",
+    "version": "0.1.14",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": false
+  },
+  {
+    "name": "getrandom",
+    "version": "0.2.17",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": false
+  },
+  {
     "name": "hashbrown",
     "version": "0.17.1",
     "license": "MIT OR Apache-2.0",
     "features": [],
     "build_script": false
+  },
+  {
+    "name": "http",
+    "version": "1.5.0",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "std"
+    ],
+    "build_script": false
+  },
+  {
+    "name": "httparse",
+    "version": "1.10.1",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": true
   },
   {
     "name": "indexmap",
@@ -72,6 +137,45 @@
     "build_script": false
   },
   {
+    "name": "log",
+    "version": "0.4.34",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": false
+  },
+  {
+    "name": "memchr",
+    "version": "2.8.3",
+    "license": "Unlicense OR MIT",
+    "features": [
+      "alloc",
+      "std"
+    ],
+    "build_script": false
+  },
+  {
+    "name": "once_cell",
+    "version": "1.21.4",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "alloc",
+      "race",
+      "std"
+    ],
+    "build_script": false
+  },
+  {
+    "name": "percent-encoding",
+    "version": "2.3.2",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ],
+    "build_script": false
+  },
+  {
     "name": "proc-macro2",
     "version": "1.0.107",
     "license": "MIT OR Apache-2.0",
@@ -90,6 +194,17 @@
     "build_script": true
   },
   {
+    "name": "ring",
+    "version": "0.17.14",
+    "license": "Apache-2.0 AND ISC",
+    "features": [
+      "alloc",
+      "default",
+      "dev_urandom_fallback"
+    ],
+    "build_script": true
+  },
+  {
     "name": "rustix",
     "version": "1.1.5",
     "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
@@ -100,6 +215,50 @@
       "std"
     ],
     "build_script": true
+  },
+  {
+    "name": "rustls",
+    "version": "0.23.46",
+    "license": "Apache-2.0 OR ISC OR MIT",
+    "features": [
+      "log",
+      "logging",
+      "ring",
+      "std",
+      "tls12"
+    ],
+    "build_script": true
+  },
+  {
+    "name": "rustls-pemfile",
+    "version": "2.2.0",
+    "license": "Apache-2.0 OR ISC OR MIT",
+    "features": [
+      "std"
+    ],
+    "build_script": false
+  },
+  {
+    "name": "rustls-pki-types",
+    "version": "1.15.1",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ],
+    "build_script": false
+  },
+  {
+    "name": "rustls-webpki",
+    "version": "0.103.15",
+    "license": "ISC",
+    "features": [
+      "alloc",
+      "ring",
+      "std"
+    ],
+    "build_script": false
   },
   {
     "name": "ryu",
@@ -138,9 +297,36 @@
     "build_script": false
   },
   {
+    "name": "serde_json",
+    "version": "1.0.145",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "build_script": true
+  },
+  {
     "name": "serde_yaml_ng",
     "version": "0.10.0",
     "license": "MIT",
+    "features": [],
+    "build_script": false
+  },
+  {
+    "name": "shlex",
+    "version": "2.0.1",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "build_script": false
+  },
+  {
+    "name": "subtle",
+    "version": "2.6.1",
+    "license": "BSD-3-Clause",
     "features": [],
     "build_script": false
   },
@@ -172,10 +358,73 @@
     "build_script": false
   },
   {
+    "name": "untrusted",
+    "version": "0.9.0",
+    "license": "ISC",
+    "features": [],
+    "build_script": false
+  },
+  {
+    "name": "ureq",
+    "version": "3.1.2",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "_ring",
+      "_rustls",
+      "_tls",
+      "rustls",
+      "rustls-no-provider"
+    ],
+    "build_script": false
+  },
+  {
+    "name": "ureq-proto",
+    "version": "0.5.3",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "client"
+    ],
+    "build_script": false
+  },
+  {
+    "name": "utf-8",
+    "version": "0.7.6",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": false
+  },
+  {
+    "name": "wasi",
+    "version": "0.11.1+wasi-snapshot-preview1",
+    "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+    "features": [],
+    "build_script": false
+  },
+  {
+    "name": "webpki-roots",
+    "version": "1.0.9",
+    "license": "CDLA-Permissive-2.0",
+    "features": [],
+    "build_script": false
+  },
+  {
     "name": "windows-link",
     "version": "0.2.1",
     "license": "MIT OR Apache-2.0",
     "features": [],
+    "build_script": false
+  },
+  {
+    "name": "windows-sys",
+    "version": "0.52.0",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "Win32",
+      "Win32_Foundation",
+      "Win32_System",
+      "Win32_System_Threading",
+      "default"
+    ],
     "build_script": false
   },
   {
@@ -190,6 +439,79 @@
       "Win32_System",
       "Win32_System_Diagnostics",
       "Win32_System_Diagnostics_Debug",
+      "default"
+    ],
+    "build_script": false
+  },
+  {
+    "name": "windows-targets",
+    "version": "0.52.6",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": false
+  },
+  {
+    "name": "windows_aarch64_gnullvm",
+    "version": "0.52.6",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": true
+  },
+  {
+    "name": "windows_aarch64_msvc",
+    "version": "0.52.6",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": true
+  },
+  {
+    "name": "windows_i686_gnu",
+    "version": "0.52.6",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": true
+  },
+  {
+    "name": "windows_i686_gnullvm",
+    "version": "0.52.6",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": true
+  },
+  {
+    "name": "windows_i686_msvc",
+    "version": "0.52.6",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": true
+  },
+  {
+    "name": "windows_x86_64_gnu",
+    "version": "0.52.6",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": true
+  },
+  {
+    "name": "windows_x86_64_gnullvm",
+    "version": "0.52.6",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": true
+  },
+  {
+    "name": "windows_x86_64_msvc",
+    "version": "0.52.6",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": true
+  },
+  {
+    "name": "zeroize",
+    "version": "1.9.1",
+    "license": "Apache-2.0 OR MIT",
+    "features": [
+      "alloc",
       "default"
     ],
     "build_script": false
