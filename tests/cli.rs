@@ -12,7 +12,7 @@ fn help_and_version_work_without_workspace() {
     let help = run(&["--help"]);
     assert!(help.status.success());
     assert!(help.stderr.is_empty());
-    assert!(String::from_utf8_lossy(&help.stdout).contains("not implemented"));
+    assert!(String::from_utf8_lossy(&help.stdout).contains("synapse ask --workspace"));
     let version = run(&["--version"]);
     assert!(version.status.success());
     assert_eq!(version.stdout, b"synapse 0.1.0\n");

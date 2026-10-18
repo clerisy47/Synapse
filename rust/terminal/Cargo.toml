@@ -7,6 +7,8 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+serde_json = "=1.0.145"
+unicode-width = { version = "=0.2.2", default-features = false }
 synapse-core = { path = "../core" }
 synapse-application = { path = "../application" }
 

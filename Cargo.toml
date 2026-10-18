@@ -37,3 +37,11 @@ synapse-terminal = { path = "rust/terminal" }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+synapse-core = { path = "rust/core" }
+synapse-application = { path = "rust/application" }
+
+[[example]]
+name = "terminal-driver"
+path = "tests/support/terminal_driver.rs"

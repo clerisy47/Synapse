@@ -1,6 +1,9 @@
 use std::process::ExitCode;
-use synapse_adapters::NativeWorkspace;
-
+use synapse_adapters::{NativeSessions, NativeSignals, NativeWorkspace};
 fn main() -> ExitCode {
-    ExitCode::from(synapse_terminal::run(&NativeWorkspace))
+    ExitCode::from(synapse_terminal::run(
+        &NativeWorkspace,
+        &NativeSessions,
+        &NativeSignals,
+    ))
 }

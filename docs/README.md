@@ -1,6 +1,6 @@
 # Documentation map
 
-Current baseline, rewritten 2026-10-18 for the native Rust/Cargo terminal platform; Rust implementation is pending:
+Current baseline, rewritten 2026-10-18 for the native Rust/Cargo terminal platform; implementation status lives in PLAN:
 
 - [Product specification](../SPEC.md): behavior, privacy and approval boundaries.
 - [Architecture](../DESIGN.md): terminal, application ports, filesystem and process design.
@@ -17,3 +17,5 @@ The native Cargo foundation is implemented. Existing npm/TypeScript tooling is h
 - [Rust workspace reader and corpus](rust-workspace.md): descriptor-scoped reads, exclusions, metadata, lexical/graph retrieval, evidence freshness and dependency review.
 
 - [Rust provider foundation](rust-providers.md): typed health, provider builders, queue, cross-process lease and opt-in probe.
+
+- [Native chat and automation](rust-chat.md): commands, extraction/freshness, JSON v1, cancellation, state provisioning, tests and live smoke limits.

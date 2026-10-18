@@ -44,6 +44,20 @@
     "build_script": false
   },
   {
+    "name": "cfg_aliases",
+    "version": "0.2.2",
+    "license": "MIT",
+    "features": [],
+    "build_script": false
+  },
+  {
+    "name": "ctrlc",
+    "version": "3.4.7",
+    "license": "MIT/Apache-2.0",
+    "features": [],
+    "build_script": false
+  },
+  {
     "name": "equivalent",
     "version": "1.0.3",
     "license": "Apache-2.0 OR MIT",
@@ -118,6 +132,8 @@
     "version": "0.2.191",
     "license": "MIT OR Apache-2.0",
     "features": [
+      "default",
+      "extra_traits",
       "std"
     ],
     "build_script": true
@@ -152,6 +168,17 @@
       "std"
     ],
     "build_script": false
+  },
+  {
+    "name": "nix",
+    "version": "0.30.1",
+    "license": "MIT",
+    "features": [
+      "fs",
+      "process",
+      "signal"
+    ],
+    "build_script": true
   },
   {
     "name": "once_cell",
@@ -273,6 +300,8 @@
     "license": "MIT OR Apache-2.0",
     "features": [
       "default",
+      "derive",
+      "serde_derive",
       "std"
     ],
     "build_script": true
@@ -351,6 +380,13 @@
     "build_script": false
   },
   {
+    "name": "unicode-width",
+    "version": "0.2.2",
+    "license": "MIT OR Apache-2.0",
+    "features": [],
+    "build_script": false
+  },
+  {
     "name": "unsafe-libyaml",
     "version": "0.2.11",
     "license": "MIT",
@@ -422,6 +458,21 @@
       "Win32",
       "Win32_Foundation",
       "Win32_System",
+      "Win32_System_Threading",
+      "default"
+    ],
+    "build_script": false
+  },
+  {
+    "name": "windows-sys",
+    "version": "0.59.0",
+    "license": "MIT OR Apache-2.0",
+    "features": [
+      "Win32",
+      "Win32_Foundation",
+      "Win32_Security",
+      "Win32_System",
+      "Win32_System_Console",
       "Win32_System_Threading",
       "default"
     ],
