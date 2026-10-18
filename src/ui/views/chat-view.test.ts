@@ -32,7 +32,7 @@ describe("chat pane", () => {
     expect(el.textContent).toContain(question);
     expect(el.textContent).toContain("Unverified");
     expect(el.textContent).toContain("2/5");
-    expect(el.querySelector("blockquote")?.textContent).toHaveLength(300);
+    expect(el.querySelector("blockquote")?.textContent).toBe(`${"x".repeat(300)}… [excerpt truncated]`);
     const citations = el.querySelectorAll<HTMLButtonElement>(".syn-chat-citation");
     citations[0]?.click();
     citations[1]?.click();
@@ -132,5 +132,40 @@ it("refuses a detached citation retained after state invalidation", () => {
   state.set(initialChatState());
   button.click();
   expect(actions.openCitation).not.toHaveBeenCalled();
+  dispose(); el.remove();
+});
+
+
+it("consolidates repeated passages while keeping inline associations and collapsed readable sources", () => {
+  const formatted = { ...excerpt, text: "# Definition\n**Forest** combines [[Decision tree|trees]] and [samples](https://example.com). <img src=x> " + "detail ".repeat(80) };
+  const citation = { excerpt: formatted, status: "sourced" as const };
+  const running = reduceChat(initialChatState(), { type: "submit", question: "Q" });
+  const { el, actions, dispose } = setup(reduceChat(running, { type: "complete", id: 1, result: {
+    status: "answered", trace: [], claims: [
+      { text: "Definition.", sourced: true, citations: [citation, { ...citation }] },
+      { text: "Training.", sourced: true, citations: [{ ...citation }] },
+    ],
+  } }));
+  const details = el.querySelector<HTMLDetailsElement>(".syn-chat-sources")!;
+  expect(details.open).toBe(false);
+  expect(el.querySelectorAll("blockquote")).toHaveLength(1);
+  const paragraphs = el.querySelectorAll(".syn-chat-answer");
+  expect(Array.from(paragraphs).map(p => p.textContent)).toEqual(["Definition.[1]", "Training.[1]"]);
+  expect(details.textContent).toContain("Definition\nForest combines trees and samples.");
+  expect(details.textContent).not.toContain("[[");
+  expect(details.textContent).toContain("[excerpt truncated]");
+  expect(details.querySelector("img")).toBeNull();
+  details.open = true;
+  el.querySelectorAll<HTMLButtonElement>(".syn-chat-citation")[1]?.click();
+  expect(actions.openCitation).toHaveBeenCalledWith(citation);
+  expect(citation.excerpt.text).toBe(formatted.text);
+  dispose(); el.remove();
+});
+
+it("rounds trace durations and omits empty argument objects", () => {
+  let running = reduceChat(initialChatState(), { type: "submit", question: "Q" });
+  running = reduceChat(running, { type: "hop", id: 1, hop: { n: 1, tool: "search_text", args: {}, resultCount: 2, ms: 12.987654 } });
+  const { el, dispose } = setup(running);
+  expect(el.querySelector(".syn-chat-hop")?.textContent).toBe("1. search_text — 2 results, 13 ms");
   dispose(); el.remove();
 });

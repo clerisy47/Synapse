@@ -9,7 +9,7 @@
 export const PLUGIN_ID = "vault-synapse" as const;
 export const PLUGIN_NAME = "Vault Synapse" as const;
 export const PLUGIN_DESCRIPTION =
-  "OpenRouter free-model Q&A (Phase A), then local Ollama (Phase B): Markdown vault search and cited chat — no embeddings, no telemetry." as const;
+  "Local Bonsai Q&A: Markdown vault search and cited chat — no embeddings, no telemetry." as const;
 export const PLUGIN_AUTHOR = "Utsav Acharya" as const;
 export const PLUGIN_VERSION = "0.1.0" as const;
 export const MIN_APP_VERSION = "1.8.7" as const;
@@ -45,9 +45,10 @@ export const TIMEOUT_GET_MS = 5_000;
 
 /** num_predict per prompt kind. Provisional. */
 export const NUM_PREDICT = {
-  health: 16,
+  // Router-selected reasoning models share this budget with visible JSON output.
+  health: 512,
   select: 100,
-  plan: 200,
+  plan: null, // Planning has no client-imposed output token cap.
   answer: 600,
 } as const;
 
@@ -93,7 +94,7 @@ export const CONTROL_LIMITS = {
   headingChars: 200,
 } as const;
 
-export const DEFAULT_CONTROL_PATHS = { instructions: "Synapse/Instructions.md", security: "Synapse/Security.md", research: "Research.md" } as const;
+export const DEFAULT_CONTROL_PATHS = { instructions: "Synapse/Instructions.md", research: "Research.md" } as const;
 
 /** Provisional inbox ledger cap; never silently evict processing history. */
 export const RESEARCH_LEDGER_MAX_RECORDS = 1000;
@@ -118,3 +119,13 @@ export const MCP_LIMITS = {
 } as const;
 
 export const COLLABORATION_LIMITS = { receipts: 1000, retentionMs: 30 * 24 * 60 * 60 * 1000, references: 12, excerptPoints: 600, answerPoints: 12000 } as const;
+
+/** Tested local Prism llama.cpp configuration; runtime remains user-managed. */
+export const DEFAULT_BONSAI_ENDPOINT = "http://127.0.0.1:18080/v1";
+export const DEFAULT_BONSAI_MODEL = "bonsai-2-9b";
+export const BONSAI_MAX_OUTPUT = 1024;
+export const BONSAI_SAMPLING = {
+  seed: 42, temperature: 0.7, top_p: 0.8, top_k: 20, min_p: 0,
+  presence_penalty: 1.5, repeat_penalty: 1, repeat_last_n: 64,
+  chat_template_kwargs: { enable_thinking: false },
+} as const;

@@ -17,7 +17,7 @@ const PROMPT_KINDS = [
   "qa.plan",
   "qa.select",
   "qa.answer",
-  "research.propose",
+  "research.propose", "metadata.propose",
 ] as const;
 
 describe("model-output schemas", () => {

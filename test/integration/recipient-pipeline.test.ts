@@ -10,7 +10,7 @@ import { startMockOpenRouterServer } from "../mock-openrouter/server";
 import { bindToolAccess, guardToolRegistry, createToolRegistry, createSearchTextHandler, createReadNoteHandler } from "../../src/tools";
 
 const hash = "a".repeat(64) as ContentHash;
-const paths = { instructions: asVaultPath("Synapse/Instructions.md"), security: asVaultPath("Synapse/Security.md"), research: asVaultPath("Research.md") };
+const paths = { instructions: asVaultPath("Synapse/Instructions.md"), research: asVaultPath("Research.md") };
 const plan = { searches: [{ tool: "search_text", terms: ["quantum"], phrases: [], tag: null, days: null }], expand_graph: false };
 const source = "---\nowner: OWNER_SENTINEL\ntags: classified\naliases: ALIAS_SENTINEL\n---\n# SecretTitle\nquantum MASK_SENTINEL at Notes/SecretTitle.md #classified ALIAS_SENTINEL. This is enough evidence for the experiment.";
 const answer = (id: string) => ({ status: "answered", claims: [{ text: "quantum MASK_SENTINEL at Notes/SecretTitle.md", sources: [id] }], followup: null });

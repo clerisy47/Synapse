@@ -9,7 +9,7 @@ import { validateControlPaths, type ControlPaths, type LogLevel } from "../core"
 import { DEFAULT_SETTINGS } from "./defaults";
 import { migrateSettings } from "./migrate";
 
-export type ProviderId = "openrouter" | "ollama";
+export type ProviderId = "bonsai" | "openrouter" | "ollama";
 export type TransportMode = "auto" | "node" | "requestUrl";
 
 export interface QaSettings {
@@ -22,6 +22,7 @@ export interface Settings {
   controlPaths: ControlPaths;
   endpoint: string;
   provider: ProviderId;
+  providerRevision: 1;
   apiKey: string | null;
   endpointAckHost: string | null;
   model: string;
@@ -41,13 +42,13 @@ export const SETTINGS_BOUNDS = {
   qaWallClockSec: { min: 15, max: 180 },
 } as const;
 
-const providerSchema = z.enum(["openrouter", "ollama"]);
+const providerSchema = z.enum(["bonsai", "openrouter", "ollama"]);
 const transportSchema = z.enum(["auto", "node", "requestUrl"]);
 const logLevelSchema = z.enum(["debug", "info", "warn", "error"]);
 
 /** Strict schema for a fully normalized Settings object. */
 export const settingsSchema: z.ZodType<Settings> = z.object({
-  controlPaths: z.object({ instructions: z.string(), security: z.string(), research: z.string() }).transform((value, ctx) => {
+  controlPaths: z.object({ instructions: z.string(), research: z.string() }).transform((value, ctx) => {
     const parsed = validateControlPaths(value);
     if (parsed.ok) return parsed.value;
     ctx.addIssue({ code: "custom", message: "Invalid control paths" });
@@ -55,6 +56,7 @@ export const settingsSchema: z.ZodType<Settings> = z.object({
   }),
   endpoint: z.string(),
   provider: providerSchema,
+  providerRevision: z.literal(1),
   apiKey: z.string().nullable(),
   endpointAckHost: z.string().nullable(),
   model: z.string(),
@@ -76,8 +78,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function parseControlPaths(value: unknown, defaults: ControlPaths): ControlPaths {
-  if (!isPlainObject(value) || typeof value.instructions !== "string" || typeof value.security !== "string" || typeof value.research !== "string") return { ...defaults };
-  const parsed = validateControlPaths({ instructions: value.instructions, security: value.security, research: value.research });
+  if (!isPlainObject(value) || typeof value.instructions !== "string" || typeof value.research !== "string") return { ...defaults };
+  const parsed = validateControlPaths({ instructions: value.instructions, research: value.research });
   return parsed.ok ? parsed.value : { ...defaults };
 }
 
@@ -158,7 +160,8 @@ export function parseSettings(raw: unknown): Settings {
   const parsed: Settings = {
     controlPaths: parseControlPaths(migrated.controlPaths, d.controlPaths),
     endpoint: parseEndpoint(migrated.endpoint, d.endpoint),
-    provider: parseEnum(migrated.provider, ["openrouter", "ollama"], d.provider),
+    providerRevision: 1,
+    provider: parseEnum(migrated.provider, ["bonsai", "openrouter", "ollama"], d.provider),
     apiKey: parseNullableString(migrated.apiKey, d.apiKey),
     endpointAckHost: parseNullableString(migrated.endpointAckHost, d.endpointAckHost),
     model: parseString(migrated.model, d.model),

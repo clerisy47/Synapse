@@ -2,7 +2,7 @@
  * read_note tool (DESIGN §5.4) — windowed note body.
  */
 
-import { sha1Hex, synapseError, type Excerpt } from "../core";
+import { bodyStartOffset, sha1Hex, synapseError, type Excerpt } from "../core";
 import { READ_NOTE_MAX_CHARS, type ReadNoteArgs } from "./args";
 import type { CoreToolDeps } from "./deps";
 import type { ToolHandler, ToolOutcome } from "./registry";
@@ -42,7 +42,7 @@ export function createReadNoteHandler(deps: CoreToolDeps): ToolHandler<"read_not
     }
 
     const totalChars = text.length;
-    const start = args.window?.start ?? 0;
+    const start = Math.max(args.window?.start ?? 0, bodyStartOffset(text));
     const maxChars = args.window?.maxChars ?? READ_NOTE_MAX_CHARS;
     if (start >= totalChars) {
       const empty: ReadNoteResult = { excerpts: [], totalChars };

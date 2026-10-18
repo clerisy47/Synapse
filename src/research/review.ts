@@ -65,14 +65,14 @@ export function createResearchReviewSession(deps: ProposalGeneratorDeps & { writ
     if (!sourceHash.ok || sourceHash.value !== reviewed.batch.sourceHash) return false;
     editors.push({ path: deps.paths.research, text: sourceText });
     const files = await deps.vault.listFiles();
-    for (const kind of ["instructions", "security"] as const) {
+    for (const kind of ["instructions"] as const) {
       const path = deps.paths[kind];
       const matches = files.filter((file) => file.path.toLowerCase() === path.toLowerCase());
       if (matches.length !== 1 || matches[0].path !== path || matches[0].kind !== "note") return false;
       const text = await deps.vault.readText(path);
       editors.push({ path, text });
       const hash = await contentHash(text);
-      const expected = kind === "instructions" ? controls.instructions.hash : controls.policy.hash;
+      const expected = controls.instructions.hash;
       const editor = deps.activeNote.current();
       if (!hash.ok || hash.value !== expected || (editor?.path === path && editor.text !== text)) return false;
     }

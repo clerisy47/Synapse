@@ -18,15 +18,13 @@ export function validateVaultPath(input: string, kind: "markdown" | "folder" = "
   return ok(path as VaultPath);
 }
 
-export function validateControlPaths(input: { instructions: string; security: string; research: string }): Result<ControlPaths> {
+export function validateControlPaths(input: { instructions: string; research: string }): Result<ControlPaths> {
   const instructions = validateVaultPath(input.instructions);
-  const security = validateVaultPath(input.security);
   const research = validateVaultPath(input.research);
   if (!instructions.ok) return instructions;
-  if (!security.ok) return security;
   if (!research.ok) return research;
-  const paths = [instructions.value, security.value, research.value];
+  const paths = [instructions.value, research.value];
   // Case-fold collision check is conservative on case-sensitive vaults and safe on macOS.
   if (new Set(paths.map((path) => path.toLowerCase())).size !== paths.length) return invalid("CONTROL_PATH_COLLISION");
-  return ok({ instructions: instructions.value, security: security.value, research: research.value });
+  return ok({ instructions: instructions.value, research: research.value });
 }

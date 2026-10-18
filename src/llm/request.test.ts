@@ -15,6 +15,20 @@ const KINDS: PromptKind[] = [
 ];
 
 describe("buildOpenRouterChatRequest", () => {
+  it("omits the output cap, including on schema retries, when uncapped", () => {
+    for (const feedback of [undefined, "Fix the JSON schema"]) {
+      const body = buildOpenRouterChatRequest({
+        model: "openrouter/free",
+        instructions: "Plan searches",
+        input: "{}",
+        maxTokens: null,
+        ...(feedback === undefined ? {} : { validationFeedback: feedback }),
+      });
+      expect(body).not.toHaveProperty("max_tokens");
+      expect(body.response_format).toEqual({ type: "json_object" });
+    }
+  });
+
   it("emits the production OpenRouter shape", () => {
     const body = buildOpenRouterChatRequest({
       model: "qwen/qwen3.8-27b:free",

@@ -1,42 +1,44 @@
 {
-  "name": "vault-synapse",
+  "name": "synapse-cli",
   "version": "0.1.0",
   "private": true,
-  "description": "Obsidian plugin: OpenRouter free-model Q&A (Phase A), then local Ollama (Phase B)",
-  "main": "main.js",
+  "description": "Standalone terminal Markdown workspace assistant",
+  "main": "dist/cli/main.js",
   "scripts": {
-    "dev": "node esbuild.config.mjs",
-    "build": "node scripts/generate-control-starters.mjs && node esbuild.config.mjs production",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "lint": "eslint src",
-    "boundaries": "node scripts/check-boundaries.mjs",
-    "check:network": "node scripts/check-no-network.mjs",
-    "check:writes": "node scripts/check-no-writes.mjs",
-    "check:schema": "node scripts/check-schema-subset.mjs",
-    "test:vault": "vitest run test/integration/mini-vault.test.ts test/integration/pipeline-e2e.test.ts test/integration/recipient-pipeline.test.ts test/integration/control-ingest.test.ts test/integration/recipient-tools.test.ts test/integration/research-inbox.test.ts"
+    "build": "node scripts/build-cli.mjs",
+    "dev": "tsc -p cli/tsconfig.json --watch",
+    "typecheck": "tsc -p cli/tsconfig.json --noEmit",
+    "lint": "node scripts/check-cli.mjs",
+    "boundaries": "node scripts/check-cli.mjs",
+    "check:network": "node scripts/check-cli.mjs",
+    "check:writes": "node scripts/check-cli.mjs",
+    "check:schema": "node scripts/check-cli.mjs",
+    "test": "npm run build && node --test test/cli/scaffold.test.mjs test/cli/corpus.test.mjs",
+    "test:release": "npm run build && node --test test/cli/install.test.mjs"
   },
   "keywords": [
-    "obsidian",
-    "obsidian-plugin"
+    "markdown",
+    "cli"
   ],
   "license": "MIT",
-  "peerDependencies": {
-    "obsidian": "1.13.1"
-  },
   "devDependencies": {
     "@types/node": "^22.13.10",
-    "dependency-cruiser": "^16.10.0",
-    "esbuild": "^0.25.0",
-    "eslint": "^9.22.0",
-    "eslint-plugin-obsidianmd": "^0.4.2",
-    "happy-dom": "^21.0.1",
-    "obsidian": "1.13.1",
-    "typescript": "^5.8.2",
-    "vitest": "^3.0.9"
+    "typescript": "^5.8.2"
   },
   "dependencies": {
     "yaml": "^2.9.1",
     "zod": "^4.6.5"
+  },
+  "type": "module",
+  "bin": {
+    "synapse": "dist/cli/main.js"
+  },
+  "files": [
+    "dist/cli",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
   }
 }

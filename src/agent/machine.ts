@@ -39,7 +39,7 @@ export interface AgentState {
 export type AgentEvent =
   | { type: "planAccepted" }
   | { type: "planEmpty" }
-  | { type: "toolHop"; rejected?: HopRejectReason }
+  | { type: "toolHop"; rejected?: HopRejectReason; evidenceAvailable?: boolean }
   | { type: "searchDone" }
   | { type: "select"; readIds: string[]; enough: boolean }
   | { type: "readsDone" }
@@ -184,7 +184,7 @@ function onPlanEmpty(state: AgentState): NextResult {
 
 function onToolHop(
   state: AgentState,
-  event: { rejected?: HopRejectReason },
+  event: { rejected?: HopRejectReason; evidenceAvailable?: boolean },
   budget: RunBudget,
   activeMs: number,
 ): NextResult {
@@ -207,7 +207,9 @@ function onToolHop(
     delete out.lastHopRejected;
   }
   if (out.hops >= budget.maxHops || activeMs >= budget.wallClockMs) {
-    out.phase = "INSUFFICIENT";
+    // Stop retrieval at the cap, but still answer from already gathered evidence.
+    out.phase = event.evidenceAvailable && activeMs < budget.wallClockMs &&
+      remainingModelCalls(budget, out.modelCalls) > 0 ? "ANSWER" : "INSUFFICIENT";
   }
   return out;
 }

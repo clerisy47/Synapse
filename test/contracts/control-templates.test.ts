@@ -12,18 +12,13 @@ function frontmatter(name: string): unknown {
 }
 
 describe("repository-only starter templates", () => {
-  it("uses a schema-valid internal-read-only security policy", () => {
-    const parsed = parseSecurityRules(frontmatter("Security"));
-    expect(parsed.ok).toBe(true);
-    if (parsed.ok) expect(parsed.value).toEqual({ version: 1, defaults: { internal: "allow", "remote-model": "deny", "external-client": "deny" }, rules: [] });
-  });
   it("provides deterministic UTC daily-log routing", () => {
     const parsed = parseRoutingSettings(frontmatter("Instructions"));
     expect(parsed.ok).toBe(true);
     if (parsed.ok) expect(parsed.value.daily).toEqual({ id: "daily-log", folder: "Daily", filename: "YYYY-MM-DD.md", heading: "## Log" });
   });
   it("bounds contracts without relaxing model-output schema restrictions", () => {
-    const value = frontmatter("Security") as Record<string, unknown>;
+    const value = { version: 1, defaults: { internal: "allow", "remote-model": "deny", "external-client": "deny" } };
     const rule = { id: "rule", recipient: "internal", operation: "read", effect: "allow", selector: {} };
     expect(parseSecurityRules({ ...value, rules: Array.from({ length: CONTROL_LIMITS.rules + 1 }, (_, i) => ({ ...rule, id: `rule-${i}` })) }).ok).toBe(false);
     const routing = frontmatter("Instructions") as Record<string, unknown>;
@@ -41,6 +36,6 @@ describe("repository-only starter templates", () => {
 
 it("bundles the exact repository starter contents", async () => {
   const { CONTROL_STARTERS } = await import("../../src/instructions");
+  expect(Object.keys(CONTROL_STARTERS)).toEqual(["instructions"]);
   expect(CONTROL_STARTERS.instructions).toBe(readFileSync(new URL("../../assets/control-files/Instructions.md", import.meta.url), "utf8"));
-  expect(CONTROL_STARTERS.security).toBe(readFileSync(new URL("../../assets/control-files/Security.md", import.meta.url), "utf8"));
 });

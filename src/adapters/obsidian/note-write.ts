@@ -1,5 +1,5 @@
 import { MarkdownView, TFile, type App } from "obsidian";
-import { err, ok, synapseError, validateControlPaths, validateVaultPath, type ControlPaths, type ResearchAppendPort, type NoteWritePort, type NoteWriteRequest, type ProposedChange, type Result } from "../../core";
+import { err, ok, parseNoteFrontmatter, synapseError, validateControlPaths, validateVaultPath, type ControlPaths, type ResearchAppendPort, type NoteWritePort, type NoteWriteRequest, type ProposedChange, type Result } from "../../core";
 
 /** No raw filesystem writes, folder creation, deletion or rename. */
 export interface NoteWriteSurface {
@@ -33,9 +33,10 @@ function createWriter(surface: NoteWriteSurface, inboxOnly: boolean): { apply(in
         const matches = () => surface.entries().filter((entry) => entry.path.toLowerCase() === change.path.toLowerCase());
         const path = validateVaultPath(change.path);
         if (!path.ok || path.value !== change.path || !validateControlPaths(paths).ok
-          || [paths.instructions, paths.security].some((control) => control.toLowerCase() === change.path.toLowerCase())
+          || [paths.instructions].some((control) => control.toLowerCase() === change.path.toLowerCase())
           || (inboxOnly ? change.path !== paths.research || change.operation !== "update" || !change.after.startsWith(change.before) || change.after.length <= change.before.length
             : change.path.toLowerCase() === paths.research.toLowerCase())
+          || (!inboxOnly && parseNoteFrontmatter(change.after).issues.length > 0)
           || !["create", "update"].includes(change.operation) || (change.operation === "update") !== change.target.exists
           || (!change.target.exists && change.before !== "") || !alive()) return refused();
         if (!await input.revalidate() || !alive() || !guardsMatch()) return refused();

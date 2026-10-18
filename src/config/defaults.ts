@@ -4,8 +4,8 @@
  */
 
 import {
-  DEFAULT_OPENROUTER_BASE_URL,
-  DEFAULT_OPENROUTER_MODEL,
+  DEFAULT_BONSAI_ENDPOINT,
+  DEFAULT_BONSAI_MODEL,
   DEFAULT_CONTROL_PATHS,
 } from "../constants";
 import { validateControlPaths } from "../core";
@@ -16,11 +16,12 @@ if (!paths.ok) throw new Error("Invalid built-in control paths");
 
 export const DEFAULT_SETTINGS: Settings = {
   controlPaths: paths.value,
-  endpoint: DEFAULT_OPENROUTER_BASE_URL,
-  provider: "openrouter",
+  endpoint: DEFAULT_BONSAI_ENDPOINT,
+  provider: "bonsai",
+  providerRevision: 1,
   apiKey: null,
   endpointAckHost: null,
-  model: DEFAULT_OPENROUTER_MODEL,
+  model: DEFAULT_BONSAI_MODEL,
   numCtx: 4096,
   keepAlive: "5m",
   transport: "auto",

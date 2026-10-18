@@ -6,7 +6,7 @@ module.exports = {
       comment: "core/ imports nothing outside core (DESIGN §2.2)",
       severity: "error",
       from: { path: "^src/core/", pathNot: "\\.test\\.ts$" },
-      to: { pathNot: "^src/core/" },
+      to: { pathNot: "^(src/core/|node_modules/yaml/)" },
     },
     {
       name: "obsidian-only-adapters-and-main",

@@ -2,7 +2,7 @@
  * list_recent tool (DESIGN §5.4) — mtime or user-touch window over corpus docs.
  */
 
-import type { SourceRef } from "../core";
+import { compactNoteMetadata, type RequiredNoteMetadata, type SourceRef } from "../core";
 import type { ListRecentArgs } from "./args";
 import type { CoreToolDeps } from "./deps";
 import type { ToolHandler, ToolOutcome } from "./registry";
@@ -10,7 +10,7 @@ import { docMatchesScope } from "./search-text";
 
 const MS_PER_DAY = 86_400_000;
 
-export interface ListRecentItem {
+export interface ListRecentItem extends RequiredNoteMetadata {
   ref: SourceRef;
   lastTouched: number;
 }
@@ -39,7 +39,7 @@ export function createListRecentHandler(
       if (lastTouched === undefined || lastTouched < cutoff) {
         continue;
       }
-      items.push({ ref: doc.ref, lastTouched });
+      items.push({ ref: doc.ref, lastTouched, ...compactNoteMetadata(doc) });
     }
 
     items.sort((a, b) => {

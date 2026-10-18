@@ -1,3 +1,4 @@
+import { withMetadata } from "../../test/note-metadata-fixture";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PROPOSAL_LIMITS } from "../constants";
 import { asVaultPath, contentHash, ok, validateControlPaths, type ContentHash, type InstructionSnapshot, type PolicySnapshot, type ResearchLedger, type Transport } from "../core";
@@ -11,7 +12,7 @@ const cleanups: (() => void)[] = [];
 afterEach(() => { cleanups.splice(0).forEach((cleanup) => cleanup()); });
 const hash = "a".repeat(64) as ContentHash;
 async function fixture() {
-  const paths = validateControlPaths({ instructions: "Synapse/Instructions.md", security: "Synapse/Security.md", research: "Research.md" });
+  const paths = validateControlPaths({ instructions: "Synapse/Instructions.md", research: "Research.md" });
   if (!paths.ok) throw Error("paths");
   const vault = new FakeVault();
   const activeNote = new FakeActiveNote();
@@ -32,7 +33,7 @@ async function fixture() {
     policy: { version: 1, hash, rules: { version: 1, defaults: { internal: "allow", "remote-model": "allow", "external-client": "deny" }, rules: [ { id: "create", recipient: "internal", operation: "create", effect: "allow", selector: {} }, { id: "update", recipient: "internal", operation: "update", effect: "allow", selector: {} } ] } },
   };
   let generation = 0;
-  let output: unknown = { changes: [{ destinationId: "D1", markdown: "- Useful result.", evidenceIds: ["E1"] }] };
+  let output: unknown = { changes: [{ destinationId: "D1", markdown: withMetadata("- Useful result."), evidenceIds: ["E1"] }] };
   let onGenerate: (() => Promise<void> | void) | undefined;
   const calls: StructuredRequest<unknown>[] = [];
   const model: ModelPort = { async generate<T>(request: StructuredRequest<T>) {
@@ -58,7 +59,7 @@ describe("bounded queued research proposals", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw Error("proposal");
     const change = result.value.proposal.changes[0];
-    expect(change).toMatchObject({ path: "Daily/2026-10-15.md", operation: "create", target: { exists: false }, before: "", after: "## Log\n- Useful result.\n", evidenceIds: ["E1"] });
+    expect(change).toMatchObject({ path: "Daily/2026-10-15.md", operation: "create", target: { exists: false }, before: "", after: withMetadata("\n## Log\n- Useful result.\n"), evidenceIds: ["E1"] });
     expect(result.value.evidence[0]).toMatchObject({ path: "Research.md", hash: f.snapshot.batch.sourceHash, start: 0, end: f.snapshot.text.length });
     expect(result.value.proposal.id).toMatch(/^[a-f0-9]{64}$/);
     expect(Object.isFrozen(change.evidenceIds)).toBe(true);
@@ -72,10 +73,10 @@ describe("bounded queued research proposals", () => {
 
   it("preserves exact daily frontmatter, unrelated sections and CRLF while proposing multiple notes", async () => {
     const f = await fixture();
-    const before = "---\r\ntitle: Day\r\n---\r\n# Day\r\n## Log\r\n- Existing.\r\n## Work\r\nKeep this.\r\n";
+    const before = withMetadata("---\r\ntitle: Day\r\n---\r\n# Day\r\n## Log\r\n- Existing.\r\n## Work\r\nKeep this.\r\n");
     f.vault.addNote({ path: "Daily/2026-10-15.md", text: before });
     f.metadata.set("Daily/2026-10-15.md", { tags: [], frontmatter: { title: "Day" }, headings: [] });
-    f.output({ changes: [ { destinationId: "D1", markdown: "- Useful result.", evidenceIds: ["E1", "E2"] }, { destinationId: "D2", markdown: "# Topic\n\nExisting context.\n\nUseful result.\n", evidenceIds: ["E1", "E3"] } ] });
+    f.output({ changes: [ { destinationId: "D1", markdown: "- Useful result.", evidenceIds: ["E1", "E2"] }, { destinationId: "D2", markdown: withMetadata("# Topic\n\nExisting context.\n\nUseful result.\n"), evidenceIds: ["E1", "E3"] } ] });
     const result = await f.run(["daily", "topic"]);
     expect(result.ok).toBe(true);
     if (!result.ok) throw Error("proposal");
@@ -90,7 +91,7 @@ describe("bounded queued research proposals", () => {
     { changes: [{ destinationId: "D1", markdown: "- x", evidenceIds: ["E99"] }] },
     { changes: [{ destinationId: "D1", markdown: "- x", evidenceIds: [] }] },
     { changes: [{ destinationId: "D1", markdown: "- x", evidenceIds: ["E1"], approval: true }] },
-    { changes: [{ destinationId: "D1", markdown: "- x", evidenceIds: ["E1"] }], path: "Synapse/Security.md" },
+    { changes: [{ destinationId: "D1", markdown: "- x", evidenceIds: ["E1"] }], path: "Synapse/Instructions.md" },
     { changes: [{ destinationId: "D1", markdown: "# overwrite", evidenceIds: ["E1"] }] },
     { changes: [{ destinationId: "D1", markdown: "- x", evidenceIds: ["E1", "E1"] }] },
     { changes: [{ destinationId: "D1", markdown: " ", evidenceIds: ["E1"] }] },
@@ -110,7 +111,7 @@ describe("bounded queued research proposals", () => {
     expect(f.calls).toHaveLength(0);
   });
 
-  it.each(["Research.md", "Synapse/Instructions.md", "Synapse/Security.md", "notes/topic.md"])("blocks restricted or colliding routing %s", async (path) => {
+  it.each(["Research.md", "Synapse/Instructions.md", "synapse/INSTRUCTIONS.md", "notes/topic.md"])("blocks restricted or colliding routing %s", async (path) => {
     const f = await fixture();
     f.setControls({ ...f.controls, instructions: { ...f.controls.instructions, routing: { ...f.controls.instructions.routing, destinations: [{ id: "topic", path: asVaultPath(path) }] } } });
     expect((await f.run(["topic"])).ok).toBe(false); expect(f.calls).toHaveLength(0);
@@ -179,7 +180,7 @@ describe("bounded queued research proposals", () => {
       getJson: async () => ({ status: 200, body: {} }),
       async *postStream(_url, body) {
         wire.push(body);
-        yield { choices: [{ message: { content: JSON.stringify(wire.length === 1 ? { changes: [], approval: true } : { changes: [{ destinationId: "D1", markdown: "- Safe result.", evidenceIds: ["E1"] }] }) } }] };
+        yield { choices: [{ message: { content: JSON.stringify(wire.length === 1 ? { changes: [], approval: true } : { changes: [{ destinationId: "D1", markdown: withMetadata("- Safe result."), evidenceIds: ["E1"] }] }) } }] };
       },
     };
     f.setControls({ ...f.controls, policy: { ...f.controls.policy, rules: { ...f.controls.policy.rules, rules: [...f.controls.policy.rules.rules, { id: "mask", recipient: "remote-model", operation: "read", effect: "mask", selector: {}, masks: [{ kind: "replace-literal", from: "useful", to: '"safe"' }] }] } } });
@@ -222,7 +223,7 @@ describe("bounded queued research proposals", () => {
     f.vault.emitModify("Notes/Topic.md");
     expect((await f.run(["topic"])).ok).toBe(false); expect(f.calls).toHaveLength(0);
     f.metadata.emitChanged("Notes/Topic.md");
-    f.output({ changes: [{ destinationId: "D1", markdown: "# Updated topic", evidenceIds: ["E1"] }] });
+    f.output({ changes: [{ destinationId: "D1", markdown: withMetadata("# Updated topic"), evidenceIds: ["E1"] }] });
     expect((await f.run(["topic"])).ok).toBe(true);
   });
 

@@ -6,7 +6,7 @@ const hash = "a".repeat(64) as ContentHash;
 const policy: PolicySnapshot = { version: 1, hash, rules: { version: 1, defaults: { internal: "allow", "remote-model": "allow", "external-client": "allow" }, rules: [] } };
 function request(path: string): AccessContractRequest {
   return { context: { recipient: "remote-model", purpose: "research", policyHash: hash }, operation: "read", path: asVaultPath(path), excluded: false, tags: [], frontmatter: {}, maskingSupported: true,
-    controlPaths: { instructions: asVaultPath("Synapse/Instructions.md"), security: asVaultPath("Synapse/Security.md"), research: asVaultPath("Research.md") } };
+    controlPaths: { instructions: asVaultPath("Synapse/Instructions.md"), research: asVaultPath("Research.md") } };
 }
 it.each(["Research.md", "Synapse/Instructions.md"])("keeps privileged %s unavailable to ordinary reads", (path) => {
   expect(evaluateResearchInput(policy, request(path))).toEqual({ effect: "allow" });

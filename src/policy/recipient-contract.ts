@@ -33,7 +33,7 @@ export function evaluateAccessContract(policy: PolicySnapshot | null, request: A
 }
 
 /** Explicit selected-research/style disclosure only; never used by retrieval/tools.
- * Caller still supplies user exclusion and current metadata. Security.md stays private. */
+ * Caller still supplies user exclusion and current metadata. */
 export function evaluateResearchInput(policy: PolicySnapshot | null, request: AccessContractRequest): AccessDecision {
   const privileged = request.operation === "read" && request.context.purpose === "research"
     && [request.controlPaths.research, request.controlPaths.instructions].includes(request.path);
@@ -48,7 +48,7 @@ function evaluate(policy: PolicySnapshot | null, request: AccessContractRequest,
   const inboxAppend = request.operation === "append-research" && request.context.recipient === "external-client" && request.path === request.controlPaths.research;
   if (request.operation === "append-research" && !inboxAppend) return deny("capability");
   if (request.excluded) return deny("excluded");
-  if (!privileged && !inboxAppend && [request.controlPaths.instructions, request.controlPaths.security, request.controlPaths.research].some((path) => path.toLowerCase() === request.path.toLowerCase())) return deny("control-file");
+  if (!privileged && !inboxAppend && [request.controlPaths.instructions, request.controlPaths.research].some((path) => path.toLowerCase() === request.path.toLowerCase())) return deny("control-file");
   if (request.tags === null || request.frontmatter === null) return deny("metadata-unavailable");
   const { context, operation } = request;
   if (context.recipient === "remote-model" && operation !== "read") return deny("capability");

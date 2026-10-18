@@ -3,7 +3,7 @@ import { asVaultPath } from "../core";
 import { parseApprovalBinding, parseChangeProposal } from "./index";
 
 const hash = "a".repeat(64);
-const paths = { instructions: asVaultPath("Synapse/Instructions.md"), security: asVaultPath("Synapse/Security.md"), research: asVaultPath("Research.md") };
+const paths = { instructions: asVaultPath("Synapse/Instructions.md"), research: asVaultPath("Research.md") };
 const change = { destinationId: "daily-log", path: "Daily/2026-10-14.md", operation: "create", target: { exists: false }, before: "", after: "## Log\nResearch\n", evidenceIds: ["E1"] };
 const proposal = { version: 1, id: "proposal-one", batch: { id: "batch-one", source: "Research.md", sourceHash: hash, selectedHash: hash, range: { start: 0, end: 12 }, provenance: "external" }, instructionsHash: hash, policyHash: hash, changes: [change], issues: [] };
 
@@ -16,7 +16,7 @@ describe("local proposal representation", () => {
   it.each([
     { ...proposal, version: 2 }, { ...proposal, policyHash: "not-a-hash" }, { ...proposal, changes: [] },
     { ...proposal, changes: [{ ...change, path: "../Outside.md" }] },
-    { ...proposal, changes: [{ ...change, path: "Synapse/Security.md" }] },
+    { ...proposal, changes: [{ ...change, path: "Synapse/Instructions.md" }] },
     { ...proposal, changes: [{ ...change, path: "synapse/instructions.md" }] },
     { ...proposal, changes: [{ ...change, path: "Research.md" }] },
     { ...proposal, batch: { ...proposal.batch, source: "Notes/Other.md" } },

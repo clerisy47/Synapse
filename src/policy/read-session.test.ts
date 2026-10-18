@@ -4,7 +4,7 @@ import { FakeCorpus } from "../../test/fakes";
 import { createReadSession } from "./read-session";
 
 const hash = "a".repeat(64) as ContentHash;
-const paths = { instructions: asVaultPath("Synapse/Instructions.md"), security: asVaultPath("Synapse/Security.md"), research: asVaultPath("Research.md") };
+const paths = { instructions: asVaultPath("Synapse/Instructions.md"), research: asVaultPath("Research.md") };
 function fixture(projection: "raw-tools" | "evidence" = "evidence") {
   const corpus = new FakeCorpus([{ path: "Public.md", text: "Public confidential", tags: ["work"], frontmatter: { share: true } }]);
   let version = "v1";

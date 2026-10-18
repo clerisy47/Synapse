@@ -1,63 +1,42 @@
-# PROGRESS.md — Synapse
+# Synapse progress
 
 ## Current focus
 
-R5-T02 completes [clear-data, privacy disclosures and diagnostics](docs/r5-t02-privacy-audit.md). R5-T03 is next: synthetic evaluation and the Phase A feature-complete gate. Actual Obsidian/native-client smoke remains at R5-T03.
-Provider stance: **Phase A = OpenRouter `openrouter/free`** through revised Must + Should completion; **Phase B = local Ollama**, after validation.
+Documentation now describes a standalone terminal Markdown platform with a Codex CLI-style interaction model. The subsequent request to perform the remaining plan authorized implementation. The CLI scaffold now builds and installs independently; workspace indexing is next in PLAN.md. Product commands remain unavailable.
 
 ## Last session
 
-- Added locally confirmed clear-data with frozen persistence and pending-write drain; preserves settings and all vault files, removes recovery/receipt/pairing history and requires reload.
-- Disclosed lost recovery/revert and duplicate-prevention history, retained API key, sync/backups, sensitive retention and OpenRouter routed-provider egress.
-- Removed raw exception logging and paths from debug notices. Added clear/restart, pending/late write, failure, local confirmation/cancel/unload and production-bundle redaction coverage.
-- Required checks/build passed; 853 tests passed (one existing opt-in live test skipped), 88 mini-vault checks, and production-bundle plugin tests passed. Lint has warnings only.
-- Real Obsidian smoke and live openrouter/free evaluation remain at R5-T03/R5-T04.
+2026-10-18: User replaced the application-host direction with a terminal platform and requested document rewrites only. Replaced README, SPEC, DESIGN, PLAN, RESEARCH and contributor instructions. Removed obsolete host audits, historical specifications and setup/deployment guides from the documentation surface. Added terminal contracts for explicit workspaces, safe rendering, noninteractive output, local approval, filesystem confinement, process locking, recovery, scoped MCP and release evidence. No source, test, dependency, workflow, generated starter or build artifact changes were made for this pivot.
+
+Retained product decisions: Markdown-only lexical/graph retrieval; verified evidence; reviewed research-to-note updates; local Bonsai default; explicit OpenRouter selection/consent; exclusions; no embeddings/vector DB/telemetry; optional scoped MCP. Existing code need not be preserved or reused. Prior validation is not CLI acceptance evidence.
 
 ## Known issues
 
-- `.env` previously had a trailing space in the key name and quoted value — normalized; keep `OPENROUTER_API_KEY=...` unquoted.
-- Use `openrouter/free` for all live tests and the default model (user decision 2026-10-13). The retired Qwen default returned HTTP 404; the `openrouter/free` live health probe failed with `FORMAT_IGNORED` on 2026-10-13. Automated checks pass (398 tests); no alternate live model will be used.
-- `npm run lint` targets `src` only. Supplemental `npx eslint src test` currently fails on pre-existing `@typescript-eslint/no-this-alias` at `test/fakes/fake-corpus.ts:210`; M3-T06 does not change that fake.
-- ESLint warns that `PluginSettingTab` lacks `getSettingDefinitions()` (Obsidian 1.13+ settings search); declarative settings deferred.
+- Runnable CLI scaffold exists; chat, model, research, approved writes and MCP commands are not yet implemented.
+- Working tree already contained implementation and documentation changes before the pivot. Documentation was rewritten deliberately; pre-existing non-document changes were left untouched.
+- Plain text terminal, provisional Node 22/macOS/Linux targets, state layout and package identity are selected in docs/cli-scaffold.md. Filesystem replacement strategy and MCP wire pin remain undecided.
+- Real terminal, filesystem crash/concurrency, live Bonsai quality and native MCP-client gates remain unevidenced for the CLI.
 
 ## Shortcuts taken
 
-- DESIGN §5.6 / §8 / §11 and PLAN M1 tasks updated in place rather than a full line-by-line pass of every Ollama mention in DESIGN §6–§13 flows.
-- M1-T04 adds a small `createObservable` + `TransportError` class beyond the DESIGN interface snippets so later stores/fakes have a usable pure primitive and `instanceof` mapping.
-- Tightened `check-no-writes.mjs` vault patterns to `\bvault\.(modify|create|…)` so `Set.delete` / similar are not false positives.
-- M1-T05 uses a hand-rolled subset emitter instead of Zod’s `toJSONSchema` so nullable objects never emit `anyOf` (Zod 4’s default for `.nullable()` on objects).
-- M1-T06 uses explicit clamp/fallback helpers rather than zod `.catch` so out-of-range ints clamp instead of resetting to defaults.
-- Tightened `check-no-network.mjs` `requestUrl` pattern to `\brequestUrl\s*\(` so the §4.5 transport-mode enum string is not a false positive.
-- M1-T07 injects optional `schedule` for debounce (defaults to `window` timers) so vitest can run without a DOM `window`.
-- M1-T08 kept temporary `ModelPort` types in `scripted-model.ts` until M1-T10; ring-buffer logger is a fake (production `ConsoleSink` still later).
-- M1-T09 injects optional `checkEndpoint` instead of importing `policy` (adapters may only depend on `core`); EndpointPolicy wiring lands with M1-T12 / composition root. Disabled Obsidian window-timer lint rules for `adapters/node` and `test/` because Node timers are correct there.
-- M1-T10: optional `headers` on `Transport`; `llm-deps` may import `src/constants.ts` (same as config/state) for timeouts / `NUM_PREDICT` / `PLUGIN_NAME`. Auth/rate-limit map to `MODEL_HTTP_ERROR` + remediation keys (no new `ErrorCode`s).
-- M1-T11: `createJobQueue({ clock, abortable })` injects abortability (composition root will pass `transport.capabilities.abortable`); `progress()` stores last stage only (status-bar UI is M1-T14).
-- M1-T13: `createObsidianStorage` takes injectable deps for CI; `createObsidianStorageFromPlugin` wraps live Plugin. `RequestUrlTransport` injects `requestUrl` for tests and lazy-imports Obsidian otherwise; local `EndpointChecker` type (adapters must not import each other). `onLayoutReady` disposable only suppresses late callbacks (Obsidian API has no unsubscribe). Vitest aliases `obsidian` → `test/stubs/obsidian.ts`.
-- M1-T14: notice Retry is an injected `onRetry` callback; mount tests use a minimal `HTMLElement` fake (vitest `environment: node`).
-- M1-T15: settings panel uses injectable `SettingsTabHost` (no `obsidian` in `ui/`). Avoided `requestUrl (` in UI strings so `check-no-network` `\brequestUrl\s*\(` stays green.
-- M1-T16: `PluginSettingTab` lives in adapters with injected `mount` callback (adapters-deps forbid importing ui). HealthChecker rebuilt on settings invalidate rather than adding a reset API. System `Clock` inlined in `main.ts`. `minAppVersion` 1.8.7 for `Notice.messageEl`.
-- M1-T18: checklist marks automated CI/build rows done; Obsidian UI rows left for optional clean-vault operator pass (PLAN allows).
-- M2-T02: inject `sliceMs` into `createCorpusStore` (corpus must not import `constants.ts` per dependency-cruiser).
-- M2-T03: `bytesCached` is folded-length sum only; cache cap remains provisional. Indexes are maintained by CorpusStore.
-- M2-T04: `store.test.ts` keeps local TestMetadata stub for older cases; unique targets only (`count > 0` gates edges).
-- M2-T05: combined NoteDate tests to stay in file budget; title search trims query; date-only ISO uses UTC midnight.
-- M2-T06: tool arg/result caps live as named constants in `args.ts` (tools-deps forbids `constants.ts`); duplicate checks stay outside `invoke` via `createDuplicateTracker`; registry `canonicalKey` returns `null` on invalid args.
-- M2-T07: tool bodies take `CoreToolDeps` (duck-typed); `sliceMs`/`budgetMs`/excerpt expand live in tools (not `constants.ts`); filename match for `search_by_title` is tool-layer only; FakeCorpus omits excluded notes so missing≡excluded.
-- M2-T08: `unresolvedCount` lives on `CoreToolDeps` / CorpusStore rather than extending LinkGraph.
-- M2-T09: touch/FM on `CoreToolDeps`; live wiring via CorpusStore + session/`touchLog` in composition (M2-T10).
-- M2-T10: adapters use injectable surfaces + `FromApp` factories; status bar duck-types `IndexBarStatus` (ui must not import corpus); stable `indexStatus` forwarder survives corpus rebuild; debug command is path-only Notice (no note body).
-- M3-T01: `segment` is async (needs `sha1Hex`) and takes `ref`/`sourceMtime` so it can return full `Excerpt[]`; evidence mirrors 200/600/300 locally (cannot import `constants.ts`); citation title in `renderForPrompt` is path basename until DocMeta is threaded later.
-- M3-T02: `resolveAnchor` returns DESIGN `null` (not PLAN “undefined”); `hintStart` only disambiguates duplicate exact quotes (no wrong-text hint fallback).
-- M3-T03: RunBudget defaults/fractions live in `budget.ts` (agent-deps forbids `constants.ts`); SPEC evaluate/stop mapped to ANSWER/VERIFY/DONE; cancel stays outside the machine.
-- M3-T04: TopK sets `enough: true` (skip READ → two-call Gate A path); `QA_NUM_PREDICT` mirrored in `prompts.ts`; machine `modelCalls` accounting for top-k left to M3-T05.
-- M3-T06: UI uses structural Q&A input types to preserve the current ui-deps allowlist; ItemView lives in adapters and receives mount/type/title via injection. Registration and real pane smoke await M3-T07; navigation awaits M3-T08. DOM tests use happy-dom without changing the default Node test environment.
-- M3-T05: public `ChatTurn` is `{question,answer}`; mapped to prompt `{role,text}` in `chat-session`; `QaIndexStatus` duck-typed (agent-deps forbids corpus); `enough` → empty machine `readIds` to skip READ; stats.modelCalls count actual generates (TopK select has no usage).
+No code migration in this session, as requested. Old host documentation was removed rather than maintained as an alternative architecture. Git history remains available for historical investigation.
 
 ## Decisions not in DESIGN.md
 
-- None outstanding (ADR-21 landed in DESIGN).
+None.
 
 ## Rules to add to AGENTS.md
 
-- (cleared — Phase A/B rules already in AGENTS.md)
+None.
+
+## Implementation evidence — 2026-10-18
+
+CLI-T01: established a separate strict TypeScript CLI, help/version, canonical explicit-root validation, sanitized root display, redirected-input refusal, and an allowlisted executable package. Removed former host dependencies from the active package, retaining existing source and tests outside the CLI artifact. Updated CI and development artifact workflow. Decisions and limits are in docs/cli-scaffold.md.
+
+On Darwin 25.6.0 arm64, Node 22.23.3: clean `npm ci --ignore-scripts`, typecheck, scaffold static checks, four scaffold tests, and one actual tarball/install test passed. Node 23.10.0 checks also passed. No full terminal/model/MCP/recovery/release evidence is claimed. The working tree remains uncommitted and includes pre-existing changes.
+
+CLI-T02 work: added filesystem reader, bounded UTF-8 reads, path/exclusion filtering, YAML validation, lexical retrieval, link/backlink and recent discovery, application-owned source coordinates, fresh evidence checks and native watcher invalidation. Ten scaffold/corpus tests and a separate install test passed before adding incremental directory iteration and the depth-cap regression. The fixture canonical-root correction addressed the observed macOS temporary-root failures without relaxing reader containment. CLI-T02 remains open: concurrent ancestor-directory replacement containment, application-state path exclusions and further resource-limit checks need evidence before provider work. Models, chat, review, writes and MCP remain unimplemented in the CLI.
+
+Final scaffold/workspace verification: 11 tests plus the clean tarball/install test passed on Node 23.10.0 after incremental directory scanning and the depth-bound regression were added. Typecheck and static scaffold checks also passed. Directory iteration is bounded incrementally rather than materializing unbounded directory listings. The ancestor-replacement race remains an explicit open verification item; this build is a development scaffold, not a safe-to-release workspace agent.
+
+The final 11-test workspace/scaffold suite and separate tarball/install test also passed on Node 22.23.3, together with typechecking.

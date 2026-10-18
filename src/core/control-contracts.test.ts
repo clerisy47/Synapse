@@ -23,8 +23,8 @@ describe("canonical control paths", () => {
     if (!result.ok) expect(JSON.stringify(result.error)).not.toContain(path || "sentinel-secret");
   });
   it("rejects collisions after separator and case normalization", () => {
-    expect(validateControlPaths({ instructions: "Synapse\\Rules.md", security: "synapse/rules.md", research: "Research.md" }).ok).toBe(false);
-    expect(validateControlPaths({ instructions: "Synapse/Instructions.md", security: "Synapse/Security.md", research: "Research.md" }).ok).toBe(true);
+    expect(validateControlPaths({ instructions: "Synapse\\Rules.md", research: "synapse/rules.md" }).ok).toBe(false);
+    expect(validateControlPaths({ instructions: "Synapse/Instructions.md", research: "Research.md" }).ok).toBe(true);
   });
 });
 

@@ -1,3 +1,4 @@
+import { withMetadata } from "../../../test/note-metadata-fixture";
 import { describe, expect, it, vi } from "vitest";
 import { asVaultPath, type NoteWriteRequest, type ProposedChange } from "../../core";
 import { createObsidianNoteWriter, createObsidianResearchAppender, type NoteWriteSurface } from "./note-write";
@@ -17,8 +18,8 @@ function fixture() {
   };
   const abort = new AbortController(); let current = true;
   const request: NoteWriteRequest = {
-    change: { path: asVaultPath("Topic.md"), operation: "update", before: "before", after: "after", target: { exists: true, hash: "x" }, destinationId: "D1", evidenceIds: ["E1"] } as unknown as ProposedChange,
-    paths: { instructions: asVaultPath("Synapse/Instructions.md"), security: asVaultPath("Synapse/Security.md"), research: asVaultPath("Research.md") },
+    change: { path: asVaultPath("Topic.md"), operation: "update", before: "before", after: withMetadata("after"), target: { exists: true, hash: "x" }, destinationId: "D1", evidenceIds: ["E1"] } as unknown as ProposedChange,
+    paths: { instructions: asVaultPath("Synapse/Instructions.md"), research: asVaultPath("Research.md") },
     signal: abort.signal, current: () => current, revalidate: vi.fn(async () => true), willCommit: vi.fn(), editorSnapshots: () => [],
   };
   return { writer: createObsidianNoteWriter(surface), files, editors, surface, request, abort, stale: () => { current = false; },
@@ -27,11 +28,11 @@ function fixture() {
 describe("restricted note write adapter", () => {
   it("updates through compare-and-process and creates only absent Markdown", async () => {
     const f = fixture(); expect((await f.writer.apply(f.request)).ok).toBe(true);
-    expect(f.files.get("Topic.md")).toBe("after"); expect(f.surface.process).toHaveBeenCalledOnce();
+    expect(f.files.get("Topic.md")).toBe(withMetadata("after")); expect(f.surface.process).toHaveBeenCalledOnce();
     expect((await f.writer.apply({ ...f.request, change: { ...f.request.change, path: asVaultPath("New.md"), operation: "create", target: { exists: false }, before: "" } })).ok).toBe(true);
-    expect(f.files.get("New.md")).toBe("after");
+    expect(f.files.get("New.md")).toBe(withMetadata("after"));
   });
-  it.each(["Research.md", "research.md", "Synapse/Security.md", "Synapse/Instructions.md", "../Topic.md", "Topic.txt", ".obsidian/x.md", "Topic\\Child.md"])("rejects forbidden target %s", async (path) => {
+  it.each(["Research.md", "research.md", "Synapse/Instructions.md", "synapse/INSTRUCTIONS.md", "../Topic.md", "Topic.txt", ".obsidian/x.md", "Topic\\Child.md"])("rejects forbidden target %s", async (path) => {
     const f = fixture(); expect((await f.writer.apply({ ...f.request, change: { ...f.request.change, path: asVaultPath(path) } })).ok).toBe(false);
     expect(f.surface.process).not.toHaveBeenCalled(); expect(f.surface.create).not.toHaveBeenCalled();
   });
@@ -67,8 +68,8 @@ describe("restricted note write adapter", () => {
 
 it("checks background source and control editor guards at the atomic boundary", async () => {
   const f = fixture();
-  f.request.editorSnapshots = () => [{ path: "Research.md", text: "research" }, { path: "Synapse/Security.md", text: "rules" }];
-  f.duringProcess(() => f.editors.push({ path: "Synapse/Security.md", text: "unsaved policy" }));
+  f.request.editorSnapshots = () => [{ path: "Research.md", text: "research" }, { path: "Synapse/Instructions.md", text: "rules" }];
+  f.duringProcess(() => f.editors.push({ path: "Synapse/Instructions.md", text: "unsaved policy" }));
   expect((await f.writer.apply(f.request)).ok).toBe(false); expect(f.files.get("Topic.md")).toBe("before");
 });
 it("separately scopes append to the configured inbox and rechecks the bound gate", async () => {
@@ -85,11 +86,21 @@ it("does not claim a host rejection after submission proves that nothing was wri
   f.surface.process = async (path, update) => { f.files.set(path, update(f.files.get(path)!)); throw Error("host failure"); };
   const result = await f.writer.apply(f.request);
   expect(result.ok).toBe(false); if (result.ok) throw Error("expected refusal");
-  expect(result.error.detail?.issueCode).toBe("WRITE_OUTCOME_UNKNOWN"); expect(f.files.get("Topic.md")).toBe("after");
+  expect(result.error.detail?.issueCode).toBe("WRITE_OUTCOME_UNKNOWN"); expect(f.files.get("Topic.md")).toBe(withMetadata("after"));
 });
 
 it("refuses a disk-only destination that is absent from the host file cache", async () => {
   const f = fixture(); f.surface.exists = async () => true;
   const result = await f.writer.apply({ ...f.request, change: { ...f.request.change, path: asVaultPath("New.md"), operation: "create", target: { exists: false }, before: "" } });
   expect(result.ok).toBe(false); expect(f.surface.create).not.toHaveBeenCalled();
+});
+
+
+it("validates the resulting metadata while allowing an originally noncompliant note to be repaired", async () => {
+  const f = fixture();
+  for (const after of ["Body without YAML", '---\ndescription: x\ntags: []\naliases: []\n---\nBody', '---\ndescription: x\ntags: [x]\naliases: wrong\n---\nBody']) {
+    expect((await f.writer.apply({ ...f.request, change: { ...f.request.change, after } })).ok).toBe(false);
+  }
+  expect(f.surface.process).not.toHaveBeenCalled();
+  expect((await f.writer.apply(f.request)).ok).toBe(true);
 });
