@@ -13,3 +13,5 @@ Current baseline, rewritten 2026-10-18 for the native Rust/Cargo terminal platfo
 Obsolete host audits, deployment guides and historical specifications were removed as part of the product pivot. Git history retains prior versions. No CLI acceptance evidence is claimed from those documents.
 
 The native Cargo foundation is implemented. Existing npm/TypeScript tooling is historical and outside native CI/artifacts. See foundation decisions and PROGRESS for evidence and remaining feature gates.
+
+- [Rust workspace reader and corpus](rust-workspace.md): descriptor-scoped reads, exclusions, metadata, lexical/graph retrieval, evidence freshness and dependency review.

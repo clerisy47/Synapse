@@ -10,3 +10,6 @@ pub fn open_workspace(
     }
     reader.validate_root(selected)
 }
+
+mod corpus;
+pub use corpus::{Corpus, EvidenceId, Hit, Passage};

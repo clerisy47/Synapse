@@ -44,3 +44,5 @@ python3 scripts/smoke-native.py
 ```
 
 Run `cargo run --locked -- --help`. Install from a checkout with `cargo install --locked --offline --path . --root <install-directory>`. The installed native binary runs without Node.js or Cargo. Existing npm commands exercise only superseded TypeScript work. See [foundation decisions](docs/cli-scaffold.md) and [release validation](docs/release-validation.md). No release has been published; publication requires explicit authorization. MIT license remains unchanged.
+
+The Rust workspace reader and corpus library now provide capability-scoped reads, metadata/exclusions, bounded lexical/link retrieval and fresh evidence IDs. See [workspace behavior and limits](docs/rust-workspace.md). These APIs are not yet wired to chat or an ask command; the executable keeps its foundation interface.
