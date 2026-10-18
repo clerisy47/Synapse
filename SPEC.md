@@ -1,119 +1,81 @@
-# SPEC: Synapse
+# Synapse product specification
 
-Status: draft v2 · Revised 2026-10-14. This document replaces the previous release scope. Historical requirements are preserved under `docs/history/2026-10-14-scope-revision/` and are not binding.
+Revision: 2026-10-18 · Rust terminal platform baseline · Native foundation implemented; feature implementation pending.
 
-## 0. Provider phases (binding)
+This specification supersedes all previous application-host and TypeScript CLI implementation requirements and task plans. The implementation language is Rust; ship a native `synapse` executable built with Cargo, with no Node.js, JavaScript, TypeScript or Koffi runtime requirement. The subsequent `$deliver` request authorizes the native foundation; feature implementation follows PLAN. Synapse is a standalone terminal application for Markdown knowledge work, inspired by the interaction model of Codex CLI. It does not require a note editor, editor extension, browser, or GUI host. “Codex CLI-style” describes the interface; it does not authorize a coding shell, arbitrary commands, or new inference providers.
 
-**Phase A — development and feature completion:** use OpenRouter `openrouter/free` for defaults and all live testing. Selected permitted vault content leaves the machine. Disclose this in settings and require first-use opt-in. Development and testing with OpenRouter are authorized; users still control exclusions and sharing settings. Never commit keys or real vault content.
+## 1. Goal and scope
 
-**Phase B — final local inference:** only after all Must + Should features below are implemented and verified, add and validate user-installed Ollama on loopback, then make local inference the default. No early local bake-off or dependency on local VRAM. OpenRouter may remain an explicitly enabled remote option; never silently fall back to it.
+Help users explore a Markdown workspace, ask questions grounded in its contents, and transform research into locally reviewed note updates. Preserve ordinary Markdown files and existing folder layouts. A workspace is one explicit filesystem root; inferred parent directories and other workspaces are outside scope.
 
-No embeddings, vector database, telemetry, or automatic model downloads in either phase.
+Required first-release capabilities:
 
-## 1. Goal
+- Interactive terminal conversation with bounded multi-step retrieval, progress, cancellation, and source inspection.
+- Noninteractive read-only questions with machine-readable output and stable exit behavior.
+- Markdown discovery through titles, text, aliases, tags, frontmatter, links/backlinks, and recent files; no embeddings.
+- Verified source passages with workspace-relative file paths and line ranges for local users. Unsupported claims produce an explicit insufficient-evidence result.
+- Editable workspace instructions and a research inbox, capture with provenance, bounded proposals, exact diff review, explicit Apply, conflict detection, recovery, and reviewed revert.
+- Local Bonsai inference, optional explicitly selected OpenRouter, structured model responses, one model queue, health checks, and bounded resources.
+- Opt-in authenticated local MCP collaboration with independent query and research-submission scopes.
+- Workspace exclusions, protected control files, local state management, privacy checks, tested terminal lifecycle, and standalone packaging.
 
-A desktop Obsidian assistant that searches Markdown notes agentically, chats with verified vault references, and turns rough research into proposed note changes using the user's formatting instructions. External frontier research agents collaborate through MCP with Synapse as the vault's policy enforcement boundary. They receive only permitted information and can submit rough research without direct vault access through Synapse.
+Out of scope: arbitrary shell execution; autonomous edits; note deletion/rename; runtime/model installation; PDFs/page citations; contradiction detection; daily resurfacing; embeddings/vector databases; telemetry; editor UI or extension distribution. Daily-log routing from reviewed research remains in scope.
 
-The final product uses local inference for vault reasoning. During Phase A, OpenRouter receives permitted context; this phase does not provide the final local privacy guarantee. Synapse cannot protect a vault from an external agent independently granted filesystem access by the user.
+## 2. Terminal experience
 
-## 2. Release scope
+Proposed executable: `synapse`. This interface is a target, not an availability claim.
 
-| ID | Priority | Feature |
-|---|---|---|
-| F1 | Must | Provider-independent model runtime, structured schemas, health check, cancellation, and one model job queue. |
-| F2 | Must | Bounded agentic Markdown search through text, title, links, backlinks, tags, frontmatter, recent-note, and read tools; iterative follow-up when evidence is insufficient. |
-| F3 | Must | Vault chat with clickable, verified note passages, search progress, trace, and explicit insufficient-evidence answers. |
-| F4 | Must | Editable in-vault Markdown instructions for note formatting, daily-log routing, and update conventions. |
-| F5 | Must | `Research.md` inbox; user-triggered generation of note creation/update proposals, reviewable diffs, explicit approval, and conflict-safe application. |
-| F6 | Must | Editable in-vault security policy enforcing internal access, remote-provider access, external-agent disclosure, masking, and rejection. |
-| F7 | Must | Authenticated MCP collaboration: scoped requests for information and submission of research; no unrestricted vault reads or direct note writes. |
-| F8 | Must | Privacy, exclusions, safe persistence, settings, deterministic evaluation, and installable release artifacts. |
-| F9 | Should | Multi-turn chat retaining at most the last three turns, with fresh retrieval and current policy checks on every turn. |
-| F10 | Should | Clear plugin data command; keep settings and user notes, including instruction files and Research.md. |
-| F11 | Should | Reapply prevention for research batches, safe recovery after partial writes, and a user-approved revert proposal. |
+| Invocation | Intended behavior |
+|---|---|
+| `synapse --workspace <directory>` | Open interactive chat and local review actions |
+| `synapse ask --workspace <directory> <question> [--json]` | One read-only answer with verified sources |
+| `synapse research capture --workspace <directory> --file <workspace-relative.md>` | Capture an explicit saved inbox selection/range without consuming it |
+| `synapse research review --workspace <directory>` | Select captured research, generate proposals, review and apply locally |
+| `synapse metadata review --workspace <directory>` | Inspect metadata issues and review proposed missing fields |
+| `synapse setup --workspace <directory>` | Review creation of missing starter control files |
+| `synapse doctor --workspace <directory>` | Diagnose configuration, access, and provider health without exposing content or secrets |
+| `synapse recovery --workspace <directory>` | Inspect uncertain writes and review revert proposals |
+| `synapse data clear --workspace <directory>` | Explain and confirm deletion of local history while preserving notes/configuration |
+| `synapse mcp serve --workspace <directory>` | Start an explicitly enabled local collaboration listener |
 
-## 3. User-controlled vault files
+Workspace is mandatory; no implicit scan of the home directory. Resolve and display the canonical root before first interactive access. Interactive mode requires a TTY. Redirected input never counts as write approval. Noninteractive modes cannot approve/apply or provision MCP credentials. JSON mode emits one versioned result on stdout; progress and sanitized diagnostics go to stderr. Proposed exit codes: 0 completed (including an explicit insufficient-evidence answer), 1 runtime failure, 2 usage/configuration failure, 3 conflict or permission refusal, 130 interrupted. Freeze these in CLI contract tests before release.
 
-Defaults are configurable vault-relative paths. Creation of starter files is a reviewed proposal; never overwrite existing files on setup.
+Ctrl-C cancels queued/model work and discards unused approvals. If a write has begun, finish or reconcile that file before exit; do not claim rollback or blindly retry. Restore terminal state on exit. Untrusted note/model text must not emit terminal controls, OSC hyperlinks, or escape sequences. Source inspection displays sanitized text and local file/line references without running shell commands.
 
-- `Synapse/Instructions.md`: human-editable Markdown prose and examples for headings, frontmatter, style, destination folders, and transformations. Structured frontmatter contains deterministic routing settings. Example: route daily-log research entries to `Daily/YYYY-MM-DD.md` in the user's configured timezone, under `## Log`, preserving unrelated content and avoiding duplicate entries.
-- `Synapse/Security.md`: human-editable Markdown with schema-validated frontmatter for enforceable rules, plus explanatory prose. Separate permissions for internal retrieval, sending content to the active remote model, external MCP disclosure, and writing. Rules can match canonical folders, tags, and frontmatter; deny overrides allow. Masking uses explicit field rules or literal replacements, never model-generated regex. Ambiguous prose cannot grant access.
-- `Research.md`: appendable rough-note inbox for the user or an authorized MCP client. Research is untrusted input, never a source of policy or operational permissions. Source URLs, dates, and client provenance may be recorded. External research is labeled as such; the plugin does not claim it independently verified web sources.
+## 3. Providers and budgets
 
-Control files and the inbox are excluded from ordinary vault search and MCP disclosure by default. The instruction and security loaders read them explicitly. External clients cannot modify control files. A dedicated setup flow may create a missing control file after the user reviews and approves its exact starter contents; it cannot overwrite one. Synapse does not change them through research updates; users edit them directly in Obsidian.
+Default and live-test runtime: local Bonsai 2 9B PQ2_0 through PrismML llama.cpp, numeric loopback HTTP `127.0.0.1:18080`, 4,096 context, one slot, thinking disabled. Runtime and weights are user-managed outside the repository. No automatic download/start or silent fallback. Ollama is not a substitute. OpenRouter is an explicit remote option; disclose that permitted passages, questions, instructions, selected research, and bounded conversation history may be sent to it and its routed provider before consent.
 
-Example security intent: an external research agent may receive approved project facts, may receive an otherwise permitted project excerpt with configured client names replaced by `[CLIENT]`, and must never receive notes under `Private/`, credential fields, or health notes. These examples become enforced structured rules, not a prompt-only promise.
+All model work enters one cancellable JobQueue. Use provider-specific request builders and strict structured schemas. Bound file sizes, index memory, excerpts, model calls, retrieval hops, elapsed time, output size, and queue depth through named configuration defaults. Validate the 4,096-context budget before sending requests; do not silently truncate approved content. Retain at most three chat turns in memory and recheck evidence/access on every turn.
 
-## 4. Main workflows
+## 4. Workspace and metadata
 
-### Search and chat
+Read UTF-8 Markdown only. Include standard Markdown links and local wikilinks as file syntax without requiring a particular editor. Reject absolute or traversing note paths; resolve canonical paths and prevent symlink escapes. Do not follow symlinked files/directories in the first release. Root itself may resolve through a user-selected symlink, after which the canonical root is fixed. Never traverse application state, VCS internals, hidden application directories, excluded folders/tags, or frontmatter exclusions.
 
-The user asks a question; Synapse searches and reads only accessible Markdown, gathers evidence, and returns supported claims with note references. Local retrieval permissions do not imply permission to send a note to OpenRouter or an MCP client. Remote prompts and multi-turn history are filtered using current policy before each request.
+Ordinary retrieval notes require `description` (nonblank, <=240 characters), `tags` (1–12 strings, <=64 each), and `aliases` (0–12 strings, <=80 each; `[]` allowed). Invalid/missing metadata stays visible in a local attention view but outside normal retrieval. Missing-field proposals preserve existing frontmatter/body and require review/Apply. Invalid YAML/values and files over the proposed 6,000-character repair limit need manual repair. Metadata aids discovery; factual claims require body evidence. Control files and excluded files are exempt. CLI naming for an ignore key must be finalized in implementation; preserve recognition of existing `vault-synapse: ignore` as an exclusion to prevent accidental disclosure during transition.
 
-### Research to notes
+## 5. Instructions and research
 
-The user or an authenticated external agent submits rough material into Research.md. The user runs “Review research.” Synapse snapshots the selected batch and instruction version, searches permitted destination context, and proposes bounded creations or updates. The UI shows every destination, full before/after diff, provenance, and any unresolved ambiguity. The user accepts or rejects individual changes, then approves the selected batch for application.
+Defaults: `Synapse/Instructions.md` and `Research.md`, configurable, distinct workspace-relative Markdown paths. Search/chat require neither. Exclude control files from ordinary retrieval; research reads only its explicit source and valid instructions. No Security.md or user-authored permission/masking language.
 
-No note creation, update, inbox append by the local assistant, or cleanup happens merely because a model suggested it. The exception is a user's explicitly authorized MCP client's scoped submission to Research.md, which can append inbox material without a note-update approval. Research processing never automatically clears or rewrites the inbox. Requests with ambiguous dates or destinations require user resolution before approval.
+Instructions contain versioned deterministic routing metadata (destination IDs, paths, IANA timezone, daily folder/heading) and human formatting prose. Prose cannot grant access. Ask for an explicit daily date when ambiguous. Setup may create missing starters only after a separate exact local review; never overwrite existing control files. Models and external clients cannot modify them.
 
-### External-agent collaboration
+Capture preserves inbox text and stores bounded source/provenance hashes and processing outcomes. Proposal generation uses trusted destination IDs and application-owned evidence. External research and URLs are untrusted; URLs are inert provenance, never automatically fetched or treated as verified workspace citations. Never consume/delete research after processing.
 
-The user enables an MCP connection and grants a client scoped read-disclosure and/or research-submit capabilities. The client asks a bounded question; Synapse searches through the policy boundary and returns an allowed answer and safe references, a masked result, or a rejection. Titles, paths, citations, counts, errors, and trace details must not disclose denied information. The client can append research through its inbox capability but cannot approve or apply note changes.
+## 6. Write authority and recovery
 
-## 5. Acceptance criteria
+Only a restricted filesystem adapter can create/update approved Markdown targets. Show full before/after diffs, allow per-file acceptance, then require explicit local Apply of the exact accepted set. No blanket yes flag, persisted approval, model approval, or MCP approval. Bind approval to workspace identity, exact bytes/diff, source and target snapshots, instruction/routing snapshots, exclusions, provider/access configuration, and destination resolution. Any change invalidates the approval. Recheck immediately before each write.
 
-### F1: Runtime
+Use atomic per-file replacement where supported, exclusive creation for new files, narrow filesystem operations and per-workspace locking. Multiple files are not a transaction. Define and test the residual race against unrelated editors; do not promise filesystem compare-and-swap. Refuse detected conflicts and symlink/path changes. Do not create unreviewed folders or touch non-Markdown targets. Instructions and inbox are forbidden proposal targets; only a separately scoped MCP append can change the inbox.
 
-- Default and live-test model is `openrouter/free`; health uses the production request builder. Auth, reachability, schema failure, and rate limits surface without preventing plugin load.
-- Zod validates every model response; invalid output retries once and then fails visibly. No malformed output is treated as a successful answer or patch.
-- All model work runs through one cancellable JobQueue. Interactive chat/search takes priority over research proposals and MCP model work. Cancellation prevents late results from being applied.
-- Phase B uses loopback by default, passes the same feature suite locally, and never silently uses a remote provider.
+Persist recovery intent before any attempt and reconcile actual before/after bytes after crash or uncertain outcome. Distinguish applied, refused, unknown and unattempted files. No replay of uncertain writes. Revert is a new reviewed proposal; a created note reverts to an empty file because deletion is prohibited. Bound recovery history at a proposed 20 records/4,000,000 serialized characters/30 days; retain unresolved entries, refuse new work at capacity, and disclose stored full note text. Deduplication prevents unchanged processed research from being applied twice within retained history.
 
-### F2–F3: Agentic search and chat
+## 7. MCP and privacy
 
-- All eight tools have typical, empty, excluded, and policy-denied cases. Only Markdown is ingested. Exclusions are applied before indexing.
-- Iterative search can revise terms and follow links when evidence is insufficient, enforcing hop, read, token, elapsed-time, and duplicate-call limits. A fixture requiring a second search verifies actual follow-up retrieval.
-- Every sourced factual claim resolves to a ledger entry from the current permitted corpus. Quotes come from the plugin, never from model-supplied citation text. Forged or stale citations fail verification and are not presented as sourced.
-- Clicking a reference opens the note and selects the exact passage when still present. Insufficient evidence produces an honest answer; progress appears promptly. Targets: first progress within 3 seconds and answer within 45 seconds, with measured provider variability reported.
-- User-facing traces and multi-turn history obey current access/egress rules; excluding a note invalidates retained evidence.
+MCP is optional, disabled by default, numeric-loopback only, and authenticated before request parsing/dispatch. Local user grants independent query/submission scopes. Queries expose permitted evidence with ordinal references, never arbitrary filesystem access. Submission appends labeled unverified research only to the configured inbox with durable idempotency receipts. No direct destination writes or approval API. See [MCP contract](docs/contracts/mcp-v1.md).
 
-### F4: Instructions
+Exclusions apply before ingest and again at tools, model inputs, proposals, citations and external responses. Remote consent and MCP scopes are independent. Synapse cannot constrain a process separately granted filesystem access. No telemetry, update pings, prompt logging, note logging, credential logging, or raw exception dumps. Interactive source/diff output is intentional content display; diagnostics remain content-free. Secrets stay out of notes/repository and use environment or OS credential storage. Application state stays outside the workspace, segregated by canonical workspace identity. Clearing history preserves all notes and configuration, revokes grants, and explains loss of recovery/deduplication; synced copies/backups require separate management.
 
-- Existing control files load without modification; defaults are created only through reviewed setup. User edits invalidate dependent proposals.
-- A daily-log fixture creates or updates the correct date note in the configured timezone, follows headings/frontmatter, preserves unrelated content, and detects ambiguous dates.
-- Formatting instructions cannot override security rules, grant network access, or execute code.
+## 8. Acceptance
 
-### F5/F11: Reviewed updates
-
-- Model output is a schema-validated proposal using plugin-issued destination/evidence IDs. New paths are constructed and validated by the plugin from approved routing rules; model text is never used as an arbitrary path or command.
-- The user sees the exact content to be written and approves it in the local UI. Rejecting or canceling writes nothing. External clients cannot approve.
-- Approval is bound to proposal contents, source hashes, target hashes, policy version, and instruction version. Changed/deleted destinations, unsaved editor changes, changed research, or changed rules invalidate approval and require regeneration or renewed review.
-- Only Markdown creation/update is supported; deletion, rename, binary writes, and control-file modification are rejected; the separate approved setup flow may only create missing starter control files. Each change is rechecked immediately before writing through the restricted write port.
-- A multi-file failure reports exactly which changes succeeded; never claim atomicity. Recovery records prevent duplicate application. Reverts show a fresh diff and need approval.
-- Processed research is tracked by batch IDs/content hashes; unchanged accepted batches are not reapplied automatically. Inbox material is preserved.
-
-### F6–F7: Policy and MCP
-
-- Security rules are validated deterministically. Missing/invalid policy denies MCP disclosure and submission and blocks note application. Ordinary excluded-note search remains fail-closed at ingest.
-- Every tool result, prompt, answer, citation, MCP resource, and error checks recipient-specific permissions. Policy changes invalidate pending responses/proposals and revoke stale access before further delivery.
-- Masking occurs before content reaches a remote provider or external client. If the requested guarantee cannot be enforced by configured deterministic rules, deny the disclosure.
-- MCP is opt-in, local, authenticated, revocable, and bounded by client scopes, request size, rate, and execution limits. Its initial API offers scoped query and inbox submission, not a raw filesystem resource.
-- An authorized inbox-only client can submit research but cannot query notes; an authorized query client sees allowed or masked results and generic denial responses for forbidden requests. Unauthorized clients receive no vault data.
-- Prompt-injection fixtures in notes, Research.md, and MCP requests cannot override policy, alter destinations, or authorize writes.
-
-### F8–F10: Privacy and release
-
-- No note content, research, prompts, secrets, or unmasked paths in diagnostics. Paths use `h:` plus eight SHA-1 hex characters. Plugin state is plugin-folder-confined; sensitive proposal/recovery data has explicit retention and sync disclosure.
-- Clearing plugin data preserves user files and settings and warns if undo/recovery records will be lost. No telemetry or non-allowlisted egress.
-- Synthetic fixtures include at least 40 known-answer questions, iterative retrieval, denied/masked disclosure, injection, daily-log routing, stale approval, duplicate research, and partial-write recovery. Evaluation reports citation validity, answer correctness, policy violations, unauthorized writes, schema validity, and latency. Required gates: zero forbidden disclosures/writes, all parsed output schema-valid, citation validity at least 95%.
-- Typecheck, lint, architecture, network/write/schema checks, tests, and build pass; plugin load/unload and real Obsidian citation/diff/write/MCP smoke are recorded. Releases contain only main.js, manifest.json, and styles.css.
-
-## 6. Non-goals
-
-Daily resurfacing and automatic older-note suggestions; PDF ingestion, PDF text search, and page citations; contradiction/drift finding, claim extraction for flags, gutter flags, and on-save contradiction checks; embeddings/vector databases; OCR; telemetry; mobile; unrestricted external vault access; autonomous note application; deletion/rename; web browsing by Synapse; model runtimes beyond OpenRouter and Ollama.
-
-## 7. Remaining decisions
-
-- MCP transport and client onboarding implementation are selected in the MCP design task; the authentication and local-only requirements above are binding.
-- Exact instruction/policy frontmatter schema is frozen before implementation, including conflict messages and starter templates.
-- Phase B hardware/model recommendations are measured after feature completion.
+No inherited TypeScript test count, scaffold installation or previous host smoke proves Rust CLI readiness. Rust compiler checks, formatting, Clippy, architecture/privacy checks, meaningful tests and clean native executable installation must be established in RUST-T01. Release requires the PLAN tasks and [validation matrix](docs/release-validation.md): real TTY behavior, piped JSON, filesystem containment/concurrency, cancellation and crash recovery, cited-answer quality on local Bonsai, scoped native MCP interoperability, privacy checks, and clean standalone installation. Keep gates open until dated reproducible evidence exists.

@@ -6,3 +6,8 @@ main.js.map
 data.json
 .vitest-cache/
 test/.mini-vault-run-*/
+
+# Native Rust build outputs
+/target/
+/candidate/
+/synapse-*.tar.gz
