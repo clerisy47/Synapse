@@ -460,3 +460,15 @@ it("reads current body evidence after alias-only title discovery within the exis
   expect(result.value.stats.reads).toBe(1);
   expect(result.value.claims[0].citations[0].excerpt.text).not.toContain("aliases:");
 });
+
+it.skipIf(process.env.SYNAPSE_LIVE_BONSAI_DIAGNOSTIC !== "1")("Bonsai live rechecks the retained Jade status quality failure", async () => {
+  const note = "Jade's status is reviewed. This synthetic project record is the authoritative schedule and ownership register for evaluation purposes.";
+  const { value } = await run([], { bonsai: true, fixture: { note, question: "What is Jade's status?" } });
+  const correct = value.status === "answered" && value.claims.some(claim => claim.text.includes("reviewed"));
+  const cited = value.claims.some(claim => claim.text.includes("reviewed") && claim.sourced && claim.citations.some(
+    citation => citation.status === "sourced" && citation.excerpt.ref.path === "notes/alpha.md" && note.includes(citation.excerpt.text) && citation.excerpt.text.includes("reviewed"),
+  ));
+  console.info("Bonsai live Jade recheck", JSON.stringify({ correct, validCitation: cited, status: value.status, caseOnlyMatch: value.claims.some(claim => claim.text.toLowerCase().includes("reviewed")) }));
+  expect(correct).toBe(true);
+  expect(cited).toBe(true);
+}, 120_000);

@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from "vitest";
 import { DEFAULT_BONSAI_ENDPOINT, DEFAULT_BONSAI_MODEL } from "../../src/constants";
-import { asVaultPath, ok, validateControlPaths, type ContentHash, type InstructionSnapshot, type PolicySnapshot, type ResearchLedger } from "../../src/core";
+import { asVaultPath, ok, parseNoteFrontmatter, validateControlPaths, type ContentHash, type InstructionSnapshot, type PolicySnapshot, type ResearchLedger } from "../../src/core";
 import { createJobQueue } from "../../src/jobs";
 import { BonsaiClient, type ModelPort, type StructuredRequest } from "../../src/llm";
 import { createEndpointPolicy, createExclusionPolicy } from "../../src/policy";
@@ -55,11 +55,23 @@ async function fixture() {
 it.skipIf(process.env.SYNAPSE_LIVE_BONSAI !== "1")("Bonsai live research resolves IDs and daily routing without authorizing writes", async () => {
   const f = await fixture();
   const transport = new NodeHttpTransport({ checkEndpoint: createEndpointPolicy({ provider: "bonsai", endpointAckHost: null }).assertAllowed });
-  const service = createProposalGenerator({ ...f.deps, model: new BonsaiClient({ transport, endpoint: DEFAULT_BONSAI_ENDPOINT, model: DEFAULT_BONSAI_MODEL }) });
+  const client = new BonsaiClient({ transport, endpoint: DEFAULT_BONSAI_ENDPOINT, model: DEFAULT_BONSAI_MODEL });
+  const model: ModelPort = { async generate<T>(request: StructuredRequest<T>, signal: AbortSignal) {
+    const result = await client.generate(request, signal);
+    if (result.ok) {
+      const value = result.value.value as { changes?: { markdown?: string }[] };
+      console.info("Bonsai live research metadata", JSON.stringify((value.changes ?? []).map(change => {
+        const parsed = parseNoteFrontmatter(change.markdown ?? "");
+        return { frontmatter: parsed.end > 0, tagsArray: Array.isArray(parsed.value.tags), tagsCount: Array.isArray(parsed.value.tags) ? parsed.value.tags.length : null, issues: parsed.issues.map(issue => ({ field: issue.field, reason: issue.reason })) };
+      })));
+    }
+    return result;
+  } };
+  const service = createProposalGenerator({ ...f.deps, model });
   cleanups.push(() => service.dispose());
   const started = performance.now();
   const result = await service.generate({ snapshot: f.snapshot, destinations: ["daily"], dailyDate: "2026-10-15" }).result;
-  console.info("Bonsai live research", JSON.stringify({ validProposal: result.ok, correct: result.ok && result.value.proposal.changes[0]?.after.toLowerCase().includes("useful result"), elapsedMs: Math.round(performance.now() - started), ...(result.ok ? {} : { error: result.error.code }) }));
+  console.info("Bonsai live research", JSON.stringify({ validProposal: result.ok, correct: result.ok && result.value.proposal.changes[0]?.after.toLowerCase().includes("useful result"), elapsedMs: Math.round(performance.now() - started), ...(result.ok ? {} : { error: result.error.code, issue: ["PROPOSAL_MODEL_FAILED", "PROPOSAL_SCHEMA_INVALID", "INVALID_DAILY_ENTRY", "NOTE_METADATA_INVALID", "EXISTING_METADATA_CHANGED", "UNKNOWN_EVIDENCE", "EMPTY_OR_OVERSIZED_CHANGE"].includes(String(result.error.detail?.issueCode)) ? result.error.detail?.issueCode : "OTHER" }) }));
   expect(result.ok).toBe(true);
   if (!result.ok) return;
   const change = result.value.proposal.changes[0];

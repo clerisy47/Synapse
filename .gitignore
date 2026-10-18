@@ -6,3 +6,4 @@ main.js.map
 data.json
 .vitest-cache/
 test/.mini-vault-run-*/
+dist/

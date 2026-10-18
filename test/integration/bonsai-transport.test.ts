@@ -20,7 +20,7 @@ it("cancels queued production Bonsai work and closes its in-flight HTTP socket",
   await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
   const policy = createEndpointPolicy({ provider: "bonsai", endpointAckHost: null });
   const transport = new NodeHttpTransport({ checkEndpoint: url => policy.assertAllowed(url) });
-  const model = new BonsaiClient({ transport, endpoint: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`, model: "bonsai-2-4b" });
+  const model = new BonsaiClient({ transport, endpoint: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`, model: "bonsai-2-9b" });
   const jobs = createJobQueue({ clock: new FakeClock(), abortable: true });
   try {
     const job = jobs.submit({ kind: "qa", label: "synthetic cancellation", run: ctx => model.generate({ kind: "health", instructions: "Return ok", input: "{}", schema: healthOutputSchema, numPredict: 32 }, ctx.signal) });
@@ -45,7 +45,7 @@ it("does not follow a loopback server redirect to a cloud endpoint", async () =>
   });
   await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
   const policy = createEndpointPolicy({ provider: "bonsai", endpointAckHost: null });
-  const model = new BonsaiClient({ transport: new NodeHttpTransport({ checkEndpoint: url => policy.assertAllowed(url) }), endpoint: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`, model: "bonsai-2-4b" });
+  const model = new BonsaiClient({ transport: new NodeHttpTransport({ checkEndpoint: url => policy.assertAllowed(url) }), endpoint: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`, model: "bonsai-2-9b" });
   try {
     const result = await model.generate({ kind: "health", instructions: "Return ok", input: "{}", schema: healthOutputSchema, numPredict: 32 }, new AbortController().signal);
     expect(result.ok).toBe(false);

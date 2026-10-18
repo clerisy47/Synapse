@@ -1,5 +1,5 @@
 /** Synthetic production Bonsai provider smoke; never reads a vault.
- * Start the Bonsai 4B llama-server on 127.0.0.1:18080, then:
+ * Start the Bonsai 9B llama-server on 127.0.0.1:18080, then:
  * node scripts/check-bonsai.mjs
  */
 import { build } from "esbuild";
@@ -10,6 +10,7 @@ const bundle = await build({
     resolveDir: process.cwd(),
   },
   bundle: true, write: false, platform: "node", format: "esm",
+  banner: { js: 'import { createRequire } from "node:module"; const require = createRequire(process.cwd() + "/package.json");' },
 });
 const { MODEL_OUTPUT_SCHEMAS: schemas, createJobQueue, BonsaiClient, NodeHttpTransport, createEndpointPolicy } =
   await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`);
@@ -28,7 +29,7 @@ const cases = [
     v => v.changes.length === 1 && v.changes[0].destinationId === "d1" && v.changes[0].markdown.includes("2030-04-12") && v.changes[0].evidenceIds.length === 1 && v.changes[0].evidenceIds[0] === "e1"],
 ];
 const transport = new NodeHttpTransport({ checkEndpoint: createEndpointPolicy({ provider: "bonsai", endpointAckHost: null }).assertAllowed });
-const model = new BonsaiClient({ transport, endpoint: "http://127.0.0.1:18080/v1", model: "bonsai-2-4b" });
+const model = new BonsaiClient({ transport, endpoint: "http://127.0.0.1:18080/v1", model: "bonsai-2-9b" });
 const queue = createJobQueue({ clock: {
   now: () => Date.now(), mono: () => performance.now(),
   todayLocal: () => new Date().toLocaleDateString("en-CA"),

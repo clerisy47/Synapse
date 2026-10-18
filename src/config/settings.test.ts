@@ -13,7 +13,7 @@ import {
 } from "../constants";
 
 describe("DEFAULT_SETTINGS", () => {
-  it("uses local Bonsai endpoint and tested 4B alias", () => {
+  it("uses local Bonsai endpoint and 9B alias", () => {
     expect(DEFAULT_SETTINGS.endpoint).toBe(DEFAULT_BONSAI_ENDPOINT);
     expect(DEFAULT_SETTINGS.model).toBe(DEFAULT_BONSAI_MODEL);
     expect(DEFAULT_SETTINGS.provider).toBe("bonsai");
@@ -29,6 +29,13 @@ describe("DEFAULT_SETTINGS", () => {
 });
 
 describe("parseSettings", () => {
+  it("upgrades the retired Bonsai alias without changing other settings", () => {
+    const raw = { ...DEFAULT_SETTINGS, model: "bonsai-2-4b", numCtx: 8192 };
+    expect(parseSettings(raw)).toEqual({ ...raw, model: "bonsai-2-9b" });
+    expect(raw.model).toBe("bonsai-2-4b");
+    expect(parseSettings({ ...raw, provider: "openrouter" }).model).toBe("bonsai-2-4b");
+    expect(parseSettings({ ...raw, model: "custom-local" }).model).toBe("custom-local");
+  });
   it("returns defaults for non-object roots", () => {
     expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS);
     expect(parseSettings(undefined)).toEqual(DEFAULT_SETTINGS);

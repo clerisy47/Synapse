@@ -5,6 +5,10 @@ import { DEFAULT_OPENROUTER_MODEL, DEFAULT_BONSAI_ENDPOINT, DEFAULT_BONSAI_MODEL
 export function migrateSettings(raw: unknown): unknown {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return raw;
   const settings = raw as Record<string, unknown>;
+  // Upgrade the retired local alias; preserve explicit remote/custom selections.
+  if (settings.provider === "bonsai" && settings.model === "bonsai-2-4b") {
+    return { ...settings, model: DEFAULT_BONSAI_MODEL };
+  }
   // Only legacy defaults migrate. Explicit custom cloud models stay selected.
   if (settings.providerRevision !== 1 && (settings.provider === undefined || settings.provider === "openrouter") &&
       (settings.model === undefined || settings.model === "openrouter/free" || settings.model === "qwen/qwen3.8-27b:free") &&

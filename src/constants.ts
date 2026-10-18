@@ -122,7 +122,7 @@ export const COLLABORATION_LIMITS = { receipts: 1000, retentionMs: 30 * 24 * 60 
 
 /** Tested local Prism llama.cpp configuration; runtime remains user-managed. */
 export const DEFAULT_BONSAI_ENDPOINT = "http://127.0.0.1:18080/v1";
-export const DEFAULT_BONSAI_MODEL = "bonsai-2-4b";
+export const DEFAULT_BONSAI_MODEL = "bonsai-2-9b";
 export const BONSAI_MAX_OUTPUT = 1024;
 export const BONSAI_SAMPLING = {
   seed: 42, temperature: 0.7, top_p: 0.8, top_k: 20, min_p: 0,

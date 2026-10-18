@@ -64,7 +64,7 @@ export const SETTINGS = {
   apiKeyDesc: "Required only when OpenRouter is selected; stored in plugin data.",
   apiKeyMissing: "Add an API key to enable AI features.",
   model: "Model",
-  modelDesc: "Bonsai default: bonsai-2-4b (server alias). Model weights are selected at server startup.",
+  modelDesc: "Bonsai default: bonsai-2-9b (server alias). Model weights are selected at server startup.",
   numCtx: "Context window (num_ctx)",
   numCtxDesc: "Tokens of context sent to the model (2048–8192).",
   provider: "Provider",
@@ -119,7 +119,7 @@ export const ERROR_NOTICES: Record<ErrorCode, string> = {
 
 /** Remediation hints keyed by llm remediation strings. */
 export const REMEDIATION: Record<string, string> = {
-  bonsai_runtime: "Start Prism llama-server on 127.0.0.1:18080 with Bonsai 2 4B, then run the health check. See docs/bonsai.md.",
+  bonsai_runtime: "Start Prism llama-server on 127.0.0.1:18080 with Bonsai 2 9B, then run the health check. See docs/bonsai.md.",
   set_api_key: "Add an OpenRouter API key in settings.",
   auth_failed: "API key was rejected. Check it in settings.",
   rate_limited: "Rate limited. Wait a moment, then retry.",

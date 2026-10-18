@@ -1,45 +1,13 @@
-# Active control and access contracts
+# Workspace controls and access contracts
 
-Revised 2026-10-17: Security.md support is removed. Earlier policy audit documents
-record historical implementation, not current requirements.
+Target terminal behavior; implementation pending. Normative requirements are in SPEC.md.
 
-## Vault files
+The configurable defaults are `Synapse/Instructions.md` and `Research.md`, distinct canonical workspace-relative Markdown paths. Neither enters ordinary search/chat retrieval; search/chat work without them. Setup reviews only missing starters and never overwrites existing files. No Security.md or user-authored permission grants/masks.
 
-The configurable defaults are `Synapse/Instructions.md` and `Research.md`.
-Paths are canonical vault-relative Markdown paths and cannot collide. Both are
-excluded from ordinary retrieval. Research explicitly reads instructions and its
-selected inbox batch. Setup proposes only missing instruction starters and never
-overwrites existing files. Search/chat need no control files.
+Instructions use versioned deterministic routing metadata: IANA timezone, destination IDs/paths and daily folder/name/heading. Prose guides formatting, never permissions. Research resolves trusted IDs to validated paths; ambiguous daily dates require local clarification. Daily-log routing is distinct from the removed daily-resurfacing feature.
 
-Instruction frontmatter supplies version 1, IANA timezone, destination IDs/paths,
-and daily routing. Routing constructs canonical paths; ambiguous dates are
-rejected. Prose guides formatting without granting access or approval.
+Exclusions precede ingest and apply to tools, model context and output. Explicit remote-provider consent is independent of MCP authentication/scopes. Control files, research and model text cannot change these capabilities. Existing frontmatter exclusions must remain recognized during transition.
 
-## Fixed access boundary
+Review approval binds exact before/after bytes and the current workspace, source, target, instruction, routing, exclusions and access snapshots. Fresh checks occur before each file write. Changed snapshots discard approval; restart never restores it. External clients and redirected terminal input cannot approve.
 
-The implementation owns a fixed access snapshot. Non-excluded notes are eligible
-for the selected provider. OpenRouter needs explicit selection/consent; there is
-no fallback. MCP needs local enablement, authenticated pairing and independent
-query/submission scopes. Query scope covers non-excluded notes; submission may
-append only to the configured research inbox. Clients cannot approve note edits.
-No user-authored per-recipient grants or configurable masks remain. Legacy
-security-path settings are ignored; existing vault files are not modified.
-
-Read sessions still bind source/metadata generations and enforce exclusions,
-control-file privacy, capability checks and stale-response rejection. Existing
-rule/projection helpers are internal compatibility infrastructure, with no vault
-file or settings entry point.
-
-## Reviewed writes
-
-Research requires valid instructions, source snapshots, plugin-owned destination
-and evidence IDs, bounded Markdown, and local review. Exact approved changes bind
-source/target/instruction hashes and a fixed access-contract version hash. The
-legacy `policyHash` field stores this implementation version for journal format
-compatibility; it no longer hashes Security.md. Old approvals have no persisted
-authority. Changed sources, targets, instructions, settings or exclusions require
-renewed review. Unsaved edits and cancellation block application.
-
-Only the restricted adapter creates/updates Markdown. Instructions and inbox are
-rejected as destination targets. Recovery preserves approval-free history; revert
-requires a new diff and approval. Clearing plugin data preserves every vault file.
+Restricted note application cannot target instructions/inbox. A separately authorized submission port may append unverified research only to the configured inbox. Setup uses its own reviewed capability. Recovery records confer no write authority; revert is a fresh reviewed operation. History clearing preserves all workspace files and configuration and explains loss of recovery and duplicate prevention.

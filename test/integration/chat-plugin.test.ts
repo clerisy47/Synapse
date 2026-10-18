@@ -82,7 +82,7 @@ it.each(["ready", "missing", "invalid"] as const)("loads without a key, opens ch
   const question = contentEl.querySelector("textarea")!;
   question.value = "What is in my vault?";
   contentEl.querySelector("form")!.dispatchEvent(new Event("submit", { cancelable: true }));
-  await vi.waitFor(() => expect(contentEl.querySelector(".syn-chat-answer")?.textContent).toBe("Start Prism llama-server on 127.0.0.1:18080 with Bonsai 2 4B, then run the health check. See docs/bonsai.md."));
+  await vi.waitFor(() => expect(contentEl.querySelector(".syn-chat-answer")?.textContent).toBe("Start Prism llama-server on 127.0.0.1:18080 with Bonsai 2 9B, then run the health check. See docs/bonsai.md."));
   const mcp = (plugin as unknown as { mcp: McpServerPort }).mcp;
   expect(mcp.status()).toMatchObject({ enabled: false, failed: false, url: null });
   await mcp.pair("host synthetic", []);
