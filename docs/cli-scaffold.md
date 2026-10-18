@@ -1,0 +1,27 @@
+# Rust foundation decisions
+
+2026-10-18 · RUST-T01 native foundation.
+
+The workspace package `synapse-cli` builds the `synapse` native executable. Registry publication is disabled; no crate-name availability is claimed. Edition 2024 uses development toolchain 1.85.1 and MSRV 1.85.0. The [Rust edition guide](https://doc.rust-lang.org/edition-guide/rust-2024/) documents 1.85.0 as the edition minimum. CI runs the MSRV compiler/tests separately. Cargo.lock is generated and committed.
+
+## Boundaries and dependencies
+
+Four library crates enforce dependency direction: `synapse-core` has no dependencies; application and adapters depend only on core; terminal depends on application/core. The binary composes the native adapter and terminal. Explicit exports live in each lib.rs. Core contains typed errors, a validated relative Markdown newtype, a root-validation port and cooperative cancellation. Filesystem root validation stays in adapters. Main contains composition only.
+
+There are no third-party dependencies, optional features, native build scripts or FFI. All five workspace packages use MIT. The standard library supplies argument iteration, IsTerminal, output and plain text rendering; no raw/full-screen mode needs restoration. Arguments accept only help/version or one explicit workspace. No write/approval command exists. No Node step runs in CI or packaging. Historical source and npm dependencies remain inert outside Cargo/artifacts, including the interrupted local TypeScript changes preserved in the original checkout.
+
+Execution is synchronous for the foundation. Cooperative cancellation uses AtomicBool with acquire/release ordering; future blocking workers use standard threads/channels behind ports, with one JobQueue and provider lease in RUST-T03. No async runtime is adopted before network requirements are evaluated. Ctrl-C currently uses the OS default because no long-running session or terminal mode is entered. This does not prove the future cancellation/recovery gate.
+
+## State and platform decisions
+
+Freeze future state layout: macOS `~/Library/Application Support/Synapse/workspaces/<SHA-256-canonical-root>`; Linux `$XDG_STATE_HOME/synapse/workspaces/<SHA-256-canonical-root>`, falling back to `~/.local/state/synapse/workspaces/<identity>`. Relative XDG values must be refused. Persistence is not implemented and no state directory is created. Before persistence, adapters must reject overlapping workspace/state roots, symlinked state components and enforce private permissions. No automatic legacy import.
+
+Development targets are aarch64-apple-darwin (macOS 14+) and x86_64-unknown-linux-gnu (Ubuntu 22.04/glibc 2.35+). Native builds use system linking; do not claim portability to older runtimes. Windows, Intel macOS, Linux arm64 and musl are unqualified. RUST-T09 must qualify install/upgrade/uninstall and runtime portability. Development archives contain only `synapse` and LICENSE; publication is separate.
+
+## Behavior and verification
+
+`--help` and `--version` work without workspace access. Interactive mode requires stdin and stdout TTYs before validating the selected root. Missing/file roots fail with fixed `INVALID_WORKSPACE` and exit 2; redirected interactive use returns `INTERACTIVE_REQUIRED`, exit 3. Valid roots are canonicalized once and displayed with terminal and direction controls escaped, then return `NOT_IMPLEMENTED`, exit 1. This foundation does not scan notes or implement a chat loop. OS failures never print raw errors, selected paths or questions in diagnostics. Root display is intentional local content.
+
+Checks: formatting, compiler, Clippy and seven Rust tests; dependency graph/license/features/build-script inventory plus lexical capability guards and mutation probes; real PTY malicious-root display and missing-root refusal; native install outside the checkout with PATH excluding Node/Cargo/Rust. Network/write/schema checks currently enforce absence of transports, model serialization and mutation APIs. They must evolve alongside reviewed provider/schema and write ports. Lexical checks supplement compiler crate boundaries; they do not prove filesystem containment.
+
+Canonicalizing the selected root does not secure descendant access against ancestor replacement. No descendant reads are provided. RUST-T02 must add descriptor-relative capabilities with real race/exclusion tests before indexing. Terminal chat, JSON, Ctrl-C lifecycle, state/privacy, live Bonsai and native MCP gates remain open.
