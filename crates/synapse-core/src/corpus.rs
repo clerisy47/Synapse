@@ -2,6 +2,8 @@ use crate::{NotePath, NoteReadPort, PublicError};
 use serde_yaml_ng::Value;
 
 pub const MAX_INDEX_BYTES: usize = 16 * 1024 * 1024;
+const MAX_INDEX_MILLIS: u64 = 10_000;
+const MAX_QUERY_MILLIS: u64 = 5_000;
 pub const MAX_RESULTS: usize = 8;
 pub const MAX_EXCERPT_CHARS: usize = 1200;
 
@@ -24,6 +26,27 @@ impl Default for AccessPolicy {
     }
 }
 impl AccessPolicy {
+    pub fn validate(&self) -> Result<(), PublicError> {
+        const MAX_EXCLUSIONS: usize = 128;
+        if self.instructions == self.research
+            || [&self.instructions, &self.research]
+                .iter()
+                .any(|path| path.as_str().split('/').any(|part| part.starts_with('.')))
+            || self.folders.len() > MAX_EXCLUSIONS
+            || self.tags.len() > MAX_EXCLUSIONS
+            || self
+                .tags
+                .iter()
+                .any(|tag| tag.trim().is_empty() || tag.chars().count() > 64)
+            || self
+                .folders
+                .iter()
+                .any(|folder| NotePath::parse(&format!("{folder}/validation.md")).is_err())
+        {
+            return Err(PublicError::AccessRefused);
+        }
+        Ok(())
+    }
     pub fn permits_path(&self, path: &NotePath) -> bool {
         path != &self.instructions
             && path != &self.research
@@ -56,15 +79,25 @@ pub struct Corpus {
 }
 impl Corpus {
     pub fn build(reader: &impl NoteReadPort, policy: AccessPolicy) -> Result<Self, PublicError> {
+        let started = reader.monotonic_millis();
         let mut notes = Vec::new();
         let mut attention = Vec::new();
-        let mut bytes_used = 0;
-        for path in reader.list_notes()? {
+        let paths = reader.list_notes()?;
+        let mut bytes_used = paths.iter().map(|path| path.as_str().len()).sum::<usize>()
+            + paths.capacity() * std::mem::size_of::<NotePath>();
+        if bytes_used > MAX_INDEX_BYTES {
+            return Err(PublicError::ResourceLimit);
+        }
+        for path in paths {
+            if reader.monotonic_millis().saturating_sub(started) > MAX_INDEX_MILLIS {
+                return Err(PublicError::ResourceLimit);
+            }
             if !policy.permits_path(&path) {
                 continue;
             }
             let bytes = match reader.read_note(&path) {
                 Ok(bytes) => bytes,
+                Err(PublicError::Cancelled) => return Err(PublicError::Cancelled),
                 Err(_) => {
                     attention.push(path);
                     continue;
@@ -87,6 +120,13 @@ impl Corpus {
             };
             let modified = reader.modified_note(&path).unwrap_or(0);
             let links = links(&bytes, &path);
+            bytes_used += discovery.len()
+                + links.iter().map(|link| link.as_str().len()).sum::<usize>()
+                + links.capacity() * std::mem::size_of::<NotePath>()
+                + 2 * std::mem::size_of::<Note>();
+            if bytes_used > MAX_INDEX_BYTES {
+                return Err(PublicError::ResourceLimit);
+            }
             notes.push(Note {
                 modified,
                 links,
@@ -95,6 +135,9 @@ impl Corpus {
                 body_start,
                 discovery,
             });
+        }
+        if reader.monotonic_millis().saturating_sub(started) > MAX_INDEX_MILLIS {
+            return Err(PublicError::ResourceLimit);
         }
         Ok(Self {
             notes,
@@ -119,26 +162,22 @@ impl Corpus {
         reader: &impl NoteReadPort,
         policy: &AccessPolicy,
     ) -> Vec<NotePath> {
-        if !self
+        let Some(source) = self
             .notes
             .iter()
-            .any(|note| &note.path == path && self.current(note, reader, policy))
-        {
+            .find(|note| &note.path == path && self.current(note, reader, policy))
+        else {
             return Vec::new();
-        }
+        };
         let mut result: Vec<_> = self
             .notes
             .iter()
             .filter(|note| {
-                self.current(note, reader, policy)
-                    && &note.path != path
-                    && (note.links.contains(path)
-                        || self.notes.iter().any(|source| {
-                            self.current(source, reader, policy)
-                                && &source.path == path
-                                && source.links.contains(&note.path)
-                        }))
+                &note.path != path
+                    && (note.links.contains(path) || source.links.contains(&note.path))
+                    && self.current(note, reader, policy)
             })
+            .take(MAX_RESULTS)
             .map(|note| note.path.clone())
             .collect();
         result.sort();
@@ -198,6 +237,29 @@ impl Corpus {
             .cloned()
             .collect()
     }
+    pub fn passage_for(
+        &self,
+        path: &NotePath,
+        reader: &impl NoteReadPort,
+        policy: &AccessPolicy,
+    ) -> Option<Evidence> {
+        let note = self
+            .notes
+            .iter()
+            .find(|note| &note.path == path && self.current(note, reader, policy))?;
+        let lines: Vec<_> = note.bytes.lines().skip(note.body_start).take(6).collect();
+        let text = lines.join("\n");
+        if text.trim().is_empty() || text.chars().count() > MAX_EXCERPT_CHARS {
+            return None;
+        }
+        Some(Evidence {
+            id: 1,
+            path: path.clone(),
+            start_line: note.body_start + 1,
+            end_line: note.body_start + lines.len(),
+            text,
+        })
+    }
     pub fn note_count(&self) -> usize {
         self.notes.len()
     }
@@ -216,7 +278,11 @@ impl Corpus {
             return Vec::new();
         }
         let mut candidates = Vec::new();
+        let started = reader.monotonic_millis();
         for note in &self.notes {
+            if reader.monotonic_millis().saturating_sub(started) > MAX_QUERY_MILLIS {
+                break;
+            }
             // Fresh bytes and policy, including frontmatter/tag access, are checked
             // before projecting any text. A change requires rebuilding the corpus.
             if !self.policy.permits_path(&note.path) || !policy.permits_path(&note.path) {
@@ -304,7 +370,7 @@ fn metadata(bytes: &str) -> Option<(Value, usize)> {
     for line in lines {
         count += 1;
         if line == "---" {
-            return Some((serde_yaml_ng::from_str(&yaml).ok()?, count));
+            return Some((crate::bounded_yaml::parse(&yaml)?, count));
         }
         yaml.push_str(line);
         yaml.push('\n');
@@ -395,6 +461,7 @@ fn links(bytes: &str, source: &NotePath) -> Vec<NotePath> {
     links.sort();
     links.dedup();
     links.truncate(128);
+    links.shrink_to_fit();
     links
 }
 

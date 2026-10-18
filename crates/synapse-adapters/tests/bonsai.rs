@@ -45,6 +45,16 @@ fn synthetic_bonsai_health_and_selection() -> Result<(), Box<dyn std::error::Err
         queue.execute(ModelJob::Health, Priority::Interactive, &cancel),
         Ok(ModelResult::Healthy)
     ));
+    let planned = queue.execute(
+        ModelJob::SearchTerms {
+            question: "Find research about the moon".into(),
+        },
+        Priority::Interactive,
+        &cancel,
+    );
+    assert!(
+        matches!(planned, Ok(ModelResult::SearchTerms(terms)) if !terms.is_empty() && terms.len() <= 4)
+    );
     let evidence = Evidence {
         id: 1,
         path: NotePath::parse("synthetic.md").map_err(|_| "fixture path")?,

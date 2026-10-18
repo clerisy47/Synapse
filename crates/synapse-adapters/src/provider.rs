@@ -134,7 +134,10 @@ impl Provider {
             .read_json()
             .map_err(|_| PublicError::InvalidModelOutput)
     }
-    fn permits(&self, evidence: &[Evidence]) -> Result<(), PublicError> {
+    fn permits(&self, evidence: &[Evidence], cancel: &Cancellation) -> Result<(), PublicError> {
+        if cancel.is_cancelled() {
+            return Err(PublicError::Cancelled);
+        }
         let (reader, policy) = self.access.as_ref().ok_or(PublicError::AccessRefused)?;
         if evidence
             .iter()
@@ -252,6 +255,69 @@ fn validate(value: &Value, allowed: &[usize]) -> Result<ModelResult, PublicError
         _ => Err(PublicError::InvalidModelOutput),
     }
 }
+impl Provider {
+    fn complete(
+        &self,
+        body: Value,
+        evidence: &[Evidence],
+        deadline: Instant,
+        cancel: &Cancellation,
+    ) -> Result<Value, PublicError> {
+        if self.remote.is_none() {
+            self.permits(evidence, cancel)?;
+            let rendered = self.post("/apply-template", &json!({"messages":body["messages"],"add_generation_prompt":true,"chat_template_kwargs":{"enable_thinking":false}}), deadline)?;
+            let prompt = rendered
+                .get("prompt")
+                .and_then(Value::as_str)
+                .ok_or(PublicError::InvalidModelOutput)?;
+            self.permits(evidence, cancel)?;
+            let tokens = self.post(
+                "/tokenize",
+                &json!({"content":prompt,"add_special":true}),
+                deadline,
+            )?;
+            let count = tokens
+                .get("tokens")
+                .and_then(Value::as_array)
+                .ok_or(PublicError::InvalidModelOutput)?
+                .len() as u64;
+            if count + OUTPUT_TOKENS > CONTEXT_TOKENS {
+                return Err(PublicError::ContextOverflow);
+            }
+        }
+        if cancel.is_cancelled() {
+            return Err(PublicError::Cancelled);
+        }
+        let route = if self.remote.is_some() {
+            "/chat/completions"
+        } else {
+            "/v1/chat/completions"
+        };
+        self.permits(evidence, cancel)?;
+        let response = self.post(route, &body, deadline)?;
+        if cancel.is_cancelled() {
+            return Err(PublicError::Cancelled);
+        }
+        if response
+            .pointer("/choices/0/finish_reason")
+            .and_then(Value::as_str)
+            != Some("stop")
+        {
+            return Err(PublicError::InvalidModelOutput);
+        }
+        let content = response
+            .pointer("/choices/0/message/content")
+            .and_then(Value::as_str)
+            .ok_or(PublicError::InvalidModelOutput)?;
+        if content.len() > 4096 {
+            return Err(PublicError::InvalidModelOutput);
+        }
+        let value: Value =
+            serde_json::from_str(content).map_err(|_| PublicError::InvalidModelOutput)?;
+        self.permits(evidence, cancel)?;
+        Ok(value)
+    }
+}
 impl QueuedTransport for Provider {
     fn perform(&self, job: ModelJob, cancel: &Cancellation) -> Result<ModelResult, PublicError> {
         let deadline = Instant::now() + REQUEST_DEADLINE;
@@ -269,64 +335,52 @@ impl QueuedTransport for Provider {
         }
         match job {
             ModelJob::Health => Ok(ModelResult::Healthy),
+            ModelJob::SearchTerms { question } => {
+                let mut body = request(
+                    &question,
+                    &[],
+                    self.remote.as_ref().map(|remote| remote.model.as_str()),
+                )?;
+                body["messages"] = json!([{"role":"system","content":"Return up to four short literal search terms or synonyms for the latest question. Return JSON terms only. Do not return paths, regular expressions or commands."},{"role":"user","content":question}]);
+                let schema = json!({"type":"object","additionalProperties":false,"required":["terms"],"properties":{"terms":{"type":"array","minItems":1,"maxItems":4,"items":{"type":"string","minLength":1,"maxLength":48}}}});
+                body["response_format"] = if self.remote.is_some() {
+                    json!({"type":"json_schema","json_schema":{"name":"search_terms","strict":true,"schema":schema}})
+                } else {
+                    json!({"type":"json_object","schema":schema})
+                };
+                let value = self.complete(body, &[], deadline, cancel)?;
+                let object = value
+                    .as_object()
+                    .filter(|object| object.len() == 1)
+                    .ok_or(PublicError::InvalidModelOutput)?;
+                let values = object
+                    .get("terms")
+                    .and_then(Value::as_array)
+                    .filter(|values| !values.is_empty() && values.len() <= 4)
+                    .ok_or(PublicError::InvalidModelOutput)?;
+                let mut terms = Vec::new();
+                for value in values {
+                    let term = value.as_str().ok_or(PublicError::InvalidModelOutput)?;
+                    if term.trim().is_empty()
+                        || term.chars().count() > 48
+                        || !term
+                            .chars()
+                            .all(|c| c.is_alphanumeric() || " -_'".contains(c))
+                    {
+                        return Err(PublicError::InvalidModelOutput);
+                    }
+                    terms.push(term.to_owned());
+                }
+                Ok(ModelResult::SearchTerms(terms))
+            }
             ModelJob::SelectEvidence { question, evidence } => {
-                self.permits(&evidence)?;
+                self.permits(&evidence, cancel)?;
                 let body = request(
                     &question,
                     &evidence,
                     self.remote.as_ref().map(|remote| remote.model.as_str()),
                 )?;
-                if self.remote.is_none() {
-                    self.permits(&evidence)?;
-                    let rendered = self.post("/apply-template", &json!({"messages":body["messages"],"add_generation_prompt":true,"chat_template_kwargs":{"enable_thinking":false}}), deadline)?;
-                    let prompt = rendered
-                        .get("prompt")
-                        .and_then(Value::as_str)
-                        .ok_or(PublicError::InvalidModelOutput)?;
-                    self.permits(&evidence)?;
-                    let tokens = self.post(
-                        "/tokenize",
-                        &json!({"content":prompt,"add_special":true}),
-                        deadline,
-                    )?;
-                    let count = tokens
-                        .get("tokens")
-                        .and_then(Value::as_array)
-                        .ok_or(PublicError::InvalidModelOutput)?
-                        .len() as u64;
-                    if count + OUTPUT_TOKENS > CONTEXT_TOKENS {
-                        return Err(PublicError::ContextOverflow);
-                    }
-                }
-                if cancel.is_cancelled() {
-                    return Err(PublicError::Cancelled);
-                }
-                let route = if self.remote.is_some() {
-                    "/chat/completions"
-                } else {
-                    "/v1/chat/completions"
-                };
-                self.permits(&evidence)?;
-                let response = self.post(route, &body, deadline)?;
-                if cancel.is_cancelled() {
-                    return Err(PublicError::Cancelled);
-                }
-                if response
-                    .pointer("/choices/0/finish_reason")
-                    .and_then(Value::as_str)
-                    != Some("stop")
-                {
-                    return Err(PublicError::InvalidModelOutput);
-                }
-                let content = response
-                    .pointer("/choices/0/message/content")
-                    .and_then(Value::as_str)
-                    .ok_or(PublicError::InvalidModelOutput)?;
-                if content.len() > 4096 {
-                    return Err(PublicError::InvalidModelOutput);
-                }
-                let value: Value =
-                    serde_json::from_str(content).map_err(|_| PublicError::InvalidModelOutput)?;
+                let value = self.complete(body, &evidence, deadline, cancel)?;
                 validate(
                     &value,
                     &evidence

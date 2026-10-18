@@ -15,3 +15,9 @@ The compiler and Clippy checks run on the pinned MSRV. `cargo tree --locked -e f
 Cargo.lock contains optional cookie/URL/ICU/time resolution entries because ureq declares optional dependencies. Those entries are not evidence that optional features are enabled; inspect the actual `cargo tree --locked -e features` output. Rustix's `process` feature is enabled solely to verify state ownership with the real UID. No product process-launch API is introduced. Local inference never invokes a process or downloads models.
 
 Provider tests, active cancellation/deadline behavior, cross-process lease regressions and synthetic live compatibility are still under verification. Initial synthetic selection runs failed because the local schema envelope was incompatible. The local builder now uses llama.cpp native `json_object` with `schema`; OpenRouter retains its provider-specific `json_schema` envelope. A subsequent synthetic health/selection run passed. Cancellation and deadline changes require a final check before task acceptance.
+
+## Terminal adoption — 2026-10-19
+
+`ctrlc` 3.4.7 installs the OS interrupt handler in the platform adapter; its callback only sets the shared cancellation flag. It adds upstream nix/target signal dependencies. Rustix `termios`/`event` features provide safe terminal width and ready-input polling. Application code continues to forbid unsafe Rust. `unicode-width` 0.2.2 (MIT / Apache-2.0) is terminal-only and supplies display-cell widths for wrapping. `serde_json` is also used at the separate versioned CLI output boundary; it does not grant model-schema authority to terminal logic.
+
+Serde 1.0.229 is now a direct core dependency for a budgeted YAML deserialization seed; this reuses the already-reviewed transitive package without derive macros. Unknown/aliased metadata cannot expand beyond explicit node/string/depth budgets.

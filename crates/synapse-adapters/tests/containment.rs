@@ -286,3 +286,84 @@ fn model_boundary_rechecks_passage_bytes_coordinates_and_exclusions() -> Result<
     assert!(!synapse_core::verify_evidence(&reader, &policy, &evidence));
     Ok(())
 }
+#[test]
+fn cancelled_workspace_stops_traversal_and_reads() -> Result<(), Box<dyn Error>> {
+    let root = Temp::new()?;
+    fs::write(root.0.join("a.md"), NOTE)?;
+    let cancel = synapse_core::Cancellation::default();
+    let reader = CanonicalWorkspace::open(&root.0)
+        .map_err(|_| "root")?
+        .with_cancellation(cancel.clone());
+    cancel.cancel();
+    assert!(matches!(
+        reader.list_notes(),
+        Err(synapse_core::PublicError::Cancelled)
+    ));
+    assert!(matches!(
+        reader.read_note(&NotePath::parse("a.md").map_err(|_| "path")?),
+        Err(synapse_core::PublicError::Cancelled)
+    ));
+    Ok(())
+}
+#[test]
+fn controls_and_excluded_folders_follow_native_case_identity() -> Result<(), Box<dyn Error>> {
+    let root = Temp::new()?;
+    fs::write(root.0.join("rEsEaRcH.md"), NOTE)?;
+    fs::create_dir(root.0.join("Private"))?;
+    fs::write(root.0.join("Private/a.md"), NOTE)?;
+    let research_alias_exists = root.0.join("Research.md").exists();
+    let folder_alias_exists = root.0.join("pRiVaTe").exists();
+    let policy = AccessPolicy {
+        folders: vec!["pRiVaTe".into()],
+        ..AccessPolicy::default()
+    };
+    let reader = CanonicalWorkspace::open(&root.0)
+        .map_err(|_| "root")?
+        .with_policy(policy)
+        .map_err(|_| "policy")?;
+    let listed = reader.list_notes().map_err(|_| "list")?;
+    assert_eq!(
+        listed.iter().any(|path| path.as_str() == "rEsEaRcH.md"),
+        !research_alias_exists
+    );
+    assert_eq!(
+        listed.iter().any(|path| path.as_str() == "Private/a.md"),
+        !folder_alias_exists
+    );
+    assert_eq!(
+        reader
+            .read_note(&NotePath::parse("rEsEaRcH.md").map_err(|_| "path")?)
+            .is_ok(),
+        !research_alias_exists
+    );
+    assert_eq!(
+        reader
+            .read_note(&NotePath::parse("Private/a.md").map_err(|_| "path")?)
+            .is_ok(),
+        !folder_alias_exists
+    );
+    Ok(())
+}
+#[test]
+fn hard_linked_control_aliases_cannot_enter_retrieval() -> Result<(), Box<dyn Error>> {
+    let root = Temp::new()?;
+    fs::write(root.0.join("Research.md"), NOTE)?;
+    fs::hard_link(root.0.join("Research.md"), root.0.join("ordinary.md"))?;
+    let reader = CanonicalWorkspace::open(&root.0).map_err(|_| "root")?;
+    assert!(reader.list_notes().map_err(|_| "list")?.is_empty());
+    assert!(
+        reader
+            .read_note(&NotePath::parse("ordinary.md").map_err(|_| "path")?)
+            .is_err()
+    );
+    fs::create_dir(root.0.join("Synapse"))?;
+    fs::hard_link(
+        root.0.join("Research.md"),
+        root.0.join("Synapse/Instructions.md"),
+    )?;
+    assert!(
+        reader.list_notes().is_err(),
+        "canonical control identities must be distinct"
+    );
+    Ok(())
+}

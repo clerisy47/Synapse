@@ -66,7 +66,11 @@ impl WorkspaceIdentity {
     }
 }
 /// Root validation does not confer descendant read or mutation authority.
-pub trait WorkspaceReadPort {
+pub trait Clock {
+    fn monotonic_millis(&self) -> u64;
+    fn unix_seconds(&self) -> Result<u64, PublicError>;
+}
+pub trait WorkspaceReadPort: Clock {
     fn identity(&self) -> &WorkspaceIdentity;
 }
 

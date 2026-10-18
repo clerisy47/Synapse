@@ -1,90 +1,181 @@
 //! Argument parsing and plain-text terminal boundary.
+mod args;
+mod input;
+mod output;
 mod strings;
+use args::{Invocation, ProviderChoice};
 use std::{
     ffi::OsString,
     io::{self, IsTerminal, Write},
-    path::PathBuf,
     process::ExitCode,
+    sync::Arc,
 };
-use synapse_adapters::CanonicalWorkspace;
+use synapse_adapters::{CanonicalWorkspace, PollingWatcher};
 use synapse_core::{
-    Cancellation, ModelJob, ModelService, Priority, PublicError, WorkspaceReadPort,
+    AccessPolicy, Cancellation, ChatSession, ModelJob, ModelService, Priority, PublicError,
+    WorkspaceReadPort,
 };
 
-#[derive(Debug, PartialEq)]
-enum Invocation {
-    Help,
-    Version,
-    Doctor(PathBuf, bool),
-    Interactive(PathBuf),
-}
-fn parse(args: Vec<OsString>) -> Result<Invocation, PublicError> {
-    match args.as_slice() {
-        [arg] if arg == "--help" || arg == "-h" => Ok(Invocation::Help),
-        [arg] if arg == "--version" || arg == "-V" => Ok(Invocation::Version),
-        [flag, root] if flag == "--workspace" => Ok(Invocation::Interactive(root.into())),
-        [cmd, flag, root] if cmd == "doctor" && flag == "--workspace" => {
-            Ok(Invocation::Doctor(root.into(), false))
-        }
-        [cmd, flag, root, offline]
-            if cmd == "doctor" && flag == "--workspace" && offline == "--offline" =>
-        {
-            Ok(Invocation::Doctor(root.into(), true))
-        }
-        _ => Err(PublicError::Usage),
-    }
-}
-/// Remove controls and Unicode direction/format controls from intentional display.
 pub fn sanitize(value: &str) -> String {
     value.chars().filter(|c| !c.is_control() && !matches!(*c,
         '\u{061c}' | '\u{200b}'..='\u{200f}' | '\u{2028}'..='\u{202e}' | '\u{2060}'..='\u{206f}' | '\u{feff}'
     )).collect()
 }
+fn model(
+    choice: ProviderChoice,
+    reader: Arc<CanonicalWorkspace>,
+    policy: AccessPolicy,
+) -> Result<Box<dyn ModelService>, PublicError> {
+    Ok(match choice {
+        ProviderChoice::Local => Box::new(synapse_adapters::workspace_local_queue(reader, policy)),
+        ProviderChoice::OpenRouter { model, consent } => Box::new(
+            synapse_adapters::workspace_openrouter_queue(model, consent, reader, policy)?,
+        ),
+    })
+}
 fn execute(args: Vec<OsString>) -> Result<(), PublicError> {
-    let command = parse(args)?;
-    let mut output = io::stdout().lock();
-    let result = match command {
-        Invocation::Help => write!(output, "{}", strings::HELP),
-        Invocation::Version => writeln!(output, "synapse {}", env!("CARGO_PKG_VERSION")),
-        Invocation::Doctor(root, offline) => {
-            let _workspace = CanonicalWorkspace::open(&root)?;
+    let command = args::parse(args)?;
+    let cancel = Cancellation::default();
+    if !matches!(command, Invocation::Help | Invocation::Version) {
+        synapse_adapters::install_interrupt(cancel.clone())?;
+    }
+    let mut stdout = io::stdout().lock();
+    match command {
+        Invocation::Help => {
+            write!(stdout, "{}", strings::HELP).map_err(|_| PublicError::OutputUnavailable)?
+        }
+        Invocation::Version => writeln!(stdout, "synapse {}", env!("CARGO_PKG_VERSION"))
+            .map_err(|_| PublicError::OutputUnavailable)?,
+        Invocation::Doctor {
+            root,
+            offline,
+            provider,
+        } => {
+            let reader =
+                Arc::new(CanonicalWorkspace::open(&root)?.with_cancellation(cancel.clone()));
             if offline {
-                writeln!(output, "{}", strings::DOCTOR_OFFLINE)
+                writeln!(stdout, "{}", strings::DOCTOR_OFFLINE)
+                    .map_err(|_| PublicError::OutputUnavailable)?;
             } else {
-                let queue = synapse_adapters::local_queue();
-                let _ = queue.execute(
-                    ModelJob::Health,
-                    Priority::Interactive,
-                    &Cancellation::default(),
-                )?;
-                writeln!(output, "{}", strings::DOCTOR_READY)
+                let service = model(provider, reader, AccessPolicy::default())?;
+                let _ = service.execute(ModelJob::Health, Priority::Interactive, &cancel)?;
+                writeln!(stdout, "{}", strings::DOCTOR_READY)
+                    .map_err(|_| PublicError::OutputUnavailable)?;
             }
         }
-        Invocation::Interactive(root) => {
+        Invocation::Ask {
+            root,
+            question,
+            json,
+            provider,
+        } => {
+            let reader =
+                Arc::new(CanonicalWorkspace::open(&root)?.with_cancellation(cancel.clone()));
+            let policy = AccessPolicy::default();
+            let service = model(provider, reader.clone(), policy.clone())?;
+            let _ = writeln!(io::stderr(), "{}", strings::SEARCHING);
+            let mut session = ChatSession::new(reader.as_ref(), policy.clone())?;
+            let answer = session.ask(
+                &question,
+                reader.as_ref(),
+                &policy,
+                service.as_ref(),
+                &cancel,
+            )?;
+            if cancel.is_cancelled() {
+                return Err(PublicError::Cancelled);
+            }
+            output::answer(&mut stdout, &answer, json)?;
+        }
+        Invocation::Interactive { root, provider } => {
             if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
                 return Err(PublicError::TtyRequired);
             }
-            let workspace = CanonicalWorkspace::open(&root)?;
+            let reader =
+                Arc::new(CanonicalWorkspace::open(&root)?.with_cancellation(cancel.clone()));
             writeln!(
-                output,
+                stdout,
                 "{}{}",
                 strings::ROOT,
-                sanitize(workspace.identity().display())
+                sanitize(reader.identity().display())
             )
             .map_err(|_| PublicError::OutputUnavailable)?;
-            output.flush().map_err(|_| PublicError::OutputUnavailable)?;
-            return Err(PublicError::NotImplemented);
+            stdout.flush().map_err(|_| PublicError::OutputUnavailable)?;
+            let policy = AccessPolicy::default();
+            let service = model(provider, reader.clone(), policy.clone())?;
+            let _watcher = PollingWatcher::start(reader.clone())?;
+            let mut session = ChatSession::new(reader.as_ref(), policy.clone())?;
+            let input = input::Input::start()?;
+            writeln!(stdout, "{}", strings::SESSION_HELP)
+                .map_err(|_| PublicError::OutputUnavailable)?;
+            loop {
+                write!(stdout, "{}", strings::PROMPT)
+                    .map_err(|_| PublicError::OutputUnavailable)?;
+                stdout.flush().map_err(|_| PublicError::OutputUnavailable)?;
+                let Some(line) = input.read(&cancel)? else {
+                    break;
+                };
+                let action = (|| -> Result<bool, PublicError> {
+                    match line.trim() {
+                        "" => (),
+                        "/quit" => return Ok(false),
+                        "/help" => writeln!(stdout, "{}", strings::SESSION_HELP)
+                            .map_err(|_| PublicError::OutputUnavailable)?,
+                        "/reset" => {
+                            session.reset();
+                            writeln!(stdout, "{}", strings::RESET)
+                                .map_err(|_| PublicError::OutputUnavailable)?;
+                        }
+                        source if source.starts_with("/source ") => {
+                            let ordinal = source[8..].parse().map_err(|_| PublicError::Usage)?;
+                            let passage = session.inspect(ordinal, reader.as_ref(), &policy)?;
+                            if cancel.is_cancelled() {
+                                return Err(PublicError::Cancelled);
+                            }
+                            output::source(&mut stdout, &passage)?;
+                        }
+                        unknown if unknown.starts_with('/') => return Err(PublicError::Usage),
+                        question => {
+                            let _ = writeln!(io::stderr(), "{}", strings::SEARCHING);
+                            let answer = session.ask(
+                                question,
+                                reader.as_ref(),
+                                &policy,
+                                service.as_ref(),
+                                &cancel,
+                            )?;
+                            if cancel.is_cancelled() {
+                                return Err(PublicError::Cancelled);
+                            }
+                            output::answer(&mut stdout, &answer, false)?;
+                        }
+                    }
+                    Ok(true)
+                })();
+                if cancel.is_cancelled() {
+                    return Err(PublicError::Cancelled);
+                }
+                match action {
+                    Ok(false) => break,
+                    Ok(true) => (),
+                    Err(PublicError::Cancelled) => return Err(PublicError::Cancelled),
+                    Err(error) => {
+                        let _ = writeln!(io::stderr(), "synapse: {}", error.code());
+                    }
+                }
+            }
         }
-    };
-    result
-        .and_then(|_| output.flush())
-        .map_err(|_| PublicError::OutputUnavailable)
+    }
+    stdout.flush().map_err(|_| PublicError::OutputUnavailable)
 }
-
 pub fn run(args: Vec<OsString>) -> ExitCode {
+    let json = args.iter().any(|arg| arg == "--json");
     match execute(args) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
+            if json {
+                let _ = output::error_json(&mut io::stdout(), error);
+            }
             let _ = writeln!(io::stderr(), "synapse: {}", error.code());
             ExitCode::from(error.exit_code())
         }
@@ -93,20 +184,6 @@ pub fn run(args: Vec<OsString>) -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn refuses_implicit_root_and_approval_flags() {
-        for args in [
-            vec![],
-            vec!["--yes"],
-            vec!["--workspace"],
-            vec!["ask", "secret"],
-        ] {
-            assert_eq!(
-                parse(args.into_iter().map(Into::into).collect()),
-                Err(PublicError::Usage)
-            );
-        }
-    }
     #[test]
     fn removes_terminal_controls_and_direction_overrides() {
         assert_eq!(sanitize("a\x1b[2J\r\n\u{202e}b"), "a[2Jb");

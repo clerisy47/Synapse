@@ -21,6 +21,7 @@ jobs:
       - run: cargo test --locked
       - run: python3 scripts/check-rust-boundaries.py
       - run: cargo build --locked --release
+      - run: python3 scripts/test-rust-terminal.py target/release/synapse
       - name: Install and run outside checkout
         shell: bash
         run: |

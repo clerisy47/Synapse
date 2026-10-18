@@ -1,5 +1,9 @@
-pub const HELP: &str = "Synapse — Markdown workspace terminal\n\nUsage: synapse --workspace <directory>\n       synapse doctor --workspace <directory> [--offline]\n       synapse --help\n       synapse --version\n\nDevelopment scaffold: chat, model access and writes are not implemented.\n";
+pub const HELP: &str = "Synapse — Markdown workspace terminal\n\nUsage: synapse --workspace <directory>\n       synapse ask --workspace <directory> <question> [--json]\n       synapse doctor --workspace <directory> [--offline]\n       synapse --help\n       synapse --version\n\nOptional remote provider: --provider openrouter --model <author/model> --remote-consent\nRemote disclosure: permitted passages, questions, instructions, selected research and bounded conversation history may be sent to OpenRouter and its routed provider. --remote-consent explicitly accepts this disclosure. No silent fallback.\n\nResearch writes and MCP are not implemented yet.\n";
 pub const ROOT: &str = "Workspace: ";
-
 pub const DOCTOR_READY: &str = "workspace: available\nprovider: ready\nstate: external";
-pub const DOCTOR_OFFLINE: &str = "workspace: available\nprovider: skipped\nstate: not initialized";
+pub const DOCTOR_OFFLINE: &str = "workspace: available\nprovider: skipped\nstate: untouched";
+pub const INSUFFICIENT: &str = "Insufficient evidence in this workspace.";
+pub const SEARCHING: &str = "Searching permitted workspace evidence…";
+pub const SESSION_HELP: &str = "Ask a question. /source N inspects a source; /reset clears three-turn memory; /help lists commands; /quit exits. Answers show verified workspace passages.";
+pub const PROMPT: &str = "synapse> ";
+pub const RESET: &str = "Conversation memory cleared.";

@@ -17,3 +17,6 @@ pub use provider::{
 };
 
 pub use provider_lease::ProviderLease;
+
+mod terminal_os;
+pub use terminal_os::{install_interrupt, terminal_columns, terminal_input};

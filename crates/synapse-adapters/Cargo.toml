@@ -9,10 +9,12 @@ publish.workspace = true
 [dependencies]
 synapse-core = { path = "../synapse-core" }
 
-rustix = { version = "=1.1.5", default-features = false, features = ["std", "fs", "use-libc", "process"] }
+rustix = { version = "=1.1.5", default-features = false, features = ["std", "fs", "use-libc", "process", "termios", "event"] }
 
 serde_json = "=1.0.145"
 ureq = { version = "=3.1.2", default-features = false, features = ["rustls", "json"] }
+
+ctrlc = "=3.4.7"
 
 [lints]
 workspace = true

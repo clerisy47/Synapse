@@ -20,6 +20,9 @@ pub enum Priority {
 }
 pub enum ModelJob {
     Health,
+    SearchTerms {
+        question: String,
+    },
     SelectEvidence {
         question: String,
         evidence: Vec<Evidence>,
@@ -27,10 +30,11 @@ pub enum ModelJob {
 }
 pub enum ModelResult {
     Healthy,
+    SearchTerms(Vec<String>),
     Selected(Vec<usize>),
     InsufficientEvidence,
 }
-pub trait ModelService {
+pub trait ModelService: Send + Sync {
     fn execute(
         &self,
         job: ModelJob,

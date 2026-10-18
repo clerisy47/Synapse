@@ -6,9 +6,9 @@ import tomllib
 
 root = pathlib.Path(__file__).resolve().parent.parent
 expected = {
-    'synapse-core': {'serde_yaml_ng'},
-    'synapse-adapters': {'synapse-core', 'rustix', 'serde_json', 'ureq'},
-    'synapse-terminal': {'synapse-core', 'synapse-adapters'},
+    'synapse-core': {'serde_yaml_ng', 'serde'},
+    'synapse-adapters': {'synapse-core', 'rustix', 'serde_json', 'ureq', 'ctrlc'},
+    'synapse-terminal': {'synapse-core', 'synapse-adapters', 'serde_json', 'unicode-width'},
 }
 errors = []
 for crate, dependencies in expected.items():
@@ -29,7 +29,7 @@ for crate, dependencies in expected.items():
             errors.append(f'{crate}: unreviewed mutation capability')
         if not (crate == 'synapse-adapters' and path.name == 'provider.rs') and re.search(r'\b(TcpStream|TcpListener|UdpSocket|reqwest|ureq|Command|OpenOptions)\b|\bfs\s*::\s*(write|rename|remove_file|create_dir)', text):
             errors.append(f'{crate}: unreviewed network/process/write capability')
-        if not (crate == 'synapse-adapters' and path.name == 'provider.rs') and re.search(r'\b(serde_json|json!|ModelTransport)\b', text):
+        if not ((crate == 'synapse-adapters' and path.name == 'provider.rs') or (crate == 'synapse-terminal' and path.name == 'output.rs')) and re.search(r'\b(serde_json|json!|ModelTransport)\b', text):
             errors.append(f'{crate}: unreviewed structured-model boundary')
 if errors:
     raise SystemExit('\n'.join(errors))
