@@ -71,3 +71,41 @@ Final release-binary verification exposed an intermittent native-client retry tr
 2026-10-19 final verification: the stateless MCP wrapper now consumes one complete bounded SDK response envelope and owns/tears down a runtime per request instead of waiting for SSE channel EOF. This removes the completed-response lifecycle dependency observed during final release checks. Two subsequent release native-client/security runs passed, including a real local setup Apply competing with authenticated inbox append: one coherent outcome, no lost/duplicated inbox text, and stale review refusal when appropriate. Explicit store/workspace identity checks protect mixed-port composition. Final format/compiler/Clippy, all 51 deterministic tests, boundary checks and native release build passed. Real release PTY chat and live review/Apply/revert/Clear passed. The final archive and SHA-256 sidecar passed the allowlist/license, isolated install/same-version replacement/state preservation/uninstall checks. Local runtime build was b10777-e3de71522. Remaining limitations are documented in the qualification report and native installation matrix; no publication, Linux/Intel/Windows qualification, remote quality or cross-version migration is claimed. Interrupted TypeScript/package changes remain outside this Rust delivery.
 
 Final boundary review also centralized runtime-lock creation in StateStore and removed mutation authority from the provider-lease adapter. Current exclusions now guard both sides of retained diffs before local display and again before Apply, so a historical revert cannot expose content newly excluded by tag/configuration. Regression assertions, the 51-test suite, Clippy, boundary checks and release rebuild passed after these changes; live review and archive smoke were repeated for the final binary.
+
+## Rust-only repository cleanup — 2026-10-19
+
+At the user's explicit request, removed the superseded TypeScript application and CLI, historical TypeScript/JavaScript tests and fixtures, npm manifests/lockfile and installed node_modules, JavaScript build/lint/boundary/model scripts, plugin manifest/version/CSS assets and the legacy starter generator/template. This authorization supersedes the earlier preservation requirement for interrupted TypeScript reader/dependency changes. The native Cargo implementation, Rust tests, Python verification/packaging scripts, historical evidence and user workspace/configuration remain intact. Updated current contributor and build documentation; earlier progress entries remain historical records.
+
+Verification after removal passed: Cargo formatting, locked all-target compiler checks, Clippy with warnings denied, all 51 deterministic tests (one opt-in live test ignored), Rust capability-boundary checks, locked release build, non-live real PTY terminal/review checks, native archive creation and archive/checksum/isolated install/same-version replacement/uninstall smoke. Cargo was initially absent from the shell PATH; verification used the installed /Users/utsavacharya/.cargo/bin toolchain. No live-model or native MCP evaluation was repeated for this source/tooling-only cleanup. A filesystem inventory found no remaining TypeScript/JavaScript source or npm manifests outside ignored build output and the untouched user note workspace.
+
+## User-requested Synapse-Test-Vault testing — 2026-10-19
+
+Added a reproducible opt-in native CLI evaluation against all ten documented vault questions, four keyword searches, explicit folder/tag exclusions, original metadata eligibility, exact citation bytes/coordinates, diagnostic separation and whole-workspace hash preservation. All 19 original Markdown files lack required metadata; tested original eligibility separately and used a disposable metadata-enriched copy for retrieval. No original note or hidden legacy state was changed/imported. Final result: 15/21 overall cases, with only 4/10 documented questions meeting requested fact coverage. Six returned authentic but incomplete passages. Original and prepared copy hashes remained unchanged. Initial harness errors and corrected final evidence are distinguished in docs/evidence/test-vault-2026-10-19.md and accompanying JSON reports. No implementation or prior task status was changed to disguise these quality gaps.
+
+All 51 deterministic Rust tests, format, locked all-target compiler/Clippy, capability-boundary checks, locked release build and non-live real PTY terminal/review checks passed during this task. The local runtime reported b10777-e3de71522, one slot, 4,096 context and PQ2_0 variant. No remote request, publication or new write approval was performed. The larger vault exposes passage-selection/sufficiency limits beyond the earlier short synthetic quality fixtures.
+
+## Retrieval coverage implementation checkpoint — 2026-10-19
+
+Added synthetic Rust regressions for all six vault misses, a question-list decoy,
+unsupported evidence, two-source comparison and exact citation bytes/coordinates.
+The initial checkpoint reproduced six failures out of seven tests. Ranked body
+windows now retain late sections, numeric rows and list tails, with parent-heading
+context, separate body/phrase/discovery weights, note diversification, bounded
+candidate storage and query-focused link expansion. Whole-window evidence packing
+preserves selected facts under the existing budgets and reports no-fit overflow.
+Fresh byte/access checks guard selection retries and delivery. Strict selection
+instructions and conservative application checks reject unsupported numeric facts,
+missing comparison subjects and partial explicit lists. These checks do not prove
+general semantic sufficiency. Counts-only metadata guidance directs local users
+to reviewed proposals while keeping JSON stdout unchanged and notes read-only.
+
+Final verification passed: all 64 deterministic Rust tests (one opt-in live test
+ignored), format, locked all-target compiler and Clippy, capability checks,
+locked release build, non-live real PTY terminal/review checks and native archive
+allowlist/checksum/isolated install/same-version replacement/uninstall smoke.
+Original-vault and prepared-copy hashes were preserved. Both the sandboxed and
+unrestricted live evaluation attempts returned provider_unavailable for every
+model request; their 10/21 non-model successes are not an answer-quality score.
+No runtime was started/downloaded, no remote fallback or original repair occurred,
+and no release was published. The rubric, intermediate failures, limits and
+remaining work are recorded in docs/evidence/retrieval-coverage-2026-10-19.md.

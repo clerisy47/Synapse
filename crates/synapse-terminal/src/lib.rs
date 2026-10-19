@@ -71,6 +71,16 @@ fn show_root(output: &mut impl Write, reader: &CanonicalWorkspace) -> Result<(),
     .and_then(|_| output.flush())
     .map_err(|_| PublicError::OutputUnavailable)
 }
+fn metadata_guidance(session: &ChatSession, reader: &CanonicalWorkspace, policy: &AccessPolicy) {
+    if let Some(count) = session.metadata_attention(reader, policy) {
+        let _ = writeln!(
+            io::stderr(),
+            "{} {count}. {}",
+            strings::METADATA_INELIGIBLE,
+            strings::METADATA_GUIDANCE
+        );
+    }
+}
 fn execute(arguments: Vec<OsString>) -> Result<(), PublicError> {
     let command = args::parse(arguments)?;
     let cancel = Cancellation::default();
@@ -222,6 +232,7 @@ fn execute(arguments: Vec<OsString>) -> Result<(), PublicError> {
             let service = model(workspace.provider, reader.clone(), workspace.policy.clone())?;
             let _ = writeln!(io::stderr(), "{}", strings::SEARCHING);
             let mut session = ChatSession::new(reader.as_ref(), workspace.policy.clone())?;
+            metadata_guidance(&session, reader.as_ref(), &workspace.policy);
             let answer = session.ask(
                 &question,
                 reader.as_ref(),
@@ -241,6 +252,7 @@ fn execute(arguments: Vec<OsString>) -> Result<(), PublicError> {
         } => {
             let reader = open(&workspace, &cancel)?;
             let mut session = ChatSession::new(reader.as_ref(), workspace.policy.clone())?;
+            metadata_guidance(&session, reader.as_ref(), &workspace.policy);
             let answer = session.search(&terms, reader.as_ref(), &workspace.policy)?;
             if cancel.is_cancelled() {
                 return Err(PublicError::Cancelled);
@@ -321,6 +333,7 @@ fn execute(arguments: Vec<OsString>) -> Result<(), PublicError> {
             let service = model(workspace.provider, reader.clone(), workspace.policy.clone())?;
             let _watcher = PollingWatcher::start(reader.clone())?;
             let mut session = ChatSession::new(reader.as_ref(), workspace.policy.clone())?;
+            metadata_guidance(&session, reader.as_ref(), &workspace.policy);
             let input = input::Input::start()?;
             writeln!(output, "{}", strings::SESSION_HELP)
                 .map_err(|_| PublicError::OutputUnavailable)?;

@@ -27,6 +27,19 @@ pub struct ChatSession {
     last: Vec<Evidence>,
 }
 impl ChatSession {
+    /// Counts only currently permitted attention notes; no note content or
+    /// identifiers cross the diagnostic boundary.
+    pub fn metadata_attention(
+        &self,
+        reader: &impl NoteReadPort,
+        policy: &AccessPolicy,
+    ) -> Option<usize> {
+        if self.corpus.note_count() != 0 {
+            return None;
+        }
+        let count = self.corpus.attention(reader, policy).len();
+        (count > 0).then_some(count)
+    }
     pub fn new(reader: &impl NoteReadPort, policy: AccessPolicy) -> Result<Self, PublicError> {
         Ok(Self {
             corpus: Corpus::build(reader, policy)?,
@@ -133,7 +146,7 @@ impl ChatSession {
             let evidence = bounded(
                 &candidates,
                 MAX_EVIDENCE_INPUT_BYTES.saturating_sub(context.len()),
-            );
+            )?;
             if evidence.is_empty() {
                 break;
             }
@@ -146,6 +159,12 @@ impl ChatSession {
                 break;
             }
             attempted.push(signature);
+            if !evidence
+                .iter()
+                .all(|source| verify_evidence(reader, policy, source))
+            {
+                return Err(PublicError::AccessRefused);
+            }
             let result = model.execute(
                 ModelJob::SelectEvidence {
                     question: context.clone(),
@@ -159,19 +178,26 @@ impl ChatSession {
                     if ids.is_empty() || ids.len() > 4 {
                         return Err(PublicError::InvalidModelOutput);
                     }
+                    let mut selected = Vec::new();
                     for id in ids {
                         let passage = evidence
                             .iter()
                             .find(|passage| passage.id == id)
                             .ok_or(PublicError::InvalidModelOutput)?;
-                        if sources.iter().any(|prior: &Evidence| prior.id == id)
-                            || !verify_evidence(reader, policy, passage)
-                        {
+                        if selected.iter().any(|prior: &Evidence| prior.id == id) {
+                            return Err(PublicError::InvalidModelOutput);
+                        }
+                        if !verify_evidence(reader, policy, passage) {
                             return Err(PublicError::AccessRefused);
                         }
-                        sources.push(passage.clone());
+                        selected.push(passage.clone());
                     }
-                    break;
+                    if coverage_constraints(question, &selected, reader)? {
+                        sources = selected;
+                        break;
+                    }
+                    let shift = evidence.len().min(candidates.len());
+                    candidates.rotate_left(shift);
                 }
                 ModelResult::InsufficientEvidence => {
                     let prior = candidates.clone();
@@ -183,7 +209,10 @@ impl ChatSession {
                             if candidates.iter().any(|existing| existing.path == path) {
                                 continue;
                             }
-                            if let Some(linked) = self.corpus.passage_for(&path, reader, policy) {
+                            for linked in self.corpus.query_note(&path, &context, reader, policy) {
+                                if candidates.len() >= MAX_RETRIEVAL_CANDIDATES {
+                                    break;
+                                }
                                 candidates.push(linked);
                             }
                         }
@@ -203,6 +232,9 @@ impl ChatSession {
             return Err(PublicError::Cancelled);
         }
         for (ordinal, source) in sources.iter_mut().enumerate() {
+            if !verify_evidence(reader, policy, source) {
+                return Err(PublicError::AccessRefused);
+            }
             source.id = ordinal + 1;
         }
         self.last = sources.clone();
@@ -216,26 +248,94 @@ impl ChatSession {
         Ok(Answer { sources })
     }
 }
-fn bounded(candidates: &[Evidence], mut budget: usize) -> Vec<Evidence> {
+
+// Necessary evidence checks supplement provider judgment. They do not claim
+// semantic entailment: live fact-coverage qualification remains mandatory.
+fn coverage_constraints(
+    question: &str,
+    sources: &[Evidence],
+    reader: &impl NoteReadPort,
+) -> Result<bool, PublicError> {
+    let question = question.to_lowercase();
+    let text = sources
+        .iter()
+        .map(|e| e.text.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let numeric = [
+        "numeric",
+        "worked example",
+        "how many",
+        "how much",
+        "percentage",
+    ]
+    .iter()
+    .any(|word| question.contains(word));
+    let measured_accuracy = question.contains("accuracy") && question.contains("measured");
+    if (numeric || measured_accuracy) && !text.chars().any(|c| c.is_ascii_digit()) {
+        return Ok(false);
+    }
+    if let Some(comparison) = question.strip_prefix("compare ") {
+        let subjects = comparison.split(" for ").next().unwrap_or(comparison);
+        if let Some((left, right)) = subjects
+            .split_once(" and ")
+            .or_else(|| subjects.split_once(" versus "))
+        {
+            let lower = text.to_lowercase();
+            for subject in [left, right] {
+                if !subject
+                    .split_whitespace()
+                    .take(2)
+                    .any(|term| lower.contains(term.trim_end_matches(['.', '?', 's'])))
+                {
+                    return Ok(false);
+                }
+            }
+        }
+    }
+    if question.contains("precision") && question.contains("recall") && question.contains("example")
+    {
+        let values = text
+            .split(|c: char| !c.is_ascii_digit() && c != '.')
+            .filter(|s| s.chars().any(|c| c.is_ascii_digit()))
+            .count();
+        if values < 2 {
+            return Ok(false);
+        }
+    }
+    if question.contains("checklist")
+        || question.contains("complete list")
+        || question.starts_with("list ")
+        || (question.contains("pack") && question.contains("hike"))
+    {
+        for source in sources {
+            let bytes = reader.read_note(&source.path)?;
+            // All bullet items in a selected note must survive an explicitly
+            // complete-list request. Refuse ambiguous partial list coverage.
+            for (index, line) in bytes.lines().enumerate() {
+                let item = line.trim_start();
+                if (item.starts_with("- ") || item.starts_with("* ") || item.starts_with("+ "))
+                    && !sources.iter().any(|e| {
+                        e.path == source.path && e.start_line <= index + 1 && e.end_line > index
+                    })
+                {
+                    return Ok(false);
+                }
+            }
+        }
+    }
+    Ok(!text.trim().is_empty())
+}
+fn bounded(candidates: &[Evidence], mut budget: usize) -> Result<Vec<Evidence>, PublicError> {
     let mut result = Vec::new();
     for candidate in candidates.iter().take(MAX_RETRIEVAL_CANDIDATES) {
         if result.len() == 4 || budget < 64 {
             break;
         }
-        let mut text = String::new();
-        let mut count = 0;
-        for line in candidate.text.lines().take(6) {
-            let extra = line.len() + usize::from(count > 0);
-            if text.len() + extra + 64 > budget {
-                break;
-            }
-            if count > 0 {
-                text.push('\n');
-            }
-            text.push_str(line);
-            count += 1;
-        }
-        if text.trim().is_empty() {
+        // A ranked window is an indivisible source. Truncating it here can
+        // remove exactly the table row or list tail retrieval selected.
+        let text = &candidate.text;
+        if text.trim().is_empty() || text.len() + 64 > budget {
             continue;
         }
         budget = budget.saturating_sub(text.len() + 64);
@@ -243,9 +343,12 @@ fn bounded(candidates: &[Evidence], mut budget: usize) -> Vec<Evidence> {
             id: result.len() + 1,
             path: candidate.path.clone(),
             start_line: candidate.start_line,
-            end_line: candidate.start_line + count - 1,
-            text,
+            end_line: candidate.end_line,
+            text: text.clone(),
         });
     }
-    result
+    if result.is_empty() && !candidates.is_empty() {
+        return Err(PublicError::ContextOverflow);
+    }
+    Ok(result)
 }

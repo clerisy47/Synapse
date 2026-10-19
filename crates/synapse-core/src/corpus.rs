@@ -15,6 +15,177 @@ const MAX_INDEX_MILLIS: u64 = 10_000;
 const MAX_QUERY_MILLIS: u64 = 5_000;
 pub const MAX_RESULTS: usize = 8;
 pub const MAX_EXCERPT_CHARS: usize = 1200;
+pub const MAX_WINDOW_LINES: usize = 6;
+const WINDOW_STRIDE: usize = 3;
+const MAX_WINDOWS_PER_NOTE: usize = crate::MAX_NOTE_BYTES as usize;
+const MAX_RETAINED_WINDOWS_PER_NOTE: usize = 32;
+const MAX_RANKED_WINDOWS: usize = 256;
+const MAX_QUERY_TERMS: usize = 32;
+const BODY_TERM_WEIGHT: usize = 16;
+const HEADING_TERM_WEIGHT: usize = 12;
+const BODY_PHRASE_WEIGHT: usize = 4;
+
+fn query_terms(question: &str) -> Vec<String> {
+    const GENERIC: &[&str] = &[
+        "a", "an", "and", "are", "as", "at", "be", "by", "compare", "complete", "does", "for",
+        "from", "how", "in", "is", "it", "list", "of", "on", "or", "should", "the", "their",
+        "this", "to", "use", "what", "when", "which", "with", "latest", "question", "earlier",
+    ];
+    let mut terms: Vec<_> = question
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|s| !s.is_empty())
+        .map(policy_key)
+        .filter(|s| !GENERIC.contains(&s.as_str()))
+        .take(MAX_QUERY_TERMS)
+        .collect();
+    terms.sort();
+    terms.dedup();
+    terms
+}
+
+fn windows(note: &Note, terms: &[String], question: &str) -> Vec<(usize, Evidence)> {
+    let lines: Vec<_> = note.bytes.lines().collect();
+    let mut result = Vec::new();
+    let mut headings: Vec<String> = Vec::new();
+    let heading_positions: Vec<_> = lines
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| line.starts_with('#'))
+        .map(|(i, _)| i)
+        .collect();
+    let block_kind = |line: &str| {
+        let line = line.trim_start();
+        if line.starts_with('|') {
+            1
+        } else if line.starts_with("- ") || line.starts_with("* ") || line.starts_with("+ ") {
+            2
+        } else {
+            0
+        }
+    };
+    let block_positions: Vec<_> = lines
+        .iter()
+        .enumerate()
+        .skip(note.body_start)
+        .filter(|(i, line)| {
+            !line.trim().is_empty()
+                && (*i == note.body_start
+                    || lines[i - 1].trim().is_empty()
+                    || (block_kind(line) != 0 && block_kind(line) != block_kind(lines[i - 1])))
+        })
+        .map(|(i, _)| i)
+        .collect();
+    let mut block_cursor = 0;
+    let mut heading_cursor = 0;
+    let discovery = policy_key(&note.discovery);
+    let path_key = policy_key(note.path.as_str());
+    let question_key = policy_key(question);
+    let phrase_terms: Vec<_> = question
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|s| !s.is_empty())
+        .map(policy_key)
+        .filter(|s| terms.contains(s))
+        .take(MAX_QUERY_TERMS)
+        .collect();
+    let mut scanned = 0;
+    let mut start = note.body_start;
+    while start < lines.len() && scanned < MAX_WINDOWS_PER_NOTE {
+        scanned += 1;
+        if lines[start].starts_with('#') {
+            let depth = lines[start]
+                .chars()
+                .take_while(|c| *c == '#')
+                .count()
+                .min(6);
+            headings.truncate(depth.saturating_sub(1));
+            headings.push(policy_key(lines[start]));
+        }
+        let heading = headings.join(" ");
+        while heading_cursor < heading_positions.len() && heading_positions[heading_cursor] <= start
+        {
+            heading_cursor += 1;
+        }
+        let next_heading = heading_positions
+            .get(heading_cursor)
+            .copied()
+            .unwrap_or(lines.len());
+        let end = (start + MAX_WINDOW_LINES)
+            .min(next_heading)
+            .min(lines.len());
+        let content_start = (start..end)
+            .find(|i| !lines[*i].trim().is_empty() && !lines[*i].starts_with('#'))
+            .unwrap_or(end);
+        let selected = &lines[content_start..end];
+        let text = selected.join("\n");
+        let body = policy_key(
+            &selected
+                .iter()
+                .filter(|line| !line.trim_start().starts_with('#'))
+                .copied()
+                .collect::<Vec<_>>()
+                .join(" "),
+        );
+        let body_score = terms.iter().filter(|t| body.contains(t.as_str())).count();
+        let heading_score = terms
+            .iter()
+            .filter(|t| heading.contains(t.as_str()))
+            .count();
+        let discovery_score = terms
+            .iter()
+            .filter(|t| discovery.contains(t.as_str()) || path_key.contains(t.as_str()))
+            .count();
+        // Question-only and navigation windows remain discoverable but cannot
+        // outrank passages containing declarative body evidence.
+        let factual = selected.iter().any(|line| {
+            let line = line.trim();
+            !line.is_empty()
+                && !line.starts_with('#')
+                && !line.contains('?')
+                && !line.contains("[[")
+                && !line.contains("](")
+                && !line.starts_with("See ")
+                && policy_key(line).trim() != question_key.trim()
+        });
+        let score = if factual {
+            body_score * BODY_TERM_WEIGHT
+                + heading_score * HEADING_TERM_WEIGHT
+                + discovery_score
+                + phrase_terms
+                    .windows(2)
+                    .filter(|pair| body.contains(&pair.join(" ")))
+                    .count()
+                    * BODY_PHRASE_WEIGHT
+        } else {
+            0
+        };
+        if score > 0 && text.chars().count() <= MAX_EXCERPT_CHARS {
+            result.push((
+                score,
+                Evidence {
+                    id: 0,
+                    path: note.path.clone(),
+                    start_line: content_start + 1,
+                    end_line: end,
+                    text,
+                },
+            ));
+            result.sort_by(|a, b| {
+                b.0.cmp(&a.0)
+                    .then_with(|| a.1.start_line.cmp(&b.1.start_line))
+            });
+            result.truncate(MAX_RETAINED_WINDOWS_PER_NOTE);
+        }
+        while block_cursor < block_positions.len() && block_positions[block_cursor] <= start {
+            block_cursor += 1;
+        }
+        let next_block = block_positions
+            .get(block_cursor)
+            .copied()
+            .unwrap_or(lines.len());
+        start = (start + WINDOW_STRIDE).min(next_heading).min(next_block);
+    }
+    result
+}
 
 #[derive(Clone)]
 pub struct AccessPolicy {
@@ -278,17 +449,41 @@ impl Corpus {
     pub fn note_count(&self) -> usize {
         self.notes.len()
     }
+    /// Focus link expansion on the current question rather than the note lead.
+    pub fn query_note(
+        &self,
+        path: &NotePath,
+        question: &str,
+        reader: &impl NoteReadPort,
+        policy: &AccessPolicy,
+    ) -> Vec<Evidence> {
+        if question.len() > 4096 {
+            return Vec::new();
+        }
+        let Some(note) = self
+            .notes
+            .iter()
+            .find(|note| &note.path == path && self.current(note, reader, policy))
+        else {
+            return Vec::new();
+        };
+        windows(note, &query_terms(question), question)
+            .into_iter()
+            .take(MAX_RESULTS)
+            .enumerate()
+            .map(|(i, (_, mut e))| {
+                e.id = i + 1;
+                e
+            })
+            .collect()
+    }
     pub fn query(
         &self,
         question: &str,
         reader: &impl NoteReadPort,
         policy: &AccessPolicy,
     ) -> Vec<Evidence> {
-        let terms: Vec<_> = question
-            .split_whitespace()
-            .take(32)
-            .map(str::to_lowercase)
-            .collect();
+        let terms = query_terms(question);
         if question.len() > 4096 || terms.is_empty() {
             return Vec::new();
         }
@@ -315,64 +510,41 @@ impl Corpus {
             if ignored(&meta) || discovery(&meta, policy).is_none() {
                 continue;
             }
-            let score = terms
-                .iter()
-                .filter(|term| {
-                    note.bytes.to_lowercase().contains(term.as_str())
-                        || note.discovery.to_lowercase().contains(term.as_str())
-                        || note.path.as_str().to_lowercase().contains(term.as_str())
-                })
-                .count();
-            if score == 0 {
-                continue;
-            }
-            let lines: Vec<_> = note
-                .bytes
-                .lines()
-                .enumerate()
-                .skip(note.body_start)
-                .collect();
-            let offset = lines
-                .iter()
-                .position(|(_, line)| {
-                    terms
-                        .iter()
-                        .any(|term| line.to_lowercase().contains(term.as_str()))
-                })
-                .unwrap_or(0);
-            if !lines.is_empty() {
-                let selected: Vec<_> = lines.iter().skip(offset).take(6).collect();
-                if let (Some(first), Some(last)) = (selected.first(), selected.last()) {
-                    let text = selected
-                        .iter()
-                        .map(|(_, line)| *line)
-                        .collect::<Vec<_>>()
-                        .join("\n");
-                    if text.chars().count() <= MAX_EXCERPT_CHARS {
-                        candidates.push((
-                            score,
-                            Evidence {
-                                id: 0,
-                                path: note.path.clone(),
-                                start_line: first.0 + 1,
-                                end_line: last.0 + 1,
-                                text,
-                            },
-                        ));
-                    }
+            candidates.extend(windows(note, &terms, question));
+            candidates.sort_by(|a, b| {
+                b.0.cmp(&a.0)
+                    .then_with(|| a.1.path.cmp(&b.1.path))
+                    .then_with(|| a.1.start_line.cmp(&b.1.start_line))
+            });
+            candidates.truncate(MAX_RANKED_WINDOWS);
+        }
+        candidates.sort_by(|a, b| {
+            b.0.cmp(&a.0)
+                .then_with(|| a.1.path.cmp(&b.1.path))
+                .then_with(|| a.1.start_line.cmp(&b.1.start_line))
+        });
+        let mut selected: Vec<Evidence> = Vec::new();
+        // First preserve the strongest window from each note, then additional
+        // sections. Exact duplicates and fully contained windows add no evidence.
+        for diversify in [true, false] {
+            for (_, candidate) in &candidates {
+                if selected.len() == MAX_RESULTS {
+                    break;
                 }
+                if selected.iter().any(|e| {
+                    e.path == candidate.path
+                        && (diversify
+                            || (e.start_line <= candidate.start_line
+                                && e.end_line >= candidate.end_line))
+                }) {
+                    continue;
+                }
+                let mut candidate = candidate.clone();
+                candidate.id = selected.len() + 1;
+                selected.push(candidate);
             }
         }
-        candidates.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.path.cmp(&b.1.path)));
-        candidates
-            .into_iter()
-            .take(MAX_RESULTS)
-            .enumerate()
-            .map(|(id, (_, mut evidence))| {
-                evidence.id = id + 1;
-                evidence
-            })
-            .collect()
+        selected
     }
 }
 pub(crate) fn metadata(bytes: &str) -> Option<(Value, usize)> {

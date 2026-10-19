@@ -35,3 +35,5 @@ pub const MCP_CLIENT: &str = "Client:";
 pub const MCP_SECRET: &str = "Bearer secret (shown once; keep private):";
 pub const MCP_REVOKED: &str = "MCP client revoked.";
 pub const MCP_LISTENING: &str = "MCP listening:";
+pub const METADATA_INELIGIBLE: &str = "No eligible retrieval notes; metadata attention count:";
+pub const METADATA_GUIDANCE: &str = "Use synapse metadata review --workspace <directory> --preview to inspect missing-field proposals. Missing description, tags or aliases require exact local review and Apply. Malformed metadata, invalid values and oversized notes require manual repair. Excluded notes and control files are not retrieval candidates.";

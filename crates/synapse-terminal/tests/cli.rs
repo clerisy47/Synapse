@@ -79,3 +79,42 @@ fn json_usage_errors_are_content_free_and_remote_requires_consent()
     }
     Ok(())
 }
+
+#[test]
+fn missing_metadata_explains_eligibility_without_disclosing_or_mutating_notes()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root =
+        std::env::temp_dir().join(format!("synapse-metadata-guidance-{}", std::process::id()));
+    std::fs::create_dir(&root)?;
+    let body = "# Private sentinel\nprivate-note-body-sentinel\n";
+    std::fs::write(root.join("private-name-sentinel.md"), body)?;
+    std::fs::write(root.join("Research.md"), "protected-control-sentinel")?;
+    for command in ["search", "ask"] {
+        let output = binary()
+            .arg(command)
+            .arg("--workspace")
+            .arg(&root)
+            .args(["unmatched", "--json"])
+            .output()?;
+        assert!(output.status.success());
+        let value: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+        assert_eq!(value["version"], 1);
+        assert_eq!(value["status"], "insufficient_evidence");
+        let diagnostics = String::from_utf8_lossy(&output.stderr);
+        assert!(diagnostics.contains("metadata attention count: 1"));
+        assert!(diagnostics.contains("metadata review"));
+        for forbidden in [
+            "private-name-sentinel",
+            "private-note-body-sentinel",
+            "protected-control-sentinel",
+        ] {
+            assert!(!diagnostics.contains(forbidden));
+        }
+        assert_eq!(
+            std::fs::read_to_string(root.join("private-name-sentinel.md"))?,
+            body
+        );
+    }
+    std::fs::remove_dir_all(root)?;
+    Ok(())
+}

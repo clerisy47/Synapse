@@ -12,6 +12,6 @@ Current baseline, rewritten 2026-10-18 for the native Rust/Cargo terminal platfo
 
 Obsolete host audits, deployment guides and historical specifications were removed as part of the product pivot. Git history retains prior versions. No CLI acceptance evidence is claimed from those documents.
 
-The subsequent user request to complete PLAN authorized implementation. Native qualification evidence is recorded in [the evidence report](evidence/native-qualification-2026-10-19.md). Existing npm/TypeScript tooling is historical and does not validate Rust readiness.
+The subsequent user request to complete PLAN authorized implementation. Native qualification evidence is recorded in [the evidence report](evidence/native-qualification-2026-10-19.md). Legacy npm/TypeScript code and tooling have been removed; use the Cargo commands and native verification scripts.
 
 See [review/recovery](rust-review.md), [native installation](native-install.md) and [dependency/license review](rust-dependencies.md) for operational limits. Publication remains separately authorized.
