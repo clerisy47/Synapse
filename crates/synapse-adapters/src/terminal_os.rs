@@ -47,3 +47,9 @@ pub fn terminal_input(cancel: &Cancellation) -> Result<Option<Vec<u8>>, PublicEr
         return Ok(Some(bytes[..count].to_vec()));
     }
 }
+
+pub fn terminal_rows() -> usize {
+    rustix::termios::tcgetwinsize(std::io::stdout())
+        .map(|size| usize::from(size.ws_row).clamp(8, 100))
+        .unwrap_or(24)
+}

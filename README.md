@@ -1,34 +1,42 @@
 # Synapse
 
-Synapse is a planned terminal-based agent for a local Markdown workspace. It brings a Codex CLI-style conversation and review workflow to searching notes, answering with verified sources, and turning rough research into approved note changes.
+Native Rust terminal application for Markdown workspace questions, reviewed note updates and scoped MCP collaboration. See [PLAN.md](PLAN.md) for task status and [SPEC.md](SPEC.md) for the complete target contract.
 
-No embeddings, vector database, or telemetry. Local Bonsai inference is the default; OpenRouter is an explicitly selected remote option.
+Interactive chat and one-shot questions retrieve permitted body passages through local Bonsai, with verified current file/line sources and explicit insufficient-evidence results. The interface currently answers with selected passages. Research capture, metadata repair, exact local review/Apply, recovery and authenticated loopback MCP are implemented. Historical TypeScript/npm files are outside the native build.
 
-## Project state
-
-The product direction changed on 2026-10-18. These documents define the new terminal platform. **The CLI scaffold supports help, version and explicit workspace validation. Product commands are still pending.** The repository retains previous application source and tests for reference; they are excluded from the CLI build and package. There is no requirement to preserve or reuse that implementation; useful algorithms and lessons may inform a clean replacement.
-
-Start with [SPEC.md](SPEC.md), [DESIGN.md](DESIGN.md), and [PLAN.md](PLAN.md). [PROGRESS.md](PROGRESS.md) records the current handoff. Old implementation results do not establish CLI readiness.
-
-## Intended workflow
-
-The following commands describe the proposed interface, not currently available commands:
+Rust 1.85.1 is pinned for builds. Installed binaries require neither Rust nor Node.js. The default user-managed PrismML llama.cpp runtime is Bonsai 2 9B PQ2_0 at `127.0.0.1:18080`, 4,096 context, one slot, thinking disabled. Synapse never starts or downloads it.
 
 ```sh
-synapse --workspace ~/Notes
-synapse ask --workspace ~/Notes "What have I learned about decision trees?"
-synapse research review --workspace ~/Notes
-synapse doctor --workspace ~/Notes
+cargo build --locked --release
+cargo install --locked --path crates/synapse-terminal
+synapse --workspace /path/to/notes
+synapse ask --workspace /path/to/notes "What do my notes say about this topic?" --json
+synapse doctor --workspace /path/to/notes --offline
+synapse setup --workspace /path/to/notes --preview
+synapse metadata review --workspace /path/to/notes
+synapse research capture --workspace /path/to/notes --file Research.md --lines 1:3
+synapse research review --workspace /path/to/notes --capture 1
+synapse recovery --workspace /path/to/notes
+synapse mcp grant --workspace /path/to/notes --query
+synapse mcp serve --workspace /path/to/notes
 ```
 
-The interactive terminal shows retrieval progress, answers with numbered sources and file/line locations, and reviewable diffs. Search and chat work without instruction files. Research uses configurable `Synapse/Instructions.md` and `Research.md`; existing files are never overwritten during setup. Changes need exact local review and explicit Apply. External MCP clients can query permitted notes or submit research with granted scopes; they cannot approve or apply changes.
+Interactive commands: `/search terms`, `/source N`, `/reset`, `/help`, `/quit`. Ctrl-C cancels. Ordinary retrieval notes require description/tags/aliases metadata; instructions and the research inbox are excluded and are not required for chat. OpenRouter is available only with explicit selection/disclosure consent; see `synapse --help`.
 
-## Runtime and privacy
+```sh
+cargo fmt --all -- --check
+cargo check --locked --all-targets
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked
+python3 scripts/check-rust-boundaries.py
+python3 scripts/test-rust-terminal.py target/release/synapse
+# Opt-in synthetic live checks, using the already-running local runtime:
+python3 scripts/test-rust-bonsai.py target/release/synapse
+python3 scripts/test-rust-terminal.py target/release/synapse --live
+python3 scripts/test-rust-review.py target/release/synapse --live
+python3 scripts/evaluate-rust-quality.py target/release/synapse
+cargo build --locked -p synapse-adapters --example mcp_client
+python3 scripts/test-rust-mcp.py target/release/synapse target/debug/examples/mcp_client
+```
 
-Default model: Bonsai 2 9B PQ2_0 through user-managed PrismML llama.cpp at `127.0.0.1:18080`, 4,096 context, one slot, thinking disabled. Synapse will not download weights, launch a runtime, or silently switch providers. See [runtime contract](docs/bonsai.md).
-
-The CLI will operate within one explicitly selected workspace. Exclusions apply before indexing and before any model or MCP response. Local application state belongs outside the notes directory; recovery records can contain note content and require a clear retention and deletion policy. Remote use requires explicit selection and consent.
-
-## Development
-
-Use Node 22 or newer. Run `npm ci`, `npm run build`, `npm test`, and `npm run test:release`. `npm run dev` watches the CLI TypeScript build. `node dist/cli/main.js --help` runs the scaffold. `npm pack --ignore-scripts` packages only the compiled CLI, README and license. The package is private and is not published. Product behavior remains under implementation. See [validation requirements](docs/release-validation.md). MIT license remains unchanged.
+See [CLI JSON contract](docs/contracts/cli-v1.md), [foundation decisions](docs/cli-scaffold.md), [provider limits](docs/rust-providers.md), [architecture](DESIGN.md), [progress evidence](PROGRESS.md) and [release validation](docs/release-validation.md). Development artifacts are not published. Platform qualification and remaining limitations are recorded in [native installation](docs/native-install.md).

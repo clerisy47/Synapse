@@ -6,8 +6,8 @@ import tomllib
 
 root = pathlib.Path(__file__).resolve().parent.parent
 expected = {
-    'synapse-core': {'serde_yaml_ng', 'serde'},
-    'synapse-adapters': {'synapse-core', 'rustix', 'serde_json', 'ureq', 'ctrlc'},
+    'synapse-core': {'serde_yaml_ng', 'serde', 'sha2', 'chrono', 'chrono-tz', 'unicode-normalization', 'unicode-casefold'},
+    'synapse-adapters': {'synapse-core', 'rustix', 'serde_json', 'ureq', 'ctrlc', 'getrandom', 'serde', 'rmcp', 'tokio', 'http', 'http-body-util', 'bytes', 'tracing'},
     'synapse-terminal': {'synapse-core', 'synapse-adapters', 'serde_json', 'unicode-width'},
 }
 errors = []
@@ -25,11 +25,15 @@ for crate, dependencies in expected.items():
         if crate == 'synapse-core' and re.search(r'\b(fs|net|process|io|env|os|thread)\b', text):
             errors.append(f'{crate}: operating-system access')
         # Network and structured model payloads are restricted to one provider adapter.
-        if not (crate == 'synapse-adapters' and path.name == 'provider_lease.rs') and re.search(r'\b(mkdirat|renameat|unlinkat|WRONLY|RDWR|CREATE|TRUNC)\b', text):
+        if not (crate == 'synapse-adapters' and path.name in {'state_store.rs', 'workspace.rs'}) and re.search(r'\b(mkdirat|renameat|unlinkat|WRONLY|RDWR|CREATE|TRUNC)\b', text):
             errors.append(f'{crate}: unreviewed mutation capability')
-        if not (crate == 'synapse-adapters' and path.name == 'provider.rs') and re.search(r'\b(TcpStream|TcpListener|UdpSocket|reqwest|ureq|Command|OpenOptions)\b|\bfs\s*::\s*(write|rename|remove_file|create_dir)', text):
-            errors.append(f'{crate}: unreviewed network/process/write capability')
-        if not ((crate == 'synapse-adapters' and path.name == 'provider.rs') or (crate == 'synapse-terminal' and path.name == 'output.rs')) and re.search(r'\b(serde_json|json!|ModelTransport)\b', text):
+        if re.search(r'\b(Command|execve|execveat)\b', text):
+            errors.append(f'{crate}: process execution capability')
+        if not (crate == 'synapse-adapters' and path.name in {'provider.rs', 'mcp_listener.rs'}) and re.search(r'\b(TcpStream|TcpListener|UdpSocket|reqwest|ureq)\b', text):
+            errors.append(f'{crate}: unreviewed network capability')
+        if not (crate == 'synapse-adapters' and path.name in {'state_store.rs', 'workspace.rs'}) and re.search(r'\bOpenOptions\b|\bFile\s*::\s*create\b|\bfs\s*::\s*(write|rename|remove_file|create_dir)', text):
+            errors.append(f'{crate}: unreviewed filesystem mutation capability')
+        if not ((crate == 'synapse-adapters' and path.name in {'provider.rs', 'state_store.rs', 'approved_write.rs', 'mcp_grants.rs', 'mcp_submit.rs', 'mcp_handler.rs', 'mcp_listener.rs', 'strict_json.rs'}) or (crate == 'synapse-terminal' and path.name == 'output.rs')) and re.search(r'\b(serde_json|json!|ModelTransport)\b', text):
             errors.append(f'{crate}: unreviewed structured-model boundary')
 if errors:
     raise SystemExit('\n'.join(errors))

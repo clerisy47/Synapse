@@ -19,4 +19,19 @@ pub use provider::{
 pub use provider_lease::ProviderLease;
 
 mod terminal_os;
-pub use terminal_os::{install_interrupt, terminal_columns, terminal_input};
+pub use terminal_os::{install_interrupt, terminal_columns, terminal_input, terminal_rows};
+
+mod state_store;
+pub use state_store::DiskStateStore;
+
+mod approved_write;
+pub use approved_write::{JournalRecord, LocalApproval, WriteOutcome};
+
+mod mcp_grants;
+pub use mcp_grants::ClientGrant;
+mod mcp_handler;
+mod mcp_listener;
+mod mcp_submit;
+pub use mcp_listener::McpListener;
+mod mcp_strings;
+mod strict_json;

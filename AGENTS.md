@@ -1,8 +1,8 @@
 # AGENTS.md — Synapse
 
-Standalone terminal platform for agentic Markdown workspace search/chat, locally reviewed research-to-note updates and scoped MCP collaboration. No embeddings, vector DB or telemetry. User revision 2026-10-18 supersedes all application-host requirements. The new CLI is not implemented. Reuse logic if useful; there is no requirement to preserve existing code. This pivot session is documentation-only; do not migrate code without a subsequent implementation request.
+Standalone terminal platform for agentic Markdown workspace search/chat, locally reviewed research-to-note updates and scoped MCP collaboration. No embeddings, vector DB or telemetry. User revision 2026-10-18 selects Rust and supersedes all application-host and TypeScript CLI requirements. The native Rust CLI is implemented; PLAN.md and the qualification report record scope and limits. Reuse logic if useful; there is no requirement to preserve existing code. The subsequent request to complete all remaining plan tasks authorizes Rust implementation; do not continue TypeScript implementation. Preserve the existing interrupted code/dependency changes without treating them as the Rust baseline.
 
-Read [SPEC.md](SPEC.md), [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md) and [PROGRESS.md](PROGRESS.md). These are the current baseline; old implementation results do not prove CLI readiness.
+Read [SPEC.md](SPEC.md), [DESIGN.md](DESIGN.md), [PLAN.md](PLAN.md) and [PROGRESS.md](PROGRESS.md). These are the current baseline; old host and TypeScript implementation results do not prove Rust CLI readiness.
 
 ## Task selection and reporting
 
@@ -12,7 +12,7 @@ Commit format: `[type]: [summary] (task [ID])`; types feat/fix/refactor/test/doc
 
 ## Implementation rules
 
-- Strict TypeScript, ports-and-adapters. Node/filesystem/network/terminal libraries only in adapters or the terminal presentation boundary as specified in DESIGN. Domain/features use ports; modules expose index.ts. Entry point is composition only.
+- Rust native executable built with Cargo, ports-and-adapters. Domain/features use typed port traits and validated newtypes. Filesystem/network/OS dependencies stay in adapters; terminal libraries stay in the terminal boundary. Public APIs use explicit module exports and `lib.rs` where applicable; `main.rs` is composition only. Prefer safe Rust; isolate and justify any `unsafe` in platform adapters with documented invariants and tests. No Node.js, TypeScript or Koffi runtime dependency in the product.
 - One explicit canonical workspace per process. No home-directory scans, absolute/traversing note paths, symlink descendants or out-of-root access. Exclusions apply before ingest and at every tool/model/proposal/MCP output boundary.
 - All model work through one JobQueue; coordinate local single-slot use across processes. Strict structured schemas and provider-specific builders. Models return bounded values and trusted destination/evidence IDs, never trusted paths, regex, quotes, grants or approvals.
 - Runtime default: Bonsai 2 9B PQ2_0 via user-managed PrismML llama.cpp, numeric loopback 127.0.0.1:18080, 4,096 context, one slot, thinking disabled. Never download/start on launch. OpenRouter requires explicit selection and remote disclosure consent. No silent fallback; Ollama is not a substitute.
@@ -26,9 +26,9 @@ Commit format: `[type]: [summary] (task [ID])`; types feat/fix/refactor/test/doc
 
 ## Commands and verification
 
-Current npm commands still target the former implementation. Do not describe their outputs as CLI artifacts. CLI-T01 must establish build/dev/test/lint/typecheck, boundary/network/write/schema checks and clean executable installation. Until then, inspect package.json before running existing checks and describe their limited scope accurately.
+A Cargo scaffold and native Rust executable now exist; see docs/cli-scaffold.md for scope and evidence. Current npm commands target the superseded TypeScript implementation and cannot validate Rust readiness. RUST-T01 must pin the Rust edition/toolchain/MSRV, commit Cargo.lock, establish build/run/test/compiler/format/Clippy and boundary/network/write/schema checks, replace CI/packaging and verify clean native executable installation. Target checks are `cargo fmt --all -- --check`, `cargo check --locked --all-targets`, `cargo clippy --locked --all-targets -- -D warnings`, `cargo test --locked`, and `cargo build --locked --release`; do not claim they run before the Cargo scaffold exists. Review dependencies, features, build scripts and licenses; no automatic legacy-state import.
 
-Tests colocate with modules; shared fixtures/integration live under test/. Use meaningful temporary-filesystem, subprocess and PTY checks; no test weakening/deletion to pass a rewrite. Never hand-edit generated artifacts, commit secrets or real note content, or claim live-model/terminal/client gates based on mocks. No sub-agent delegation unless explicitly requested by the user or applicable instructions.
+Rust unit tests colocate with modules under `#[cfg(test)]`; Cargo integration tests and shared synthetic fixtures live under `tests/`. Existing `test/` content is historical until deliberately adapted and verified. Use meaningful temporary-filesystem, subprocess and PTY checks; no test weakening/deletion to pass a rewrite. Never hand-edit generated artifacts, commit secrets or real note content, or claim live-model/terminal/client gates based on mocks. No sub-agent delegation unless explicitly requested by the user or applicable instructions.
 
 ## Definition of done
 

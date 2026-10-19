@@ -161,7 +161,7 @@ impl ModelService for Planner {
                 calls.push("select");
                 Ok(ModelResult::Selected(vec![1]))
             }
-            ModelJob::Health => Err(PublicError::Usage),
+            _ => Err(PublicError::Usage),
         }
     }
 }

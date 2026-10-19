@@ -10,7 +10,7 @@ pub fn wrap(line: &str, width: usize) -> Vec<String> {
     let mut used = 0;
     for character in sanitize(line).chars() {
         let size = character.width().unwrap_or(0);
-        if used + size > width.max(8) && !current.is_empty() {
+        if used + size > width.max(1) && !current.is_empty() {
             lines.push(std::mem::take(&mut current));
             used = 0;
         }

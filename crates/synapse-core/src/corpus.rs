@@ -1,5 +1,14 @@
 use crate::{NotePath, NoteReadPort, PublicError};
 use serde_yaml_ng::Value;
+use unicode_casefold::UnicodeCaseFold;
+use unicode_normalization::UnicodeNormalization;
+fn policy_key(value: &str) -> String {
+    value
+        .nfd()
+        .flat_map(char::to_lowercase)
+        .case_fold()
+        .collect()
+}
 
 pub const MAX_INDEX_BYTES: usize = 16 * 1024 * 1024;
 const MAX_INDEX_MILLIS: u64 = 10_000;
@@ -28,7 +37,7 @@ impl Default for AccessPolicy {
 impl AccessPolicy {
     pub fn validate(&self) -> Result<(), PublicError> {
         const MAX_EXCLUSIONS: usize = 128;
-        if self.instructions == self.research
+        if policy_key(self.instructions.as_str()) == policy_key(self.research.as_str())
             || [&self.instructions, &self.research]
                 .iter()
                 .any(|path| path.as_str().split('/').any(|part| part.starts_with('.')))
@@ -47,13 +56,19 @@ impl AccessPolicy {
         }
         Ok(())
     }
-    pub fn permits_path(&self, path: &NotePath) -> bool {
-        path != &self.instructions
-            && path != &self.research
-            && !path.as_str().split('/').any(|part| part.starts_with('.'))
+    pub fn permits_directory(&self, path: &str) -> bool {
+        let key = policy_key(path);
+        !path.split('/').any(|part| part.starts_with('.'))
             && !self.folders.iter().any(|folder| {
-                path.as_str() == folder || path.as_str().starts_with(&format!("{folder}/"))
+                let excluded = policy_key(folder);
+                key == excluded || key.starts_with(&format!("{excluded}/"))
             })
+    }
+    pub fn permits_path(&self, path: &NotePath) -> bool {
+        let key = policy_key(path.as_str());
+        key != policy_key(self.instructions.as_str())
+            && key != policy_key(self.research.as_str())
+            && self.permits_directory(path.as_str())
     }
 }
 #[derive(Clone)]
@@ -360,16 +375,17 @@ impl Corpus {
             .collect()
     }
 }
-fn metadata(bytes: &str) -> Option<(Value, usize)> {
+pub(crate) fn metadata(bytes: &str) -> Option<(Value, usize)> {
+    let bytes = bytes.strip_prefix('\u{feff}').unwrap_or(bytes);
     let mut lines = bytes.lines();
-    if lines.next()? != "---" {
+    if lines.next()?.trim_end_matches([' ', '\t']) != "---" {
         return None;
     }
     let mut yaml = String::new();
     let mut count = 1;
     for line in lines {
         count += 1;
-        if line == "---" {
+        if line.trim_end_matches([' ', '\t']) == "---" {
             return Some((crate::bounded_yaml::parse(&yaml)?, count));
         }
         yaml.push_str(line);
@@ -377,7 +393,7 @@ fn metadata(bytes: &str) -> Option<(Value, usize)> {
     }
     None
 }
-fn ignored(value: &Value) -> bool {
+pub(crate) fn ignored(value: &Value) -> bool {
     ["synapse", "vault-synapse"].iter().any(|key| {
         value.get(*key).is_some_and(|value| {
             value.as_str() == Some("ignore")
@@ -386,7 +402,7 @@ fn ignored(value: &Value) -> bool {
     })
 }
 
-fn discovery(meta: &Value, policy: &AccessPolicy) -> Option<String> {
+pub(crate) fn discovery(meta: &Value, policy: &AccessPolicy) -> Option<String> {
     let description = meta.get("description")?.as_str()?;
     if description.trim().is_empty() || description.chars().count() > 240 {
         return None;
@@ -402,7 +418,7 @@ fn discovery(meta: &Value, policy: &AccessPolicy) -> Option<String> {
         aliases.join(" ")
     ))
 }
-fn strings(value: &Value, min: usize, max: usize, width: usize) -> Option<Vec<String>> {
+pub(crate) fn strings(value: &Value, min: usize, max: usize, width: usize) -> Option<Vec<String>> {
     let sequence = value.as_sequence()?;
     if sequence.len() < min || sequence.len() > max {
         return None;
@@ -420,7 +436,7 @@ fn strings(value: &Value, min: usize, max: usize, width: usize) -> Option<Vec<St
         .collect()
 }
 
-fn excluded_tags(meta: &Value, policy: &AccessPolicy) -> bool {
+pub(crate) fn excluded_tags(meta: &Value, policy: &AccessPolicy) -> bool {
     meta.get("tags")
         .and_then(Value::as_sequence)
         .is_some_and(|tags| {

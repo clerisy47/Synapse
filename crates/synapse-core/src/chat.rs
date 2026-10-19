@@ -53,6 +53,25 @@ impl ChatSession {
         }
         Ok(passage.clone())
     }
+    pub fn search(
+        &mut self,
+        terms: &str,
+        reader: &impl NoteReadPort,
+        policy: &AccessPolicy,
+    ) -> Result<Answer, PublicError> {
+        if terms.trim().is_empty() || terms.len() > MAX_CONTEXT_BYTES {
+            return Err(PublicError::Usage);
+        }
+        self.corpus.refresh(reader, policy.clone())?;
+        let sources: Vec<_> = self
+            .corpus
+            .query(terms, reader, policy)
+            .into_iter()
+            .filter(|source| verify_evidence(reader, policy, source))
+            .collect();
+        self.last = sources.clone();
+        Ok(Answer { sources })
+    }
     pub fn ask(
         &mut self,
         question: &str,
@@ -172,7 +191,10 @@ impl ChatSession {
                     let shift = evidence.len().min(candidates.len());
                     candidates.rotate_left(shift);
                 }
-                ModelResult::Healthy | ModelResult::SearchTerms(_) => {
+                ModelResult::Healthy
+                | ModelResult::SearchTerms(_)
+                | ModelResult::Metadata(_)
+                | ModelResult::Draft(_) => {
                     return Err(PublicError::InvalidModelOutput);
                 }
             }

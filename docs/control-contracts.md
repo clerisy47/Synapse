@@ -1,6 +1,6 @@
 # Workspace controls and access contracts
 
-Target terminal behavior; implementation pending. Normative requirements are in SPEC.md.
+Native Rust control contract. Typed ports and review snapshots enforce the implemented boundaries; serialization or model output cannot create write authority. Normative requirements are in SPEC.md.
 
 The configurable defaults are `Synapse/Instructions.md` and `Research.md`, distinct canonical workspace-relative Markdown paths. Neither enters ordinary search/chat retrieval; search/chat work without them. Setup reviews only missing starters and never overwrites existing files. No Security.md or user-authored permission grants/masks.
 

@@ -306,13 +306,11 @@ fn cancelled_workspace_stops_traversal_and_reads() -> Result<(), Box<dyn Error>>
     Ok(())
 }
 #[test]
-fn controls_and_excluded_folders_follow_native_case_identity() -> Result<(), Box<dyn Error>> {
+fn controls_and_excluded_folders_use_portable_case_policy() -> Result<(), Box<dyn Error>> {
     let root = Temp::new()?;
     fs::write(root.0.join("rEsEaRcH.md"), NOTE)?;
     fs::create_dir(root.0.join("Private"))?;
     fs::write(root.0.join("Private/a.md"), NOTE)?;
-    let research_alias_exists = root.0.join("Research.md").exists();
-    let folder_alias_exists = root.0.join("pRiVaTe").exists();
     let policy = AccessPolicy {
         folders: vec!["pRiVaTe".into()],
         ..AccessPolicy::default()
@@ -322,26 +320,19 @@ fn controls_and_excluded_folders_follow_native_case_identity() -> Result<(), Box
         .with_policy(policy)
         .map_err(|_| "policy")?;
     let listed = reader.list_notes().map_err(|_| "list")?;
-    assert_eq!(
-        listed.iter().any(|path| path.as_str() == "rEsEaRcH.md"),
-        !research_alias_exists
-    );
-    assert_eq!(
-        listed.iter().any(|path| path.as_str() == "Private/a.md"),
-        !folder_alias_exists
-    );
-    assert_eq!(
+    assert!(!listed.iter().any(|path| path.as_str() == "rEsEaRcH.md"));
+    assert!(!listed.iter().any(|path| path.as_str() == "Private/a.md"));
+    assert!(
         reader
             .read_note(&NotePath::parse("rEsEaRcH.md").map_err(|_| "path")?)
-            .is_ok(),
-        !research_alias_exists
+            .is_err()
     );
-    assert_eq!(
+    assert!(
         reader
             .read_note(&NotePath::parse("Private/a.md").map_err(|_| "path")?)
-            .is_ok(),
-        !folder_alias_exists
+            .is_err()
     );
+
     Ok(())
 }
 #[test]

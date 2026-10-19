@@ -17,6 +17,15 @@ pub enum PublicError {
     TemplateUnavailable,
     TokenizerUnavailable,
     CompletionUnavailable,
+    StateUnavailable,
+    Conflict,
+    ApprovalRequired,
+    RecoveryRequired,
+    CapacityExceeded,
+    InvalidInstructions,
+    InvalidMetadata,
+    DateRequired,
+    AlreadyProcessed,
 }
 impl PublicError {
     pub const fn code(self) -> &'static str {
@@ -37,13 +46,29 @@ impl PublicError {
             Self::TemplateUnavailable => "provider_template_unavailable",
             Self::TokenizerUnavailable => "provider_tokenizer_unavailable",
             Self::CompletionUnavailable => "provider_completion_unavailable",
+            Self::StateUnavailable => "state_unavailable",
+            Self::Conflict => "conflict",
+            Self::ApprovalRequired => "approval_required",
+            Self::RecoveryRequired => "recovery_required",
+            Self::CapacityExceeded => "capacity_exceeded",
+            Self::InvalidInstructions => "invalid_instructions",
+            Self::InvalidMetadata => "invalid_metadata",
+            Self::DateRequired => "date_required",
+            Self::AlreadyProcessed => "already_processed",
         }
     }
     pub const fn exit_code(self) -> u8 {
         match self {
             Self::Usage | Self::WorkspaceUnavailable | Self::TtyRequired => 2,
             Self::NotImplemented | Self::ResourceLimit | Self::OutputUnavailable => 1,
-            Self::AccessRefused | Self::RemoteConsentRequired => 3,
+            Self::AccessRefused
+            | Self::RemoteConsentRequired
+            | Self::Conflict
+            | Self::ApprovalRequired
+            | Self::RecoveryRequired
+            | Self::AlreadyProcessed => 3,
+            Self::InvalidInstructions | Self::InvalidMetadata | Self::DateRequired => 2,
+            Self::StateUnavailable | Self::CapacityExceeded => 1,
             Self::Cancelled => 130,
             Self::ProviderUnavailable
             | Self::InvalidModelOutput
@@ -104,4 +129,16 @@ pub trait NoteReadPort: WorkspaceReadPort {
     fn read_note(&self, note: &NotePath) -> Result<String, PublicError>;
     fn list_notes(&self) -> Result<Vec<NotePath>, PublicError>;
     fn modified_note(&self, note: &NotePath) -> Result<u64, PublicError>;
+}
+
+impl serde::Serialize for NotePath {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+impl<'de> serde::Deserialize<'de> for NotePath {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = <String as serde::Deserialize>::deserialize(deserializer)?;
+        Self::parse(&value).map_err(|_| serde::de::Error::custom("invalid_note_path"))
+    }
 }

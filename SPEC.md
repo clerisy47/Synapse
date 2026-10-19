@@ -1,8 +1,8 @@
 # Synapse product specification
 
-Revision: 2026-10-18 · Terminal platform baseline · Implementation pending.
+Revision: 2026-10-18 · Rust terminal platform baseline · Rust implementation in progress; see PLAN.md.
 
-This specification supersedes all previous application-host requirements and task plans. Synapse is a standalone terminal application for Markdown knowledge work, inspired by the interaction model of Codex CLI. It does not require a note editor, editor extension, browser, or GUI host. “Codex CLI-style” describes the interface; it does not authorize a coding shell, arbitrary commands, or new inference providers.
+This specification supersedes all previous application-host and TypeScript CLI implementation requirements and task plans. The implementation language is Rust; ship a native `synapse` executable built with Cargo, with no Node.js, JavaScript, TypeScript or Koffi runtime requirement. The subsequent request to complete PLAN authorizes Rust implementation; implemented capabilities and evidence are tracked in PLAN.md and PROGRESS.md. Synapse is a standalone terminal application for Markdown knowledge work, inspired by the interaction model of Codex CLI. It does not require a note editor, editor extension, browser, or GUI host. “Codex CLI-style” describes the interface; it does not authorize a coding shell, arbitrary commands, or new inference providers.
 
 ## 1. Goal and scope
 
@@ -78,4 +78,4 @@ Exclusions apply before ingest and again at tools, model inputs, proposals, cita
 
 ## 8. Acceptance
 
-No inherited test count or previous host smoke proves CLI readiness. Release requires the PLAN tasks and [validation matrix](docs/release-validation.md): real TTY behavior, piped JSON, filesystem containment/concurrency, cancellation and crash recovery, cited-answer quality on local Bonsai, scoped native MCP interoperability, privacy checks, and clean standalone installation. Keep gates open until dated reproducible evidence exists.
+No inherited TypeScript test count, scaffold installation or previous host smoke proves Rust CLI readiness. Rust compiler checks, formatting, Clippy, architecture/privacy checks, meaningful tests and clean native executable installation must be established in RUST-T01. Release requires the PLAN tasks and [validation matrix](docs/release-validation.md): real TTY behavior, piped JSON, filesystem containment/concurrency, cancellation and crash recovery, cited-answer quality on local Bonsai, scoped native MCP interoperability, privacy checks, and clean standalone installation. Keep gates open until dated reproducible evidence exists.
