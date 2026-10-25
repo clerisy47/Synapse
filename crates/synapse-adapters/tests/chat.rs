@@ -1,3 +1,5 @@
+#[path = "support/protocol.rs"]
+mod protocol;
 use std::{
     error::Error,
     fs,
@@ -42,9 +44,17 @@ impl ModelService for Recorder {
     fn execute(
         &self,
         job: ModelJob,
-        _: Priority,
-        _: &Cancellation,
+        priority: Priority,
+        protocol_cancel: &Cancellation,
     ) -> Result<ModelResult, PublicError> {
+        let job = match protocol::adapt(self, job, priority, protocol_cancel) {
+            Ok(job) => job,
+            Err(result) => return result,
+        };
+
+        if matches!(job, ModelJob::SearchTerms { .. }) {
+            return Ok(ModelResult::SearchTerms(vec!["fixture".into()]));
+        }
         let ModelJob::SelectEvidence { question, .. } = job else {
             return Err(PublicError::Usage);
         };
@@ -137,7 +147,7 @@ fn revoked_history_never_reaches_the_next_model_input() -> Result<(), Box<dyn Er
         .ask("moon", &reader, &revoked, &model, &Cancellation::default())
         .map_err(|_| "ask")?;
     assert!(!answer.sufficient());
-    assert_eq!(model.questions.lock().map_err(|_| "recorder")?.len(), 1);
+    assert_eq!(model.questions.lock().map_err(|_| "recorder")?.len(), 2);
     Ok(())
 }
 struct Planner(Mutex<Vec<&'static str>>);
@@ -145,9 +155,14 @@ impl ModelService for Planner {
     fn execute(
         &self,
         job: ModelJob,
-        _: Priority,
-        _: &Cancellation,
+        priority: Priority,
+        protocol_cancel: &Cancellation,
     ) -> Result<ModelResult, PublicError> {
+        let job = match protocol::adapt(self, job, priority, protocol_cancel) {
+            Ok(job) => job,
+            Err(result) => return result,
+        };
+
         let mut calls = self
             .0
             .lock()
@@ -185,7 +200,7 @@ fn bounded_search_planning_uses_literal_terms_when_initial_retrieval_is_empty()
     assert!(answer.sufficient());
     assert_eq!(
         *model.0.lock().map_err(|_| "recorder")?,
-        vec!["plan", "select"]
+        vec!["plan", "select", "select"]
     );
     Ok(())
 }

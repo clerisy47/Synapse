@@ -14,7 +14,7 @@ use std::{
 use synapse_adapters::{CanonicalWorkspace, DiskStateStore, PollingWatcher};
 use synapse_core::{
     AccessPolicy, Cancellation, ChatSession, ContentHash, ModelJob, ModelService, Priority,
-    PublicError, WorkspaceReadPort,
+    PublicError, StateStore, WorkspaceReadPort,
 };
 
 pub fn sanitize(value: &str) -> String {
@@ -154,8 +154,29 @@ fn execute(arguments: Vec<OsString>) -> Result<(), PublicError> {
             }
         }
 
+        Invocation::Contradictions { workspace, json } => {
+            let reader = open(&workspace, &cancel)?;
+            let store = DiskStateStore::open(reader.as_ref())?;
+            let reports = store.contradictions()?;
+            if json {
+                output::contradictions_json(&mut output, &reports)?;
+            } else if reports.is_empty() {
+                writeln!(output, "{}", strings::CONTRADICTIONS_EMPTY)
+                    .map_err(|_| PublicError::OutputUnavailable)?;
+            } else {
+                for report in reports {
+                    writeln!(
+                        output,
+                        "{} {} {}",
+                        &report.id.as_str()[..12],
+                        &report.capture.as_str()[..12],
+                        review_ui::escape(&report.summary)
+                    )
+                    .map_err(|_| PublicError::OutputUnavailable)?;
+                }
+            }
+        }
         Invocation::Recovery { workspace, revert } => {
-            tty()?;
             let reader = open(&workspace, &cancel)?;
             show_root(&mut output, reader.as_ref())?;
             let store = DiskStateStore::open(reader.as_ref())?;
@@ -227,11 +248,18 @@ fn execute(arguments: Vec<OsString>) -> Result<(), PublicError> {
             workspace,
             question,
             json,
+            stats,
         } => {
+            let started = std::time::Instant::now();
+            let cancel = cancel.bounded(synapse_core::WORKFLOW_MILLIS, move || {
+                started.elapsed().as_millis() as u64
+            });
             let reader = open(&workspace, &cancel)?;
             let service = model(workspace.provider, reader.clone(), workspace.policy.clone())?;
+            let _ = writeln!(io::stderr(), "{}", strings::INDEX_DISCLOSURE);
             let _ = writeln!(io::stderr(), "{}", strings::SEARCHING);
-            let mut session = ChatSession::new(reader.as_ref(), workspace.policy.clone())?;
+            let mut session =
+                synapse_adapters::query_session(reader.as_ref(), workspace.policy.clone())?;
             metadata_guidance(&session, reader.as_ref(), &workspace.policy);
             let answer = session.ask(
                 &question,
@@ -239,7 +267,23 @@ fn execute(arguments: Vec<OsString>) -> Result<(), PublicError> {
                 &workspace.policy,
                 service.as_ref(),
                 &cancel,
-            )?;
+            );
+            if stats {
+                let usage = session.stats();
+                let _ = writeln!(
+                    io::stderr(),
+                    "{} calls={} prompt_tokens={} candidates={} served={} final={} elapsed_ms={} completion_tokens={}",
+                    strings::QUERY_STATS,
+                    usage.calls,
+                    usage.prompt_tokens,
+                    usage.candidate_ranges,
+                    usage.served_ranges,
+                    usage.final_ranges,
+                    started.elapsed().as_millis(),
+                    usage.completion_tokens
+                );
+            }
+            let answer = answer?;
             if cancel.is_cancelled() {
                 return Err(PublicError::Cancelled);
             }
@@ -251,7 +295,8 @@ fn execute(arguments: Vec<OsString>) -> Result<(), PublicError> {
             json,
         } => {
             let reader = open(&workspace, &cancel)?;
-            let mut session = ChatSession::new(reader.as_ref(), workspace.policy.clone())?;
+            let mut session =
+                synapse_adapters::query_session(reader.as_ref(), workspace.policy.clone())?;
             metadata_guidance(&session, reader.as_ref(), &workspace.policy);
             let answer = session.search(&terms, reader.as_ref(), &workspace.policy)?;
             if cancel.is_cancelled() {
@@ -271,7 +316,6 @@ fn execute(arguments: Vec<OsString>) -> Result<(), PublicError> {
                 .map_err(|_| PublicError::OutputUnavailable)?;
         }
         Invocation::Setup { workspace } => {
-            tty()?;
             let reader = open(&workspace, &cancel)?;
             show_root(&mut output, reader.as_ref())?;
             let plan = synapse_core::setup_preview(
@@ -287,7 +331,6 @@ fn execute(arguments: Vec<OsString>) -> Result<(), PublicError> {
             )?;
         }
         Invocation::MetadataReview { workspace, file } => {
-            tty()?;
             let reader = open(&workspace, &cancel)?;
             show_root(&mut output, reader.as_ref())?;
             let fingerprint = provider_fingerprint(&workspace.provider);
@@ -306,7 +349,6 @@ fn execute(arguments: Vec<OsString>) -> Result<(), PublicError> {
             capture,
             date,
         } => {
-            tty()?;
             let reader = open(&workspace, &cancel)?;
             show_root(&mut output, reader.as_ref())?;
             let store = DiskStateStore::open(reader.as_ref())?;
@@ -332,9 +374,12 @@ fn execute(arguments: Vec<OsString>) -> Result<(), PublicError> {
             show_root(&mut output, reader.as_ref())?;
             let service = model(workspace.provider, reader.clone(), workspace.policy.clone())?;
             let _watcher = PollingWatcher::start(reader.clone())?;
-            let mut session = ChatSession::new(reader.as_ref(), workspace.policy.clone())?;
+            let mut session =
+                synapse_adapters::query_session(reader.as_ref(), workspace.policy.clone())?;
             metadata_guidance(&session, reader.as_ref(), &workspace.policy);
             let input = input::Input::start()?;
+            writeln!(output, "{}", strings::INDEX_DISCLOSURE)
+                .map_err(|_| PublicError::OutputUnavailable)?;
             writeln!(output, "{}", strings::SESSION_HELP)
                 .map_err(|_| PublicError::OutputUnavailable)?;
             loop {
@@ -372,12 +417,17 @@ fn execute(arguments: Vec<OsString>) -> Result<(), PublicError> {
                         unknown if unknown.starts_with('/') => return Err(PublicError::Usage),
                         question => {
                             let _ = writeln!(io::stderr(), "{}", strings::SEARCHING);
+                            let started = std::time::Instant::now();
+                            let query_cancel = cancel
+                                .bounded(synapse_core::WORKFLOW_MILLIS, move || {
+                                    started.elapsed().as_millis() as u64
+                                });
                             let answer = session.ask(
                                 question,
                                 reader.as_ref(),
                                 &workspace.policy,
                                 service.as_ref(),
-                                &cancel,
+                                &query_cancel,
                             )?;
                             if cancel.is_cancelled() {
                                 return Err(PublicError::Cancelled);

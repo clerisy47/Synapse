@@ -1,7 +1,7 @@
 use crate::{sanitize, strings};
 use serde_json::{Value, json};
 use std::io::Write;
-use synapse_core::{Answer, Evidence, PublicError};
+use synapse_core::{Answer, ContradictionReport, Evidence, PublicError};
 use unicode_width::UnicodeWidthChar;
 
 pub fn wrap(line: &str, width: usize) -> Vec<String> {
@@ -63,6 +63,25 @@ pub fn error_json(output: &mut impl Write, error: PublicError) -> Result<(), Pub
         output,
         json!({"version":1,"status":"error","error":{"code":error.code()}}),
     )
+}
+pub fn contradictions_json(
+    output: &mut impl Write,
+    reports: &[ContradictionReport],
+) -> Result<(), PublicError> {
+    let items: Vec<_> = reports
+        .iter()
+        .map(|report| {
+            json!({
+                "id": report.id.as_str(),
+                "capture": report.capture.as_str(),
+                "severity": "high",
+                "summary": report.summary,
+                "destinations": report.destinations,
+                "created": report.created,
+            })
+        })
+        .collect();
+    write_json(output, json!({"version":1,"status":"ok","flags":items}))
 }
 fn write_json(output: &mut impl Write, value: Value) -> Result<(), PublicError> {
     // Preserve machine data while escaping Unicode format controls for TTY safety.

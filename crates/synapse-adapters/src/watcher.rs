@@ -1,41 +1,71 @@
 use crate::CanonicalWorkspace;
+use notify::{RecursiveMode, Watcher};
 use std::{
-    collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
+    os::fd::AsRawFd,
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicU64, Ordering},
+        mpsc,
     },
     thread::{self, JoinHandle},
     time::Duration,
 };
-use synapse_core::{MAX_INDEX_BYTES, NoteReadPort, PublicError};
-
+use synapse_core::PublicError;
 pub const WATCH_INTERVAL: Duration = Duration::from_millis(250);
-/// Polling is a hint only. Evidence and writes must independently recheck bytes.
-pub struct PollingWatcher {
+const MAX_DIRTY_EVENTS: usize = 64;
+const MAX_NOTE_HINT_HANDLES: usize = 64;
+/// Filesystem events only mark dirty. Pre-query contained hash reconciliation
+/// is authoritative even if every notification was missed.
+pub struct WorkspaceWatcher {
     generation: Arc<AtomicU64>,
     stop: Arc<AtomicBool>,
     worker: Option<JoinHandle<()>>,
+    _watcher: notify::RecommendedWatcher,
+    _handles: Vec<std::fs::File>,
 }
-impl PollingWatcher {
+impl WorkspaceWatcher {
     pub fn start(reader: Arc<CanonicalWorkspace>) -> Result<Self, PublicError> {
-        let initial = signature(&reader)?;
         let generation = Arc::new(AtomicU64::new(0));
         let stop = Arc::new(AtomicBool::new(false));
-        let thread_generation = generation.clone();
-        let thread_stop = stop.clone();
+        let (sender, receiver) = mpsc::sync_channel(MAX_DIRTY_EVENTS);
+        let overflow = generation.clone();
+        let mut watcher = notify::RecommendedWatcher::new(
+            move |event: Result<notify::Event, notify::Error>| match sender.try_send(event.is_ok())
+            {
+                Ok(()) => (),
+                Err(mpsc::TrySendError::Full(_)) => {
+                    overflow.fetch_add(1, Ordering::AcqRel);
+                }
+                Err(mpsc::TrySendError::Disconnected(_)) => (),
+            },
+            notify::Config::default().with_follow_symlinks(false),
+        )
+        .map_err(|_| PublicError::WorkspaceUnavailable)?;
+        let handles = reader.watch_handles(MAX_NOTE_HINT_HANDLES)?;
+        for handle in &handles {
+            // notify must open the already-contained object, never resolve a
+            // descendant pathname that another process can replace by a link.
+            #[cfg(target_os = "linux")]
+            let path = std::path::PathBuf::from(format!("/proc/self/fd/{}", handle.as_raw_fd()));
+            #[cfg(not(target_os = "linux"))]
+            let path = std::path::PathBuf::from(format!("/dev/fd/{}", handle.as_raw_fd()));
+            watcher
+                .watch(&path, RecursiveMode::NonRecursive)
+                .map_err(|_| PublicError::WorkspaceUnavailable)?;
+        }
+        let changed = generation.clone();
+        let shutdown = stop.clone();
         let worker = thread::Builder::new()
-            .name("synapse-workspace-watch".into())
+            .name("synapse-dirty-hints".into())
             .spawn(move || {
-                let mut last = Ok(initial);
-                while !thread_stop.load(Ordering::Acquire) {
-                    let current = signature(&reader);
-                    if current != last {
-                        thread_generation.fetch_add(1, Ordering::AcqRel);
-                        last = current;
+                while !shutdown.load(Ordering::Acquire) {
+                    match receiver.recv_timeout(Duration::from_millis(25)) {
+                        Ok(_) => {
+                            changed.fetch_add(1, Ordering::AcqRel);
+                        }
+                        Err(mpsc::RecvTimeoutError::Timeout) => (),
+                        Err(mpsc::RecvTimeoutError::Disconnected) => break,
                     }
-                    thread::park_timeout(WATCH_INTERVAL);
                 }
             })
             .map_err(|_| PublicError::WorkspaceUnavailable)?;
@@ -43,36 +73,21 @@ impl PollingWatcher {
             generation,
             stop,
             worker: Some(worker),
+            _watcher: watcher,
+            _handles: handles,
         })
     }
     pub fn generation(&self) -> u64 {
         self.generation.load(Ordering::Acquire)
     }
 }
-impl Drop for PollingWatcher {
+impl Drop for WorkspaceWatcher {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Release);
         if let Some(worker) = self.worker.take() {
-            worker.thread().unpark();
             let _ = worker.join();
         }
     }
 }
-fn signature(reader: &CanonicalWorkspace) -> Result<u64, PublicError> {
-    let mut digest = DefaultHasher::new();
-    let mut size = 0;
-    for path in reader.list_notes()? {
-        path.as_str().hash(&mut digest);
-        match reader.read_note(&path) {
-            Ok(text) => {
-                size += text.len();
-                if size > MAX_INDEX_BYTES {
-                    return Err(PublicError::ResourceLimit);
-                }
-                text.hash(&mut digest);
-            }
-            Err(error) => error.code().hash(&mut digest),
-        }
-    }
-    Ok(digest.finish())
-}
+/// Compatibility name for callers; implementation uses notify, never polling.
+pub type PollingWatcher = WorkspaceWatcher;

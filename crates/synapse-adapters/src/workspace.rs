@@ -102,6 +102,55 @@ impl CanonicalWorkspace {
             id.as_bytes(),
         ]))
     }
+    fn note_handle(&self, note: &NotePath) -> Result<File, PublicError> {
+        if self.cancel.is_cancelled() {
+            return Err(PublicError::Cancelled);
+        }
+        self.root_current()?;
+        if !self.policy.permits_path(note) {
+            return Err(PublicError::AccessRefused);
+        }
+        let parts: Vec<_> = note.as_str().split('/').collect();
+        let (name, parents) = parts.split_last().ok_or(PublicError::AccessRefused)?;
+        let parent = self.directory(parents)?;
+        let fd = fs::openat(
+            &parent,
+            *name,
+            OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
+            Mode::empty(),
+        )
+        .map_err(|_| PublicError::AccessRefused)?;
+        let stat = fs::fstat(&fd).map_err(|_| PublicError::AccessRefused)?;
+        if FileType::from_raw_mode(stat.st_mode) != FileType::RegularFile {
+            return Err(PublicError::AccessRefused);
+        }
+        if self.control_ids()?.contains(&file_identity(&stat)) {
+            return Err(PublicError::AccessRefused);
+        }
+        if stat.st_size < 0 || stat.st_size as u64 > MAX_NOTE_BYTES {
+            return Err(PublicError::ResourceLimit);
+        }
+        Ok(File::from(fd))
+    }
+
+    /// Bounded notification handles acquired through the same no-follow
+    /// directory capability as source reads. Missing hints are safe because
+    /// reconciliation is authoritative before every query.
+    pub(crate) fn watch_handles(&self, limit: usize) -> Result<Vec<File>, PublicError> {
+        self.root_current()?;
+        let mut handles = vec![File::from(
+            self.raw_directory(&[])
+                .map_err(|_| PublicError::AccessRefused)?,
+        )];
+        for path in self.list_notes()?.into_iter().take(limit) {
+            match self.note_handle(&path) {
+                Ok(file) => handles.push(file),
+                Err(PublicError::Cancelled) => return Err(PublicError::Cancelled),
+                Err(_) => (),
+            }
+        }
+        Ok(handles)
+    }
     pub fn canonical_root(&self) -> &Path {
         &self.root
     }
@@ -315,34 +364,7 @@ impl NoteReadPort for CanonicalWorkspace {
     }
 
     fn read_note(&self, note: &NotePath) -> Result<String, PublicError> {
-        if self.cancel.is_cancelled() {
-            return Err(PublicError::Cancelled);
-        }
-        self.root_current()?;
-        if !self.policy.permits_path(note) {
-            return Err(PublicError::AccessRefused);
-        }
-        let parts: Vec<_> = note.as_str().split('/').collect();
-        let (name, parents) = parts.split_last().ok_or(PublicError::AccessRefused)?;
-        let parent = self.directory(parents)?;
-        let fd = fs::openat(
-            &parent,
-            *name,
-            OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
-            Mode::empty(),
-        )
-        .map_err(|_| PublicError::AccessRefused)?;
-        let stat = fs::fstat(&fd).map_err(|_| PublicError::AccessRefused)?;
-        if FileType::from_raw_mode(stat.st_mode) != FileType::RegularFile {
-            return Err(PublicError::AccessRefused);
-        }
-        if self.control_ids()?.contains(&file_identity(&stat)) {
-            return Err(PublicError::AccessRefused);
-        }
-        if stat.st_size < 0 || stat.st_size as u64 > MAX_NOTE_BYTES {
-            return Err(PublicError::ResourceLimit);
-        }
-        let file = File::from(fd);
+        let file = self.note_handle(note)?;
         let mut bytes = Vec::new();
         file.take(MAX_NOTE_BYTES + 1)
             .read_to_end(&mut bytes)
@@ -350,7 +372,7 @@ impl NoteReadPort for CanonicalWorkspace {
         if bytes.len() as u64 > MAX_NOTE_BYTES {
             return Err(PublicError::ResourceLimit);
         }
-        String::from_utf8(bytes).map_err(|_| PublicError::AccessRefused)
+        String::from_utf8(bytes).map_err(|_| PublicError::InvalidMetadata)
     }
     fn list_notes(&self) -> Result<Vec<NotePath>, PublicError> {
         if self.cancel.is_cancelled() {
@@ -615,6 +637,98 @@ impl CanonicalWorkspace {
             return Err(PublicError::AccessRefused);
         }
         self.write_snapshot(expected, after)
+    }
+    pub(crate) fn delete_reviewed(
+        &self,
+        expected: &synapse_core::FileSnapshot,
+    ) -> Result<(), PublicError> {
+        use synapse_core::ProposalReadPort;
+        if expected.path == self.policy.instructions
+            || expected.path == self.policy.research
+            || !self.policy.permits_path(&expected.path)
+            || expected.before.is_none()
+            || expected.links.is_some_and(|links| links != 1)
+            || expected
+                .owner
+                .is_some_and(|owner| owner != rustix::process::getuid().as_raw())
+            || synapse_core::source_excluded(expected.before.as_deref().unwrap_or(""), &self.policy)
+        {
+            return Err(PublicError::AccessRefused);
+        }
+        if self.snapshot_note(&expected.path)? != *expected {
+            return Err(PublicError::Conflict);
+        }
+        let parts: Vec<_> = expected.path.as_str().split('/').collect();
+        let (name, parents) = parts.split_last().ok_or(PublicError::AccessRefused)?;
+        let parent = self
+            .raw_directory(parents)
+            .map_err(|_| PublicError::AccessRefused)?;
+        if self.cancel.is_cancelled() {
+            return Err(PublicError::Cancelled);
+        }
+        if self.snapshot_note(&expected.path)? != *expected {
+            return Err(PublicError::Conflict);
+        }
+        fs::unlinkat(&parent, *name, AtFlags::empty())
+            .map_err(|_| PublicError::RecoveryRequired)?;
+        fs::fsync(&parent).map_err(|_| PublicError::RecoveryRequired)
+    }
+    pub(crate) fn rename_reviewed(
+        &self,
+        expected: &synapse_core::FileSnapshot,
+        dest: &NotePath,
+    ) -> Result<(), PublicError> {
+        use synapse_core::ProposalReadPort;
+        if expected.path == self.policy.instructions
+            || expected.path == self.policy.research
+            || *dest == self.policy.instructions
+            || *dest == self.policy.research
+            || *dest == expected.path
+            || !self.policy.permits_path(&expected.path)
+            || !self.policy.permits_path(dest)
+            || expected.before.is_none()
+            || expected.links.is_some_and(|links| links != 1)
+            || expected
+                .owner
+                .is_some_and(|owner| owner != rustix::process::getuid().as_raw())
+            || synapse_core::source_excluded(expected.before.as_deref().unwrap_or(""), &self.policy)
+        {
+            return Err(PublicError::AccessRefused);
+        }
+        if self.snapshot_note(&expected.path)? != *expected {
+            return Err(PublicError::Conflict);
+        }
+        if self.snapshot_note(dest)?.before.is_some() {
+            return Err(PublicError::Conflict);
+        }
+        let src_parts: Vec<_> = expected.path.as_str().split('/').collect();
+        let (src_name, src_parents) = src_parts.split_last().ok_or(PublicError::AccessRefused)?;
+        let dest_parts: Vec<_> = dest.as_str().split('/').collect();
+        let (dest_name, dest_parents) =
+            dest_parts.split_last().ok_or(PublicError::AccessRefused)?;
+        // Destination parents must already exist; rename never creates folders.
+        let dest_parent = self
+            .raw_directory(dest_parents)
+            .map_err(|_| PublicError::AccessRefused)?;
+        let src_parent = self
+            .raw_directory(src_parents)
+            .map_err(|_| PublicError::AccessRefused)?;
+        if self.cancel.is_cancelled() {
+            return Err(PublicError::Cancelled);
+        }
+        if self.snapshot_note(&expected.path)? != *expected {
+            return Err(PublicError::Conflict);
+        }
+        fs::renameat_with(
+            &src_parent,
+            *src_name,
+            &dest_parent,
+            *dest_name,
+            fs::RenameFlags::NOREPLACE,
+        )
+        .map_err(|_| PublicError::Conflict)?;
+        fs::fsync(&src_parent).map_err(|_| PublicError::RecoveryRequired)?;
+        fs::fsync(&dest_parent).map_err(|_| PublicError::RecoveryRequired)
     }
     pub(crate) fn append_scoped_inbox(
         &self,

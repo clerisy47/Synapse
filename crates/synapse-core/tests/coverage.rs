@@ -1,3 +1,5 @@
+#[path = "support/protocol.rs"]
+mod protocol;
 mod support;
 
 use support::Workspace;
@@ -11,13 +13,23 @@ impl ModelService for SelectAll {
     fn execute(
         &self,
         job: ModelJob,
-        _: Priority,
-        _: &Cancellation,
+        priority: Priority,
+        protocol_cancel: &Cancellation,
     ) -> Result<ModelResult, PublicError> {
+        let job = match protocol::adapt(self, job, priority, protocol_cancel) {
+            Ok(job) => job,
+            Err(result) => return result,
+        };
+
         match job {
             ModelJob::SelectEvidence { evidence, .. } => Ok(ModelResult::Selected(
                 evidence.iter().map(|e| e.id).collect(),
             )),
+            ModelJob::SearchTerms { .. } => Ok(ModelResult::SearchTerms(vec![
+                "marine".into(),
+                "whale".into(),
+                "gestation".into(),
+            ])),
             _ => Err(PublicError::InvalidModelOutput),
         }
     }
@@ -242,19 +254,25 @@ impl ModelService for SelectFirst {
     fn execute(
         &self,
         job: ModelJob,
-        _: Priority,
-        _: &Cancellation,
+        priority: Priority,
+        protocol_cancel: &Cancellation,
     ) -> Result<ModelResult, PublicError> {
+        let job = match protocol::adapt(self, job, priority, protocol_cancel) {
+            Ok(job) => job,
+            Err(result) => return result,
+        };
+
         match job {
             ModelJob::SelectEvidence { evidence, .. } => {
                 Ok(ModelResult::Selected(vec![evidence[0].id]))
             }
+            ModelJob::SearchTerms { .. } => Ok(ModelResult::SearchTerms(vec!["fixture".into()])),
             _ => Err(PublicError::InvalidModelOutput),
         }
     }
 }
 #[test]
-fn provider_cannot_declare_a_partial_checklist_complete() {
+fn first_selected_atomic_checklist_preserves_every_item() {
     let reader = Workspace::new(&[(
         "gear.md",
         "# Hiking checklist\n- Map\n- Water\n- Food\n- Coat\n- First aid\n- Sun protection\n- Headlamp",
@@ -271,7 +289,23 @@ fn provider_cannot_declare_a_partial_checklist_complete() {
             &Cancellation::default(),
         )
         .unwrap_or_else(|error| panic!("synthetic fixture: {error:?}"));
-    assert!(!answer.sufficient());
+    assert!(answer.sufficient());
+    for item in [
+        "Map",
+        "Water",
+        "Food",
+        "Coat",
+        "First aid",
+        "Sun protection",
+        "Headlamp",
+    ] {
+        assert!(
+            answer
+                .sources
+                .iter()
+                .any(|source| source.text.contains(item))
+        );
+    }
 }
 
 #[test]
@@ -330,21 +364,270 @@ fn a_comparison_cannot_select_only_one_subject() {
 }
 
 #[test]
-fn oversized_indivisible_window_fails_explicitly_without_a_model_call() {
+fn formerly_byte_limited_window_remains_complete_under_token_packing() {
     let body = format!("window {}", "x".repeat(1100));
     let reader = Workspace::new(&[("alpha.md", &body)]);
     let policy = AccessPolicy::default();
     let mut session =
         ChatSession::new(&reader, policy.clone()).unwrap_or_else(|e| panic!("fixture {e:?}"));
     let question = format!("window {}", "q".repeat(700));
-    assert!(matches!(
-        session.ask(
+    let answer = session
+        .ask(
             &question,
             &reader,
             &policy,
             &SelectAll,
-            &Cancellation::default()
+            &Cancellation::default(),
+        )
+        .unwrap_or_else(|e| panic!("{e:?}"));
+    assert!(answer.sufficient());
+    assert!(answer.sources.iter().any(|e| e.text == body));
+}
+
+#[test]
+fn headings_and_repeated_questions_are_not_answer_evidence() {
+    for (question, body) in [
+        (
+            "How many days is whale gestation?",
+            "# Whale gestation 365\nHow many days is whale gestation?\n[[marine]]",
         ),
-        Err(PublicError::ContextOverflow)
-    ));
+        (
+            "What is known about marine whale biology?",
+            "# Marine whale biology\nWhat is known about marine whale biology?\n[[marine]]",
+        ),
+    ] {
+        let reader = Workspace::new(&[("question.md", body)]);
+        let policy = AccessPolicy::default();
+        let mut session =
+            ChatSession::new(&reader, policy.clone()).unwrap_or_else(|e| panic!("fixture {e:?}"));
+        let answer = session
+            .ask(
+                question,
+                &reader,
+                &policy,
+                &SelectAll,
+                &Cancellation::default(),
+            )
+            .unwrap_or_else(|e| panic!("fixture {e:?}"));
+        assert!(!answer.sufficient());
+    }
+}
+
+#[test]
+fn shared_comparison_attribute_does_not_stand_in_for_missing_subject() {
+    let reader = Workspace::new(&[(
+        "alpha.md",
+        "Logistic predictions use a linear boundary. The predictions use a threshold.",
+    )]);
+    let policy = AccessPolicy::default();
+    let mut session =
+        ChatSession::new(&reader, policy.clone()).unwrap_or_else(|e| panic!("fixture {e:?}"));
+    let answer = session
+        .ask(
+            "Compare logistic and forest predictions",
+            &reader,
+            &policy,
+            &SelectAll,
+            &Cancellation::default(),
+        )
+        .unwrap_or_else(|e| panic!("fixture {e:?}"));
+    assert!(!answer.sufficient());
+}
+
+struct RejectFirst(std::sync::atomic::AtomicUsize);
+impl ModelService for RejectFirst {
+    fn execute(
+        &self,
+        job: ModelJob,
+        priority: Priority,
+        protocol_cancel: &Cancellation,
+    ) -> Result<ModelResult, PublicError> {
+        let job = match protocol::adapt(self, job, priority, protocol_cancel) {
+            Ok(job) => job,
+            Err(result) => return result,
+        };
+
+        match job {
+            ModelJob::SelectEvidence { evidence, .. } => {
+                self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok(ModelResult::Selected(
+                    evidence.iter().map(|e| e.id).collect(),
+                ))
+            }
+            ModelJob::SearchTerms { .. } => Ok(ModelResult::SearchTerms(vec!["fixture".into()])),
+            _ => Err(PublicError::InvalidModelOutput),
+        }
+    }
+}
+
+#[test]
+fn rejected_topical_selection_uses_remaining_budget_for_linked_answer() {
+    let reader = Workspace::new(&[
+        (
+            "alpha.md",
+            "# Measured accuracy\nWhat was the measured accuracy?\n[[beta]]",
+        ),
+        ("beta.md", "The measured accuracy was 97 percent."),
+    ]);
+    let policy = AccessPolicy::default();
+    let model = RejectFirst(std::sync::atomic::AtomicUsize::new(0));
+    let mut session =
+        ChatSession::new(&reader, policy.clone()).unwrap_or_else(|e| panic!("fixture {e:?}"));
+    let answer = session
+        .ask(
+            "What was the measured accuracy?",
+            &reader,
+            &policy,
+            &model,
+            &Cancellation::default(),
+        )
+        .unwrap_or_else(|e| panic!("fixture {e:?}"));
+    assert!(answer.sufficient());
+    assert!(answer.sources.iter().any(|e| e.text.contains("97 percent")));
+    assert!(model.0.load(std::sync::atomic::Ordering::SeqCst) <= 3);
+}
+
+#[test]
+fn complete_numbered_checklist_does_not_require_unrelated_section() {
+    check(
+        "What is the complete hiking checklist?",
+        &[(
+            "alpha.md",
+            "# Hiking checklist\n1. Map and compass\n2. Water and snacks\n\n# Gardening supplies\n- Spade\n- Pots\n- Compost\n- Seeds\n- Gloves\n- Hose\n- Fertilizer\n- Rake",
+        )],
+        &[
+            ("alpha.md", "Map and compass"),
+            ("alpha.md", "Water and snacks"),
+        ],
+    );
+}
+
+#[test]
+fn prompt_table_with_prose_and_subject_links_cannot_answer_comparison() {
+    let reader = Workspace::new(&[(
+        "questions.md",
+        "These prompts describe expected evidence, not results.\n\n| Prompt | Relevant sources |\n| --- | --- |\n| Compare cedar and birch for insulation. | [[cedar]] [[birch]] |",
+    )]);
+    let policy = AccessPolicy::default();
+    let mut session =
+        ChatSession::new(&reader, policy.clone()).unwrap_or_else(|e| panic!("fixture {e:?}"));
+    let answer = session
+        .ask(
+            "Compare cedar and birch for insulation.",
+            &reader,
+            &policy,
+            &SelectAll,
+            &Cancellation::default(),
+        )
+        .unwrap_or_else(|e| panic!("fixture {e:?}"));
+    assert!(!answer.sufficient());
+}
+
+#[test]
+fn unrelated_synthetic_metric_and_project_navigation_do_not_prove_measurement() {
+    let reader = Workspace::new(&[(
+        "metrics.md",
+        "In a synthetic example, accuracy is 0.82.\n\nThreshold selection depends on costs. See [[Orchid Trial]].",
+    )]);
+    let policy = AccessPolicy::default();
+    let mut session =
+        ChatSession::new(&reader, policy.clone()).unwrap_or_else(|e| panic!("fixture {e:?}"));
+    let answer = session
+        .ask(
+            "What was the Orchid trial's measured test accuracy?",
+            &reader,
+            &policy,
+            &SelectAll,
+            &Cancellation::default(),
+        )
+        .unwrap_or_else(|e| panic!("fixture {e:?}"));
+    assert!(!answer.sufficient());
+}
+
+#[test]
+fn requested_subject_measurement_in_factual_prose_is_supported() {
+    check(
+        "What was the Orchid experiment's measured test accuracy?",
+        &[(
+            "alpha.md",
+            "The Orchid experiment measured test accuracy of 0.91 on held-out examples.",
+        )],
+        &[("alpha.md", "0.91")],
+    );
+}
+
+#[test]
+fn dated_absence_of_measurement_is_not_a_numeric_result() {
+    let reader = Workspace::new(&[("orchid.md", "Orchid accuracy was not recorded in 2031.")]);
+    let policy = AccessPolicy::default();
+    let mut session =
+        ChatSession::new(&reader, policy.clone()).unwrap_or_else(|e| panic!("fixture {e:?}"));
+    let answer = session
+        .ask(
+            "What was the Orchid experiment's measured accuracy?",
+            &reader,
+            &policy,
+            &SelectAll,
+            &Cancellation::default(),
+        )
+        .unwrap_or_else(|e| panic!("fixture {e:?}"));
+    assert!(!answer.sufficient());
+}
+
+#[test]
+fn achieved_and_reported_accuracy_require_prose_subject_attribution() {
+    for question in [
+        "What accuracy did Orchid achieve?",
+        "What was Orchid's reported test accuracy?",
+    ] {
+        let reader = Workspace::new(&[("orchid.md", "In a synthetic example, accuracy is 0.82.")]);
+        let policy = AccessPolicy::default();
+        let mut session =
+            ChatSession::new(&reader, policy.clone()).unwrap_or_else(|e| panic!("fixture {e:?}"));
+        let answer = session
+            .ask(
+                question,
+                &reader,
+                &policy,
+                &SelectAll,
+                &Cancellation::default(),
+            )
+            .unwrap_or_else(|e| panic!("fixture {e:?}"));
+        assert!(
+            !answer.sufficient(),
+            "filename discovery cannot prove attribution"
+        );
+    }
+    check(
+        "What accuracy did Orchid achieve?",
+        &[(
+            "alpha.md",
+            "Orchid achieved accuracy of 0.91 on held-out examples.",
+        )],
+        &[("alpha.md", "0.91")],
+    );
+}
+
+#[test]
+fn single_word_question_does_not_remove_matching_factual_sentence() {
+    check(
+        "reactor",
+        &[("alpha.md", "The reactor operates at 42 units.")],
+        &[("alpha.md", "42 units")],
+    );
+}
+
+#[test]
+fn actionable_question_keeps_remedy_section_beyond_diagnosis() {
+    check(
+        "What can I try when appliance temperature rises under load?",
+        &[(
+            "alpha.md",
+            "# Appliance temperature\nAppliance temperature rises under load when cooling is inadequate.\n\n## Mitigations\n- Reduce the sustained load.\n- Improve ventilation around the appliance.",
+        )],
+        &[
+            ("alpha.md", "Reduce the sustained load"),
+            ("alpha.md", "Improve ventilation"),
+        ],
+    );
 }

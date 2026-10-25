@@ -84,6 +84,13 @@ pub trait StateStore: Send + Sync {
     fn workspace_id(&self) -> &ContentHash;
     fn captures(&self) -> Result<Vec<CapturedResearch>, PublicError>;
     fn save_capture(&self, capture: CapturedResearch) -> Result<ContentHash, PublicError>;
+    fn contradictions(&self) -> Result<Vec<crate::ContradictionReport>, PublicError> {
+        Ok(Vec::new())
+    }
+    fn save_contradiction(&self, report: crate::ContradictionReport) -> Result<(), PublicError> {
+        let _ = report;
+        Err(PublicError::NotImplemented)
+    }
 }
 pub trait ControlReadPort {
     fn instructions(&self) -> Result<Option<String>, PublicError>;

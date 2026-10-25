@@ -270,6 +270,7 @@ pub fn setup_preview(
                 kind: ProposalKind::Setup,
                 target,
                 after: after.to_owned(),
+                rename_to: None,
                 sources: sources.clone(),
                 capture: None,
             });
@@ -282,50 +283,52 @@ pub fn setup_preview(
     })
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ResearchOpKind {
+    Append,
+    Create,
+    ReplaceBody,
+    Delete,
+    Rename,
+}
+#[derive(Clone)]
+pub struct ResearchOp {
+    pub op: ResearchOpKind,
+    pub destination_id: String,
+    pub rename_destination_id: Option<String>,
+    pub text: Option<String>,
+}
 #[derive(Clone)]
 pub struct ResearchDraft {
     pub destination_id: String,
     pub text: String,
     pub source_id: usize,
+    pub ops: Vec<ResearchOp>,
 }
-pub fn research_proposal(
-    reader: &impl ProposalReadPort,
-    capture: &CapturedResearch,
-    instructions: &crate::FileSnapshot,
-    draft: ResearchDraft,
+fn resolve_id(
+    routes: &Instructions,
+    inventory: &[(String, NotePath)],
+    id: &str,
     date: Option<&DailyDate>,
-) -> Result<Proposal, PublicError> {
-    if draft.source_id != 1 || !crate::plain_model_text(&draft.text, 800, 800) {
-        return Err(PublicError::InvalidModelOutput);
+    policy: &crate::AccessPolicy,
+) -> Result<(NotePath, Option<String>), PublicError> {
+    if let Ok(resolved) = routes.resolve(id, date, policy) {
+        return Ok(resolved);
     }
-    if reader.snapshot_control(ControlFile::Instructions)? != *instructions {
-        return Err(PublicError::Conflict);
-    }
-    let inbox = reader.snapshot_control(ControlFile::Research)?;
-    let source = inbox.before.as_deref().ok_or(PublicError::Conflict)?;
-    if capture.source != reader.access_policy().research
-        || capture.source_hash != ContentHash::of(source.as_bytes())
-        || source_excluded(source, reader.access_policy())
-    {
-        return Err(PublicError::Conflict);
-    }
-    let routes = parse_instructions(
-        instructions
-            .before
-            .as_deref()
-            .ok_or(PublicError::InvalidInstructions)?,
-        reader.access_policy(),
-    )?;
-    let (path, heading) = routes.resolve(&draft.destination_id, date, reader.access_policy())?;
-    let target = reader.snapshot_note(&path)?;
-    if target
-        .before
-        .as_deref()
-        .is_some_and(|before| !crate::ordinary_content(before, reader.access_policy()))
-        || target.links.is_some_and(|links| links != 1)
-    {
-        return Err(PublicError::AccessRefused);
-    }
+    inventory
+        .iter()
+        .find(|(inv, _)| inv == id)
+        .map(|(_, path)| (path.clone(), None))
+        .ok_or(PublicError::InvalidModelOutput)
+}
+fn append_research_body(
+    path: &NotePath,
+    target: &crate::FileSnapshot,
+    heading: Option<&str>,
+    capture: &CapturedResearch,
+    text: &str,
+    policy: &crate::AccessPolicy,
+) -> Result<String, PublicError> {
     let newline = if target
         .before
         .as_deref()
@@ -338,7 +341,7 @@ pub fn research_proposal(
     let addition = format!(
         "Unverified research (capture {}): {}",
         &capture.id.as_str()[..12],
-        draft.text
+        text
     );
     let before = target.before.as_deref().unwrap_or("");
     let mut after = if before.is_empty() {
@@ -407,23 +410,195 @@ pub fn research_proposal(
     } else {
         after.push_str(&format!("{newline}{addition}{newline}"));
     }
-    if after.len() as u64 > crate::MAX_NOTE_BYTES
-        || !crate::ordinary_content(&after, reader.access_policy())
-    {
+    if after.len() as u64 > crate::MAX_NOTE_BYTES || !crate::ordinary_content(&after, policy) {
         return Err(PublicError::ResourceLimit);
     }
+    Ok(after)
+}
+pub fn research_proposal(
+    reader: &impl ProposalReadPort,
+    capture: &CapturedResearch,
+    instructions: &crate::FileSnapshot,
+    draft: ResearchDraft,
+    date: Option<&DailyDate>,
+) -> Result<Proposal, PublicError> {
+    research_proposals(reader, capture, instructions, &draft, date, &[])?
+        .into_iter()
+        .next()
+        .ok_or(PublicError::InvalidModelOutput)
+}
+pub fn research_proposals(
+    reader: &impl ProposalReadPort,
+    capture: &CapturedResearch,
+    instructions: &crate::FileSnapshot,
+    draft: &ResearchDraft,
+    date: Option<&DailyDate>,
+    inventory: &[(String, NotePath)],
+) -> Result<Vec<Proposal>, PublicError> {
+    if draft.source_id != 1 {
+        return Err(PublicError::InvalidModelOutput);
+    }
+    if reader.snapshot_control(ControlFile::Instructions)? != *instructions {
+        return Err(PublicError::Conflict);
+    }
+    let inbox = reader.snapshot_control(ControlFile::Research)?;
+    let source = inbox.before.as_deref().ok_or(PublicError::Conflict)?;
+    if capture.source != reader.access_policy().research
+        || capture.source_hash != ContentHash::of(source.as_bytes())
+        || source_excluded(source, reader.access_policy())
+    {
+        return Err(PublicError::Conflict);
+    }
+    let routes = parse_instructions(
+        instructions
+            .before
+            .as_deref()
+            .ok_or(PublicError::InvalidInstructions)?,
+        reader.access_policy(),
+    )?;
+    let ops = if draft.ops.is_empty() {
+        vec![ResearchOp {
+            op: ResearchOpKind::Append,
+            destination_id: draft.destination_id.clone(),
+            rename_destination_id: None,
+            text: Some(draft.text.clone()),
+        }]
+    } else {
+        if draft.ops.len() > 8 {
+            return Err(PublicError::InvalidModelOutput);
+        }
+        draft.ops.clone()
+    };
     let processed = ContentHash::combined(&[
         capture.selection_hash.as_str().as_bytes(),
         capture.source.as_str().as_bytes(),
         inbox.workspace.as_str().as_bytes(),
     ]);
-    Ok(Proposal {
-        kind: ProposalKind::Research,
-        target,
-        after,
-        sources: vec![instructions.clone(), inbox],
-        capture: Some(processed),
-    })
+    let mut proposals = Vec::new();
+    for op in ops {
+        match op.op {
+            ResearchOpKind::Append | ResearchOpKind::Create | ResearchOpKind::ReplaceBody => {
+                let text = op.text.as_deref().unwrap_or(draft.text.as_str());
+                if !crate::plain_model_text(text, 800, 800) {
+                    return Err(PublicError::InvalidModelOutput);
+                }
+                let (path, heading) = resolve_id(
+                    &routes,
+                    inventory,
+                    &op.destination_id,
+                    date,
+                    reader.access_policy(),
+                )?;
+                let target = reader.snapshot_note(&path)?;
+                if target
+                    .before
+                    .as_deref()
+                    .is_some_and(|before| !crate::ordinary_content(before, reader.access_policy()))
+                    || target.links.is_some_and(|links| links != 1)
+                {
+                    return Err(PublicError::AccessRefused);
+                }
+                let after = match op.op {
+                    ResearchOpKind::ReplaceBody => {
+                        let newline = if target
+                            .before
+                            .as_deref()
+                            .is_some_and(|before| before.contains("\r\n"))
+                        {
+                            "\r\n"
+                        } else {
+                            "\n"
+                        };
+                        let title = path
+                            .as_str()
+                            .rsplit('/')
+                            .next()
+                            .unwrap_or("Notes.md")
+                            .trim_end_matches(".md");
+                        let body = format!(
+                            "---{newline}description: Reviewed research notes{newline}tags: [research]{newline}aliases: []{newline}---{newline}# {title}{newline}{newline}Unverified research (capture {}): {text}{newline}",
+                            &capture.id.as_str()[..12]
+                        );
+                        if body.len() as u64 > crate::MAX_NOTE_BYTES
+                            || !crate::ordinary_content(&body, reader.access_policy())
+                        {
+                            return Err(PublicError::ResourceLimit);
+                        }
+                        body
+                    }
+                    _ => append_research_body(
+                        &path,
+                        &target,
+                        heading.as_deref(),
+                        capture,
+                        text,
+                        reader.access_policy(),
+                    )?,
+                };
+                proposals.push(Proposal {
+                    kind: ProposalKind::Research,
+                    target,
+                    after,
+                    rename_to: None,
+                    sources: vec![instructions.clone(), inbox.clone()],
+                    capture: Some(processed.clone()),
+                });
+            }
+            ResearchOpKind::Delete => {
+                let (path, _) = resolve_id(
+                    &routes,
+                    inventory,
+                    &op.destination_id,
+                    date,
+                    reader.access_policy(),
+                )?;
+                let target = reader.snapshot_note(&path)?;
+                if target.before.is_none() {
+                    return Err(PublicError::Conflict);
+                }
+                proposals.push(Proposal {
+                    kind: ProposalKind::Delete,
+                    target,
+                    after: String::new(),
+                    rename_to: None,
+                    sources: vec![instructions.clone(), inbox.clone()],
+                    capture: Some(processed.clone()),
+                });
+            }
+            ResearchOpKind::Rename => {
+                let rename_id = op
+                    .rename_destination_id
+                    .as_deref()
+                    .ok_or(PublicError::InvalidModelOutput)?;
+                let (from, _) = resolve_id(
+                    &routes,
+                    inventory,
+                    &op.destination_id,
+                    date,
+                    reader.access_policy(),
+                )?;
+                let (to, _) =
+                    resolve_id(&routes, inventory, rename_id, date, reader.access_policy())?;
+                let target = reader.snapshot_note(&from)?;
+                let before = target.before.clone().ok_or(PublicError::Conflict)?;
+                if reader.snapshot_note(&to)?.before.is_some() {
+                    return Err(PublicError::Conflict);
+                }
+                proposals.push(Proposal {
+                    kind: ProposalKind::Rename,
+                    target,
+                    after: before,
+                    rename_to: Some(to),
+                    sources: vec![instructions.clone(), inbox.clone()],
+                    capture: Some(processed.clone()),
+                });
+            }
+        }
+    }
+    if proposals.is_empty() {
+        return Err(PublicError::InvalidModelOutput);
+    }
+    Ok(proposals)
 }
 pub fn source_excluded(bytes: &str, policy: &crate::AccessPolicy) -> bool {
     crate::corpus::metadata(bytes).is_some_and(|(value, _)| {

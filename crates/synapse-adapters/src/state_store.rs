@@ -9,7 +9,8 @@ use std::{
     time::{Duration, Instant},
 };
 use synapse_core::{
-    Cancellation, CapturedResearch, ContentHash, MAX_CAPTURES, NotePath, PublicError, StateStore,
+    Cancellation, CapturedResearch, ContentHash, ContradictionReport, MAX_CAPTURES,
+    MAX_CONTRADICTION_REPORTS, NotePath, PublicError, StateStore,
 };
 
 #[derive(Clone, Copy)]
@@ -18,6 +19,7 @@ pub(crate) enum StateFile {
     Journal,
     Grants,
     Receipts,
+    Contradictions,
 }
 impl StateFile {
     fn name(self) -> &'static str {
@@ -26,6 +28,7 @@ impl StateFile {
             Self::Journal => "journal-v1.json",
             Self::Grants => "grants-v1.json",
             Self::Receipts => "receipts-v1.json",
+            Self::Contradictions => "contradictions-v1.json",
         }
     }
 }
@@ -311,6 +314,69 @@ impl StateStore for DiskStateStore {
         self.write_state(StateFile::Captures, &bytes)?;
         Ok(id)
     }
+    fn contradictions(&self) -> Result<Vec<ContradictionReport>, PublicError> {
+        let _guard = self.lock()?;
+        self.contradictions_locked()
+    }
+    fn save_contradiction(&self, report: ContradictionReport) -> Result<(), PublicError> {
+        if report.severity != synapse_core::ContradictionSeverity::High
+            || report.summary.is_empty()
+            || report.summary.len() > synapse_core::MAX_CONTRADICTION_SUMMARY
+        {
+            return Err(PublicError::InvalidModelOutput);
+        }
+        let _guard = self.lock()?;
+        let mut reports = self.contradictions_locked()?;
+        if reports.iter().any(|prior| prior.id == report.id) {
+            return Ok(());
+        }
+        if reports.len() >= MAX_CONTRADICTION_REPORTS {
+            return Err(PublicError::CapacityExceeded);
+        }
+        reports.push(report);
+        let bytes = json!({
+            "kind": "synapse-rust-contradictions",
+            "version": 1,
+            "workspace": self.key.as_str(),
+            "reports": reports
+        })
+        .to_string()
+        .into_bytes();
+        if bytes.len() as u64 > MAX_CAPTURE_STORE_BYTES {
+            return Err(PublicError::CapacityExceeded);
+        }
+        self.write_state(StateFile::Contradictions, &bytes)
+    }
+}
+impl DiskStateStore {
+    fn contradictions_locked(&self) -> Result<Vec<ContradictionReport>, PublicError> {
+        let Some(bytes) = self.read_state(StateFile::Contradictions, MAX_CAPTURE_STORE_BYTES)?
+        else {
+            return Ok(Vec::new());
+        };
+        let value: Value =
+            serde_json::from_slice(&bytes).map_err(|_| PublicError::StateUnavailable)?;
+        if value.get("kind").and_then(Value::as_str) != Some("synapse-rust-contradictions")
+            || value.get("version").and_then(Value::as_u64) != Some(1)
+            || value.get("workspace").and_then(Value::as_str) != Some(self.key.as_str())
+        {
+            return Err(PublicError::StateUnavailable);
+        }
+        let entries = value
+            .get("reports")
+            .and_then(Value::as_array)
+            .ok_or(PublicError::StateUnavailable)?;
+        if entries.len() > MAX_CONTRADICTION_REPORTS {
+            return Err(PublicError::CapacityExceeded);
+        }
+        let mut reports = Vec::new();
+        for entry in entries {
+            reports.push(
+                serde_json::from_value(entry.clone()).map_err(|_| PublicError::StateUnavailable)?,
+            );
+        }
+        Ok(reports)
+    }
 }
 
 /// One fixed global runtime-lock file; all persistent state creation stays here.
@@ -334,4 +400,88 @@ pub(crate) fn provider_lease_file() -> Result<OwnedFd, PublicError> {
     };
     verify_state_file(&fd)?;
     Ok(fd)
+}
+
+impl DiskStateStore {
+    pub(crate) fn prepare_index_files(&self) -> Result<(), PublicError> {
+        for name in [
+            "index-v1.sqlite3",
+            "index-v1.sqlite3-wal",
+            "index-v1.sqlite3-shm",
+        ] {
+            let fd = match fs::openat(
+                &self.directory,
+                name,
+                OFlags::RDWR | OFlags::CREATE | OFlags::EXCL | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+                Mode::from_raw_mode(0o600),
+            ) {
+                Ok(fd) => fd,
+                Err(rustix::io::Errno::EXIST) => fs::openat(
+                    &self.directory,
+                    name,
+                    OFlags::RDWR | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+                    Mode::empty(),
+                )
+                .map_err(|_| PublicError::StateUnavailable)?,
+                Err(_) => return Err(PublicError::StateUnavailable),
+            };
+            verify_state_file(&fd)?;
+        }
+        Ok(())
+    }
+    pub(crate) fn index_lock(&self) -> Result<IndexLock, PublicError> {
+        let fd = match fs::openat(
+            &self.directory,
+            "index.lock",
+            OFlags::RDWR | OFlags::CREATE | OFlags::EXCL | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+            Mode::from_raw_mode(0o600),
+        ) {
+            Ok(fd) => fd,
+            Err(rustix::io::Errno::EXIST) => fs::openat(
+                &self.directory,
+                "index.lock",
+                OFlags::RDWR | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+                Mode::empty(),
+            )
+            .map_err(|_| PublicError::StateUnavailable)?,
+            Err(_) => return Err(PublicError::StateUnavailable),
+        };
+        verify_state_file(&fd)?;
+        let deadline = Instant::now() + Duration::from_secs(30);
+        loop {
+            if self.cancel.is_cancelled() {
+                return Err(PublicError::Cancelled);
+            }
+            match fs::flock(&fd, FlockOperation::NonBlockingLockExclusive) {
+                Ok(()) => return Ok(IndexLock(fd)),
+                Err(rustix::io::Errno::WOULDBLOCK) if Instant::now() < deadline => {
+                    std::thread::sleep(LOCK_POLL)
+                }
+                Err(_) => return Err(PublicError::StateUnavailable),
+            }
+        }
+    }
+    pub(crate) fn clear_index(&self) -> Result<(), PublicError> {
+        let _lock = self.index_lock()?;
+        self.clear_index_locked()
+    }
+    pub(crate) fn clear_index_locked(&self) -> Result<(), PublicError> {
+        for name in [
+            "index-v1.sqlite3",
+            "index-v1.sqlite3-wal",
+            "index-v1.sqlite3-shm",
+        ] {
+            match fs::unlinkat(&self.directory, name, fs::AtFlags::empty()) {
+                Ok(()) | Err(rustix::io::Errno::NOENT) => (),
+                Err(_) => return Err(PublicError::StateUnavailable),
+            }
+        }
+        fs::fsync(&self.directory).map_err(|_| PublicError::StateUnavailable)
+    }
+}
+pub(crate) struct IndexLock(OwnedFd);
+impl Drop for IndexLock {
+    fn drop(&mut self) {
+        let _ = fs::flock(&self.0, FlockOperation::Unlock);
+    }
 }

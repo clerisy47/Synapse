@@ -2,6 +2,7 @@
 """Explicit synthetic real-CLI server + native Rust SDK client qualification."""
 import fcntl
 import http.client
+import argparse
 import json
 import os
 import pathlib
@@ -17,12 +18,19 @@ import sys
 import tempfile
 import termios
 import time
-binary = str(pathlib.Path(sys.argv[1]).resolve())
-client = str(pathlib.Path(sys.argv[2]).resolve())
+from qualification_provider import add_provider_arguments, provider_options, provider_metadata
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('binary')
+parser.add_argument('client')
+add_provider_arguments(parser)
+args = parser.parse_args()
+options = provider_options(parser, args)
+binary = str(pathlib.Path(args.binary).resolve())
+client = str(pathlib.Path(args.client).resolve())
 def grant(workspace, env, scopes):
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH',24,120,0,0))
-    child = subprocess.Popen([binary,'mcp','grant','--workspace',str(workspace),*scopes],stdin=slave,stdout=slave,stderr=slave,env=env,start_new_session=True)
+    child = subprocess.Popen([binary,'mcp','grant','--workspace',str(workspace),*scopes,*options],stdin=slave,stdout=slave,stderr=slave,env=env,start_new_session=True)
     transcript = b''
     deadline = time.monotonic()+10
     sent = False
@@ -45,7 +53,7 @@ def grant(workspace, env, scopes):
         if child.poll() is None: child.kill()
         child.wait(timeout=3);os.close(master);os.close(slave)
 def request(port,secret,body,host=None,origin=None,path='/mcp',extra=None):
-    connection=http.client.HTTPConnection('127.0.0.1',port,timeout=10)
+    connection=http.client.HTTPConnection('127.0.0.1',port,timeout=65)
     headers={'Authorization':'Bearer '+secret,'Content-Type':'application/json','Accept':'application/json, text/event-stream'}
     if extra: headers.update(extra)
     if host: headers['Host']=host
@@ -69,7 +77,7 @@ with tempfile.TemporaryDirectory(prefix='synapse-mcp-') as base:
     identities=[]
     for scope,mode in [(['--query','--submit'],'both'),(['--query'],'query'),(['--submit'],'submit')]:
         identities.append((*grant(workspace,env,scope),mode))
-    server=subprocess.Popen([binary,'mcp','serve','--workspace',str(workspace)],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,env=env)
+    server=subprocess.Popen([binary,'mcp','serve','--workspace',str(workspace),*options],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,env=env)
     try:
         assert select.select([server.stdout],[],[],10)[0], 'listener startup timed out'
         line=server.stdout.readline();match=re.search(rb'127.0.0.1:(\d+)/mcp',line);assert match,'listener endpoint missing'
@@ -98,36 +106,21 @@ with tempfile.TemporaryDirectory(prefix='synapse-mcp-') as base:
         pending=[]
         worker=threading.Thread(target=lambda:pending.append(request(port,active_secret,json.dumps({'jsonrpc':'2.0','id':7,'method':'tools/call','params':{'name':'query_workspace','arguments':{'question':'How many units does the reactor use per cycle?'}}}).encode())))
         worker.start();time.sleep(.25)
-        subprocess.run([binary,'mcp','revoke','--workspace',str(workspace),'--client',active_id],env=env,check=True,capture_output=True)
-        worker.join(timeout=10)
+        subprocess.run([binary,'mcp','revoke','--workspace',str(workspace),'--client',active_id,*options],env=env,check=True,capture_output=True)
+        worker.join(timeout=65)
         assert not worker.is_alive() and pending,'revoked work did not complete within bound'
         assert pending[0][0] in (400,401) and not pending[0][1],'late result survived revocation'
-        # A real local setup Apply competes with an authenticated inbox append.
-        # Either the setup snapshot stays current or it refuses as stale.
+        # Auto setup competes with an authenticated inbox append under the shared lock.
         time.sleep(3.1)
-        master,slave=pty.openpty()
-        fcntl.ioctl(slave,termios.TIOCSWINSZ,struct.pack('HHHH',24,120,0,0))
-        setup=subprocess.Popen([binary,'setup','--workspace',str(workspace)],stdin=slave,stdout=slave,stderr=slave,env=env,start_new_session=True)
-        pending_bytes=b'';concurrent=[];append_worker=None;deadline=time.monotonic()+15
-        try:
-            while setup.poll() is None and time.monotonic()<deadline:
-                if select.select([master],[],[],.05)[0]:
-                    pending_bytes+=os.read(master,4096)
-                    if b'next / skip> ' in pending_bytes:pending_bytes=b'';os.write(master,b'next\n')
-                    elif b'accept / skip> ' in pending_bytes:pending_bytes=b'';os.write(master,b'accept\n')
-                    elif b'Apply / cancel> ' in pending_bytes:
-                        pending_bytes=b''
-                        payload=json.dumps({'jsonrpc':'2.0','id':9,'method':'tools/call','params':{'name':'submit_research','arguments':{'idempotencyKey':'concurrent-append-key-0001','text':'Concurrent synthetic research fact.'}}}).encode()
-                        append_worker=threading.Thread(target=lambda:concurrent.append(request(port,identities[2][1],payload)))
-                        append_worker.start();os.write(master,b'Apply\n')
-            assert setup.poll() in (0,3),'competing CLI write failed unexpectedly'
-            assert append_worker,'competing Apply prompt missing'
-            append_worker.join(timeout=10)
-            assert concurrent and concurrent[0][0]==200 and b'received' in concurrent[0][1],'concurrent append lost'
-            assert (workspace/'Research.md').read_text().count('## Unverified research')==3,'competing writers duplicated or lost inbox text'
-        finally:
-            if setup.poll() is None:setup.kill()
-            setup.wait(timeout=3);os.close(master);os.close(slave)
+        payload=json.dumps({'jsonrpc':'2.0','id':9,'method':'tools/call','params':{'name':'submit_research','arguments':{'idempotencyKey':'concurrent-append-key-0001','text':'Concurrent synthetic research fact.'}}}).encode()
+        concurrent=[]
+        append_worker=threading.Thread(target=lambda:concurrent.append(request(port,identities[2][1],payload)))
+        append_worker.start()
+        setup=subprocess.run([binary,'setup','--workspace',str(workspace),*options],env=env,capture_output=True)
+        append_worker.join(timeout=10)
+        assert setup.returncode in (0,3),f'competing CLI write failed unexpectedly: {setup.stdout!r}{setup.stderr!r}'
+        assert concurrent and concurrent[0][0]==200 and b'received' in concurrent[0][1],'concurrent append lost'
+        assert (workspace/'Research.md').read_text().count('## Unverified research')==3,'competing writers duplicated or lost inbox text'
         # The service rate bucket cannot admit more than its burst immediately.
         ping=json.dumps({'jsonrpc':'2.0','id':8,'method':'ping'}).encode()
         statuses=[request(port,identities[2][1],ping)[0] for _ in range(8)]
@@ -138,7 +131,7 @@ with tempfile.TemporaryDirectory(prefix='synapse-mcp-') as base:
         except ConnectionResetError: response=b''
         assert time.monotonic()-start<7 and (not response or b'400' in response),'slow header not bounded'
         slow.close()
-        subprocess.run([binary,'mcp','revoke','--workspace',str(workspace),'--client',identity],env=env,check=True,capture_output=True)
+        subprocess.run([binary,'mcp','revoke','--workspace',str(workspace),'--client',identity,*options],env=env,check=True,capture_output=True)
         status,data=request(port,secret,b'{"jsonrpc":"2.0","id":1,"method":"tools/list"}')
         assert status in (400,401) and not data,'revoked credential remained usable'
     finally:

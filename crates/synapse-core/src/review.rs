@@ -53,6 +53,8 @@ pub enum ProposalKind {
     Metadata,
     Research,
     Revert,
+    Delete,
+    Rename,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -60,6 +62,8 @@ pub struct Proposal {
     pub kind: ProposalKind,
     pub target: FileSnapshot,
     pub after: String,
+    #[serde(default)]
+    pub rename_to: Option<NotePath>,
     pub sources: Vec<FileSnapshot>,
     pub capture: Option<ContentHash>,
 }
@@ -80,6 +84,8 @@ impl ReviewPlan {
                 ProposalKind::Metadata => 1,
                 ProposalKind::Research => 2,
                 ProposalKind::Revert => 3,
+                ProposalKind::Delete => 4,
+                ProposalKind::Rename => 5,
             }]);
             parts.push(
                 proposal
@@ -92,6 +98,15 @@ impl ReviewPlan {
             );
             parts.push(proposal.target.fingerprint().as_str().as_bytes().to_vec());
             parts.push(proposal.after.as_bytes().to_vec());
+            parts.push(
+                proposal
+                    .rename_to
+                    .as_ref()
+                    .map(|path| path.as_str())
+                    .unwrap_or("")
+                    .as_bytes()
+                    .to_vec(),
+            );
             for source in &proposal.sources {
                 parts.push(source.fingerprint().as_str().as_bytes().to_vec());
             }
@@ -117,17 +132,51 @@ pub fn policy_fingerprint(policy: &AccessPolicy) -> ContentHash {
     ContentHash::combined(&parts)
 }
 
-/// Check both sides of a diff before intentional local display. Retained history
-/// does not exempt a revert from the current control/tag exclusion policy.
+/// Check mutation authority before journaled apply. Control files are never
+/// delete/rename targets. Retained history does not exempt a revert from the
+/// current control/tag exclusion policy.
 pub fn proposal_access(policy: &AccessPolicy, proposal: &Proposal) -> bool {
     if proposal.kind == ProposalKind::Setup {
         return proposal.target.before.is_none()
+            && proposal.rename_to.is_none()
             && ((proposal.target.path == policy.instructions
                 && proposal.after == crate::starters::INSTRUCTIONS_STARTER)
                 || (proposal.target.path == policy.research
                     && proposal.after == crate::starters::RESEARCH_STARTER));
     }
-    policy.permits_path(&proposal.target.path)
-        && !crate::source_excluded(proposal.target.before.as_deref().unwrap_or(""), policy)
-        && !crate::source_excluded(&proposal.after, policy)
+    let control = proposal.target.path == policy.instructions
+        || proposal.target.path == policy.research
+        || proposal
+            .rename_to
+            .as_ref()
+            .is_some_and(|path| *path == policy.instructions || *path == policy.research);
+    if control {
+        return false;
+    }
+    match proposal.kind {
+        ProposalKind::Delete => {
+            proposal.rename_to.is_none()
+                && proposal.after.is_empty()
+                && proposal.target.before.is_some()
+                && policy.permits_path(&proposal.target.path)
+                && !crate::source_excluded(proposal.target.before.as_deref().unwrap_or(""), policy)
+        }
+        ProposalKind::Rename => {
+            let Some(dest) = proposal.rename_to.as_ref() else {
+                return false;
+            };
+            *dest != proposal.target.path
+                && proposal.target.before.is_some()
+                && proposal.after == proposal.target.before.clone().unwrap_or_default()
+                && policy.permits_path(&proposal.target.path)
+                && policy.permits_path(dest)
+                && !crate::source_excluded(proposal.target.before.as_deref().unwrap_or(""), policy)
+        }
+        _ => {
+            proposal.rename_to.is_none()
+                && policy.permits_path(&proposal.target.path)
+                && !crate::source_excluded(proposal.target.before.as_deref().unwrap_or(""), policy)
+                && !crate::source_excluded(&proposal.after, policy)
+        }
+    }
 }

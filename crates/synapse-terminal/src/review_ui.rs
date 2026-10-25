@@ -1,9 +1,10 @@
-use crate::{input::Input, output, strings};
+use crate::{output, strings};
 use std::{io::Write, sync::Arc};
 use synapse_adapters::{CanonicalWorkspace, DiskStateStore};
 use synapse_core::{
-    Cancellation, ContentHash, ControlFile, DailyDate, FileSnapshot, ModelJob, ModelResult,
-    ModelService, NotePath, Priority, ProposalReadPort, PublicError, ReviewPlan, StateStore,
+    Cancellation, Clock, ContentHash, ControlFile, DailyDate, ModelJob, ModelResult, ModelService,
+    NotePath, Priority, Proposal, ProposalKind, ProposalReadPort, PublicError, ReviewPlan,
+    StateStore,
 };
 
 pub fn escape(value: &str) -> String {
@@ -24,13 +25,10 @@ pub fn escape(value: &str) -> String {
     }
     result
 }
-fn read(input: &Input, cancel: &Cancellation) -> Result<String, PublicError> {
-    input.read(cancel)?.ok_or(PublicError::ApprovalRequired)
-}
 fn current(
     reader: &CanonicalWorkspace,
-    snapshot: &FileSnapshot,
-) -> Result<FileSnapshot, PublicError> {
+    snapshot: &synapse_core::FileSnapshot,
+) -> Result<synapse_core::FileSnapshot, PublicError> {
     if snapshot.path == reader.access_policy().instructions {
         reader.snapshot_control(ControlFile::Instructions)
     } else if snapshot.path == reader.access_policy().research {
@@ -70,25 +68,31 @@ fn text_rows(prefix: &str, text: &str, columns: usize) -> Vec<String> {
     }
     rows
 }
-pub fn review(
-    reader: &CanonicalWorkspace,
-    plan: ReviewPlan,
-    output: &mut impl Write,
-    cancel: &Cancellation,
-) -> Result<ReviewPlan, PublicError> {
-    validate(reader, &plan)?;
-    let input = Input::start()?;
-    let mut accepted = Vec::new();
-    for proposal in plan.proposals {
-        let columns = synapse_adapters::terminal_columns();
+fn summarize(plan: &ReviewPlan, output: &mut impl Write) -> Result<(), PublicError> {
+    let columns = synapse_adapters::terminal_columns();
+    for proposal in &plan.proposals {
+        let label = match proposal.kind {
+            ProposalKind::Delete => "delete",
+            ProposalKind::Rename => "rename",
+            ProposalKind::Setup => "setup",
+            ProposalKind::Metadata => "metadata",
+            ProposalKind::Research => "research",
+            ProposalKind::Revert => "revert",
+        };
         let mut rows = output::wrap(
             &format!(
-                "{}{}",
+                "{}{} ({label})",
                 strings::TARGET,
                 escape(proposal.target.path.as_str())
             ),
             columns,
         );
+        if let Some(dest) = &proposal.rename_to {
+            rows.extend(output::wrap(
+                &format!("Rename to: {}", escape(dest.as_str())),
+                columns,
+            ));
+        }
         for parent in &proposal.target.parents {
             if parent.identity.is_none() {
                 rows.extend(output::wrap(
@@ -97,85 +101,44 @@ pub fn review(
                 ));
             }
         }
-        rows.extend(output::wrap(strings::BEFORE, columns));
-        rows.extend(text_rows(
-            "- ",
-            proposal.target.before.as_deref().unwrap_or(""),
-            columns,
-        ));
-        rows.extend(output::wrap(strings::AFTER, columns));
-        rows.extend(text_rows("+ ", &proposal.after, columns));
-        let page_rows = synapse_adapters::terminal_rows()
-            .saturating_sub(4)
-            .clamp(4, 40);
-        let pages = rows.chunks(page_rows);
-        let page_count = pages.len();
-        let mut complete = true;
-        for (index, page) in pages.enumerate() {
-            if cancel.is_cancelled() {
-                return Err(PublicError::Cancelled);
-            }
-            for line in page {
-                writeln!(output, "{line}").map_err(|_| PublicError::OutputUnavailable)?;
-            }
-            if index + 1 < page_count {
-                write!(output, "{}", strings::NEXT_PAGE)
-                    .map_err(|_| PublicError::OutputUnavailable)?;
-                output.flush().map_err(|_| PublicError::OutputUnavailable)?;
-                if read(&input, cancel)? != "next" {
-                    complete = false;
-                    break;
-                }
-            }
+        if proposal.kind != ProposalKind::Delete && proposal.kind != ProposalKind::Rename {
+            rows.extend(output::wrap(strings::BEFORE, columns));
+            rows.extend(text_rows(
+                "- ",
+                proposal.target.before.as_deref().unwrap_or(""),
+                columns,
+            ));
+            rows.extend(output::wrap(strings::AFTER, columns));
+            rows.extend(text_rows("+ ", &proposal.after, columns));
         }
-        if complete {
-            write!(output, "{}", strings::ACCEPT_FILE)
-                .map_err(|_| PublicError::OutputUnavailable)?;
-            output.flush().map_err(|_| PublicError::OutputUnavailable)?;
-            match read(&input, cancel)?.as_str() {
-                "accept" => accepted.push(proposal),
-                "skip" => (),
-                _ => return Err(PublicError::ApprovalRequired),
-            }
+        for line in rows {
+            writeln!(output, "{line}").map_err(|_| PublicError::OutputUnavailable)?;
         }
     }
-    let accepted = ReviewPlan {
-        proposals: accepted,
-        policy: plan.policy,
-        provider: plan.provider,
-    };
-    validate(reader, &accepted)?;
-    Ok(accepted)
+    Ok(())
 }
 pub fn finish(
     reader: &CanonicalWorkspace,
     plan: ReviewPlan,
     preview: bool,
     output: &mut impl Write,
-    cancel: &Cancellation,
+    _cancel: &Cancellation,
 ) -> Result<(), PublicError> {
     if plan.proposals.is_empty() {
         writeln!(output, "{}", strings::NO_CHANGES).map_err(|_| PublicError::OutputUnavailable)?;
         return Ok(());
     }
-    let store = DiskStateStore::open(reader)?;
-    let _ = store.history(reader)?;
-    let accepted = review(reader, plan, output, cancel)?;
-    if preview || accepted.proposals.is_empty() {
+    validate(reader, &plan)?;
+    summarize(&plan, output)?;
+    if preview {
         writeln!(output, "{}", strings::PREVIEW_ONLY)
             .map_err(|_| PublicError::OutputUnavailable)?;
         return Ok(());
     }
     writeln!(output, "{}", strings::RETENTION).map_err(|_| PublicError::OutputUnavailable)?;
-    let approval = store.local_approval(reader, &accepted)?;
-    write!(output, "{}", strings::APPLY_PROMPT)
-        .and_then(|_| output.flush())
-        .map_err(|_| PublicError::OutputUnavailable)?;
-    let input = Input::start()?;
-    if read(&input, cancel)? != "Apply" {
-        return Err(PublicError::ApprovalRequired);
-    }
-    let count = store.apply_reviewed(reader, accepted, approval)?;
+    let store = DiskStateStore::open(reader)?;
+    let _ = store.history(reader)?;
+    let count = store.apply_auto(reader, plan)?;
     writeln!(output, "{} {count}", strings::APPLIED).map_err(|_| PublicError::OutputUnavailable)
 }
 pub fn metadata(
@@ -186,54 +149,55 @@ pub fn metadata(
     output: &mut impl Write,
     cancel: &Cancellation,
 ) -> Result<(), PublicError> {
-    let (file, preview) = selection;
-    let input = Input::start()?;
-    let file = match file {
-        Some(file) => file,
+    let (selected_file, preview) = selection;
+    let single = selected_file.is_some();
+    let paths = match selected_file {
+        Some(file) => vec![file],
         None => {
             let corpus =
                 synapse_core::Corpus::build(reader.as_ref(), reader.access_policy().clone())?;
-            let paths = corpus.attention(reader.as_ref(), reader.access_policy());
-            if paths.is_empty() {
-                writeln!(output, "{}", strings::NO_CHANGES)
-                    .map_err(|_| PublicError::OutputUnavailable)?;
-                return Ok(());
-            }
-            for (index, path) in paths.iter().take(20).enumerate() {
-                writeln!(output, "{} {}", index + 1, escape(path.as_str()))
-                    .map_err(|_| PublicError::OutputUnavailable)?;
-            }
-            write!(output, "{}", strings::SELECT_NOTE)
-                .map_err(|_| PublicError::OutputUnavailable)?;
-            output.flush().map_err(|_| PublicError::OutputUnavailable)?;
-            let selected: usize = read(&input, cancel)?
-                .parse()
-                .map_err(|_| PublicError::Usage)?;
-            paths
-                .get(selected.checked_sub(1).ok_or(PublicError::Usage)?)
-                .filter(|_| selected <= 20)
-                .ok_or(PublicError::Usage)?
-                .clone()
+            corpus.attention(reader.as_ref(), reader.access_policy())
         }
     };
-    let snapshot = reader.snapshot_note(&file)?;
-    let Some(metadata) = synapse_core::metadata_input(snapshot, reader.access_policy())? else {
+    if paths.is_empty() {
         writeln!(output, "{}", strings::NO_CHANGES).map_err(|_| PublicError::OutputUnavailable)?;
         return Ok(());
-    };
-    let fields = match service.execute(
-        ModelJob::RepairMetadata {
-            input: metadata.clone(),
-        },
-        Priority::Interactive,
-        cancel,
-    )? {
-        ModelResult::Metadata(fields) => fields,
-        _ => return Err(PublicError::InvalidModelOutput),
-    };
-    let proposal = synapse_core::metadata_proposal(reader.as_ref(), metadata, fields)?;
+    }
+    let mut proposals = Vec::new();
+    for file in paths {
+        let snapshot = reader.snapshot_note(&file)?;
+        let metadata = match synapse_core::metadata_input(snapshot, reader.access_policy()) {
+            Err(error @ (PublicError::InvalidMetadata | PublicError::ResourceLimit)) => {
+                writeln!(output, "{}", strings::METADATA_MANUAL)
+                    .map_err(|_| PublicError::OutputUnavailable)?;
+                if single {
+                    return Err(error);
+                }
+                continue;
+            }
+            result => result?,
+        };
+        let Some(metadata) = metadata else {
+            continue;
+        };
+        let fields = match service.execute(
+            ModelJob::RepairMetadata {
+                input: metadata.clone(),
+            },
+            Priority::Interactive,
+            cancel,
+        )? {
+            ModelResult::Metadata(fields) => fields,
+            _ => return Err(PublicError::InvalidModelOutput),
+        };
+        proposals.push(synapse_core::metadata_proposal(
+            reader.as_ref(),
+            metadata,
+            fields,
+        )?);
+    }
     let plan = ReviewPlan {
-        proposals: vec![proposal],
+        proposals,
         policy: synapse_core::policy_fingerprint(reader.access_policy()),
         provider,
     };
@@ -243,6 +207,20 @@ pub struct ResearchSelection {
     pub preview: bool,
     pub capture: Option<usize>,
     pub date: Option<DailyDate>,
+}
+fn inventory(reader: &CanonicalWorkspace) -> Result<Vec<(String, NotePath)>, PublicError> {
+    let corpus = synapse_core::Corpus::build(reader, reader.access_policy().clone())?;
+    let mut items = Vec::new();
+    for (index, path) in corpus
+        .attention(reader, reader.access_policy())
+        .into_iter()
+        .take(32)
+        .enumerate()
+    {
+        let id = format!("inv-{}", index + 1);
+        items.push((id, path));
+    }
+    Ok(items)
 }
 pub fn research(
     reader: Arc<CanonicalWorkspace>,
@@ -255,7 +233,7 @@ pub fn research(
 ) -> Result<(), PublicError> {
     let preview = selection.preview;
     let selected = selection.capture;
-    let mut date = selection.date;
+    let date = selection.date;
     let inbox = reader.snapshot_control(ControlFile::Research)?;
     let bytes = inbox.before.as_deref().ok_or(PublicError::Usage)?;
     if synapse_core::source_excluded(bytes, reader.access_policy()) {
@@ -272,32 +250,15 @@ pub fn research(
     if captures.is_empty() {
         return Err(PublicError::Conflict);
     }
-    let input = Input::start()?;
-    let selected = match selected {
-        Some(selected) => selected,
-        None => {
-            for (index, capture) in captures.iter().enumerate() {
-                writeln!(
-                    output,
-                    "{} {} {}-{}",
-                    index + 1,
-                    &capture.id.as_str()[..12],
-                    capture.start_line,
-                    capture.end_line
-                )
-                .map_err(|_| PublicError::OutputUnavailable)?;
-            }
-            write!(output, "{}", strings::SELECT_CAPTURE)
-                .map_err(|_| PublicError::OutputUnavailable)?;
-            output.flush().map_err(|_| PublicError::OutputUnavailable)?;
-            read(&input, cancel)?
-                .parse()
-                .map_err(|_| PublicError::Usage)?
+    let captures: Vec<_> = match selected {
+        Some(selected) => {
+            let capture = captures
+                .get(selected.checked_sub(1).ok_or(PublicError::Usage)?)
+                .ok_or(PublicError::Usage)?;
+            vec![capture.clone()]
         }
+        None => captures,
     };
-    let capture = captures
-        .get(selected.checked_sub(1).ok_or(PublicError::Usage)?)
-        .ok_or(PublicError::Usage)?;
     let instructions = reader.snapshot_control(ControlFile::Instructions)?;
     let routes = synapse_core::parse_instructions(
         instructions
@@ -306,43 +267,111 @@ pub fn research(
             .ok_or(PublicError::InvalidInstructions)?,
         reader.access_policy(),
     )?;
-    let draft = match service.execute(
-        ModelJob::DraftResearch {
-            capture: capture.clone(),
-            instructions: instructions.clone(),
-        },
-        Priority::Interactive,
-        cancel,
-    )? {
-        ModelResult::Draft(draft) => draft,
-        _ => return Err(PublicError::InvalidModelOutput),
-    };
-    let Some(draft) = draft else {
-        writeln!(output, "{}", strings::NO_SUPPORTED_RESEARCH)
+    let inventory = inventory(reader.as_ref())?;
+    let mut proposals: Vec<Proposal> = Vec::new();
+    let mut flags = Vec::new();
+    for capture in &captures {
+        let draft = match service.execute(
+            ModelJob::DraftResearch {
+                capture: capture.clone(),
+                instructions: instructions.clone(),
+                inventory: inventory.clone(),
+            },
+            Priority::Interactive,
+            cancel,
+        )? {
+            ModelResult::Draft(draft) => draft,
+            _ => return Err(PublicError::InvalidModelOutput),
+        };
+        let Some(draft) = draft else {
+            writeln!(
+                output,
+                "{} {}",
+                strings::NO_SUPPORTED_RESEARCH,
+                &capture.id.as_str()[..12]
+            )
             .map_err(|_| PublicError::OutputUnavailable)?;
-        return Ok(());
-    };
-    if routes
-        .daily
-        .as_ref()
-        .is_some_and(|daily| daily.id == draft.destination_id)
-        && date.is_none()
-    {
-        write!(output, "{}", strings::SELECT_DATE).map_err(|_| PublicError::OutputUnavailable)?;
-        output.flush().map_err(|_| PublicError::OutputUnavailable)?;
-        date = Some(DailyDate::parse(&read(&input, cancel)?)?);
+            continue;
+        };
+        let needs_date = draft.ops.iter().any(|op| {
+            routes
+                .daily
+                .as_ref()
+                .is_some_and(|daily| daily.id == op.destination_id)
+        }) || routes
+            .daily
+            .as_ref()
+            .is_some_and(|daily| daily.id == draft.destination_id);
+        if needs_date && date.is_none() {
+            return Err(PublicError::DateRequired);
+        }
+        let built = synapse_core::research_proposals(
+            reader.as_ref(),
+            capture,
+            &instructions,
+            &draft,
+            date.as_ref(),
+            &inventory,
+        )?;
+        let bodies: Vec<_> = built
+            .iter()
+            .filter_map(|proposal| {
+                proposal
+                    .target
+                    .before
+                    .as_ref()
+                    .map(|before| (proposal.target.path.clone(), before.clone()))
+            })
+            .collect();
+        let assessment = if bodies.is_empty() {
+            synapse_core::ContradictionAssessment {
+                severity: synapse_core::ContradictionSeverity::None,
+                summary: String::new(),
+                destinations: Vec::new(),
+            }
+        } else {
+            match service.execute(
+                ModelJob::AssessContradiction {
+                    capture: capture.clone(),
+                    destinations: bodies,
+                },
+                Priority::Interactive,
+                cancel,
+            )? {
+                ModelResult::Contradiction(assessment) => assessment,
+                _ => return Err(PublicError::InvalidModelOutput),
+            }
+        };
+        if assessment.severity == synapse_core::ContradictionSeverity::High {
+            let report = synapse_core::ContradictionReport {
+                id: ContentHash::combined(&[
+                    capture.id.as_str().as_bytes(),
+                    assessment.summary.as_bytes(),
+                ]),
+                capture: capture.id.clone(),
+                severity: assessment.severity,
+                summary: assessment.summary.clone(),
+                destinations: assessment.destinations.clone(),
+                created: reader.unix_seconds()?,
+            };
+            flags.push(report.clone());
+            store.save_contradiction(report)?;
+            writeln!(
+                output,
+                "{} {} {}",
+                strings::CONTRADICTION_FLAG,
+                &capture.id.as_str()[..12],
+                escape(&assessment.summary)
+            )
+            .map_err(|_| PublicError::OutputUnavailable)?;
+        }
+        proposals.extend(built);
     }
-    let proposal = synapse_core::research_proposal(
-        reader.as_ref(),
-        capture,
-        &instructions,
-        draft,
-        date.as_ref(),
-    )?;
     let plan = ReviewPlan {
-        proposals: vec![proposal],
+        proposals,
         policy: synapse_core::policy_fingerprint(reader.access_policy()),
         provider,
     };
+    let _ = flags;
     finish(reader.as_ref(), plan, preview, output, cancel)
 }

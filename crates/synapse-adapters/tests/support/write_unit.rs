@@ -2,7 +2,7 @@
 // introducing a production approval bypass or crash-control environment flag.
 use super::*;
 use std::{error::Error, fs};
-use synapse_core::{Cancellation, NotePath};
+use synapse_core::{Cancellation, ControlFile, NotePath, ReviewPlan};
 #[test]
 fn writer_child() -> Result<(), Box<dyn Error>> {
     let Some(root) = std::env::var_os("SYNAPSE_WRITE_FIXTURE") else {
@@ -18,6 +18,7 @@ fn writer_child() -> Result<(), Box<dyn Error>> {
         kind: ProposalKind::Metadata,
         target: before.clone(),
         after: after.into(),
+        rename_to: None,
         sources: vec![],
         capture: None,
     };
@@ -185,6 +186,7 @@ fn crash_phase_child() -> Result<(), Box<dyn Error>> {
                 kind: ProposalKind::Metadata,
                 target: before.clone(),
                 after: after.into(),
+                rename_to: None,
                 sources: Vec::new(),
                 capture: None,
             },
@@ -317,6 +319,74 @@ fn competing_processes_cannot_both_apply_one_snapshot() -> Result<(), Box<dyn Er
     ];
     results.sort();
     assert_eq!(results, vec!["applied", "conflict"]);
+    fs::remove_dir_all(base)?;
+    Ok(())
+}
+
+#[test]
+fn auto_apply_deletes_and_renames_notes_inside_workspace() -> Result<(), Box<dyn Error>> {
+    let base = std::env::temp_dir().join(format!("synapse-mutate-{}", std::process::id()));
+    fs::create_dir(&base)?;
+    let base = base.canonicalize()?;
+    fs::create_dir(base.join("home"))?;
+    fs::create_dir(base.join("workspace"))?;
+    let note = "---\ndescription: Synthetic\ntags: [test]\naliases: []\n---\nBody\n";
+    fs::write(base.join("workspace/keep.md"), note)?;
+    fs::write(base.join("workspace/gone.md"), note)?;
+    fs::write(base.join("workspace/old.md"), note)?;
+    let reader = CanonicalWorkspace::open(&base.join("workspace")).map_err(|_| "root")?;
+    let store = DiskStateStore::open(&reader).map_err(|_| "state")?;
+    let policy = synapse_core::policy_fingerprint(reader.access_policy());
+    let provider = ContentHash::of(b"local");
+    let delete_target = reader
+        .snapshot_note(&NotePath::parse("gone.md").map_err(|_| "path")?)
+        .map_err(|_| "snap")?;
+    let rename_target = reader
+        .snapshot_note(&NotePath::parse("old.md").map_err(|_| "path")?)
+        .map_err(|_| "snap")?;
+    let after = rename_target.before.clone().unwrap_or_default();
+    let plan = ReviewPlan {
+        proposals: vec![
+            Proposal {
+                kind: ProposalKind::Delete,
+                target: delete_target,
+                after: String::new(),
+                rename_to: None,
+                sources: vec![],
+                capture: None,
+            },
+            Proposal {
+                kind: ProposalKind::Rename,
+                target: rename_target,
+                after,
+                rename_to: Some(NotePath::parse("new.md").map_err(|_| "path")?),
+                sources: vec![],
+                capture: None,
+            },
+        ],
+        policy,
+        provider,
+    };
+    assert_eq!(store.apply_auto(&reader, plan).map_err(|_| "apply")?, 2);
+    assert!(!base.join("workspace/gone.md").exists());
+    assert!(!base.join("workspace/old.md").exists());
+    assert_eq!(fs::read_to_string(base.join("workspace/new.md"))?, note);
+    assert_eq!(fs::read_to_string(base.join("workspace/keep.md"))?, note);
+    let control = reader
+        .snapshot_control(ControlFile::Research)
+        .map_err(|_| "control")?;
+    let refused = Proposal {
+        kind: ProposalKind::Delete,
+        target: control,
+        after: String::new(),
+        rename_to: None,
+        sources: vec![],
+        capture: None,
+    };
+    assert!(!synapse_core::proposal_access(
+        reader.access_policy(),
+        &refused
+    ));
     fs::remove_dir_all(base)?;
     Ok(())
 }

@@ -1,0 +1,493 @@
+{
+  "version": "evidence-holdouts-v1",
+  "cases": [
+    {
+      "id": "willow-below",
+      "question": "Does Willow quarantine a batch at 6 percent?",
+      "notes": {
+        "rule.md": "# Willow quality\nWillow quarantines batches strictly above 7 percent.\n\n## Boundary\nExactly 7 percent remains eligible with warning. Below 7 percent remains eligible without warning."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "above 7 percent",
+          [
+            "rule.md"
+          ]
+        ],
+        [
+          "Exactly 7 percent",
+          [
+            "rule.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "willow-equal",
+      "question": "Does Willow quarantine a batch at 7 percent?",
+      "notes": {
+        "rule.md": "# Willow quality\nWillow quarantines batches strictly above 7 percent.\n\n## Boundary\nExactly 7 percent remains eligible with warning. Below 7 percent remains eligible without warning."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "above 7 percent",
+          [
+            "rule.md"
+          ]
+        ],
+        [
+          "Exactly 7 percent",
+          [
+            "rule.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "willow-above",
+      "question": "Does Willow quarantine a batch at 8 percent?",
+      "notes": {
+        "rule.md": "# Willow quality\nWillow quarantines batches strictly above 7 percent.\n\n## Boundary\nExactly 7 percent remains eligible with warning. Below 7 percent remains eligible without warning."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "above 7 percent",
+          [
+            "rule.md"
+          ]
+        ],
+        [
+          "Exactly 7 percent",
+          [
+            "rule.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "juniper-below",
+      "question": "Does Juniper quarantine a batch at 10 percent?",
+      "notes": {
+        "rule.md": "# Juniper quality\nJuniper quarantines batches strictly above 11 percent.\n\n## Boundary\nExactly 11 percent remains eligible with warning. Below 11 percent remains eligible without warning."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "above 11 percent",
+          [
+            "rule.md"
+          ]
+        ],
+        [
+          "Exactly 11 percent",
+          [
+            "rule.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "juniper-equal",
+      "question": "Does Juniper quarantine a batch at 11 percent?",
+      "notes": {
+        "rule.md": "# Juniper quality\nJuniper quarantines batches strictly above 11 percent.\n\n## Boundary\nExactly 11 percent remains eligible with warning. Below 11 percent remains eligible without warning."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "above 11 percent",
+          [
+            "rule.md"
+          ]
+        ],
+        [
+          "Exactly 11 percent",
+          [
+            "rule.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "juniper-above",
+      "question": "Does Juniper quarantine a batch at 12 percent?",
+      "notes": {
+        "rule.md": "# Juniper quality\nJuniper quarantines batches strictly above 11 percent.\n\n## Boundary\nExactly 11 percent remains eligible with warning. Below 11 percent remains eligible without warning."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "above 11 percent",
+          [
+            "rule.md"
+          ]
+        ],
+        [
+          "Exactly 11 percent",
+          [
+            "rule.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "incident-0",
+      "question": "What was the Bay incident duration and mitigation?",
+      "notes": {
+        "timeline.md": "# Bay incident\nThe Bay incident lasted 31 minutes.",
+        "action.md": "# Bay mitigation\nThe operator reduced concurrency from 18 to 3. A separate drill lasted 90 minutes."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "31 minutes",
+          [
+            "timeline.md"
+          ]
+        ],
+        [
+          "18 to 3",
+          [
+            "action.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "incident-1",
+      "question": "What was the Cove incident duration and mitigation?",
+      "notes": {
+        "timeline.md": "# Cove incident\nThe Cove incident lasted 17 minutes.",
+        "action.md": "# Cove mitigation\nThe operator reduced concurrency from 22 to 6. A separate drill lasted 90 minutes."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "17 minutes",
+          [
+            "timeline.md"
+          ]
+        ],
+        [
+          "22 to 6",
+          [
+            "action.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "incident-2",
+      "question": "What was the Jetty incident duration and mitigation?",
+      "notes": {
+        "timeline.md": "# Jetty incident\nThe Jetty incident lasted 42 minutes.",
+        "action.md": "# Jetty mitigation\nThe operator reduced concurrency from 30 to 5. A separate drill lasted 90 minutes."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "42 minutes",
+          [
+            "timeline.md"
+          ]
+        ],
+        [
+          "30 to 5",
+          [
+            "action.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "trials-0",
+      "question": "What changed between Citrus trials and what are the limits?",
+      "notes": {
+        "a.md": "# Citrus trial A\nTrial A used 18 degrees for six hours.",
+        "b.md": "# Citrus trial B\n## Interpretation\nChanging temperature and time together cannot isolate either effect.\n\n## Procedure\nTrial B used 23 degrees for four hours."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "18 degrees",
+          [
+            "a.md"
+          ]
+        ],
+        [
+          "23 degrees",
+          [
+            "b.md"
+          ]
+        ],
+        [
+          "cannot isolate either effect",
+          [
+            "b.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "trials-1",
+      "question": "What changed between Plum trials and what are the limits?",
+      "notes": {
+        "a.md": "# Plum trial A\nTrial A used 21 degrees for six hours.",
+        "b.md": "# Plum trial B\n## Interpretation\nChanging temperature and time together cannot isolate either effect.\n\n## Procedure\nTrial B used 27 degrees for four hours."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "21 degrees",
+          [
+            "a.md"
+          ]
+        ],
+        [
+          "27 degrees",
+          [
+            "b.md"
+          ]
+        ],
+        [
+          "cannot isolate either effect",
+          [
+            "b.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "trials-2",
+      "question": "What changed between Pear trials and what are the limits?",
+      "notes": {
+        "a.md": "# Pear trial A\nTrial A used 16 degrees for six hours.",
+        "b.md": "# Pear trial B\n## Interpretation\nChanging temperature and time together cannot isolate either effect.\n\n## Procedure\nTrial B used 25 degrees for four hours."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "16 degrees",
+          [
+            "a.md"
+          ]
+        ],
+        [
+          "25 degrees",
+          [
+            "b.md"
+          ]
+        ],
+        [
+          "cannot isolate either effect",
+          [
+            "b.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "completion-0",
+      "question": "In the Dial example, how many items were completed out of the total and what completion percentage is that and does it measure correctness?",
+      "notes": {
+        "example.md": "# Dial example\nThe team completed 12 of 20 items, giving 60 percent completion.\n\n## Limitation\nCompletion does not measure correctness."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "12 of 20",
+          [
+            "example.md"
+          ]
+        ],
+        [
+          "60 percent",
+          [
+            "example.md"
+          ]
+        ],
+        [
+          "does not measure correctness",
+          [
+            "example.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "completion-1",
+      "question": "In the Gauge example, how many items were completed out of the total and what completion percentage is that and does it measure correctness?",
+      "notes": {
+        "example.md": "# Gauge example\nThe team completed 9 of 12 items, giving 75 percent completion.\n\n## Limitation\nCompletion does not measure correctness."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "9 of 12",
+          [
+            "example.md"
+          ]
+        ],
+        [
+          "75 percent",
+          [
+            "example.md"
+          ]
+        ],
+        [
+          "does not measure correctness",
+          [
+            "example.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "completion-2",
+      "question": "In the Counter example, how many items were completed out of the total and what completion percentage is that and does it measure correctness?",
+      "notes": {
+        "example.md": "# Counter example\nThe team completed 7 of 10 items, giving 70 percent completion.\n\n## Limitation\nCompletion does not measure correctness."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "7 of 10",
+          [
+            "example.md"
+          ]
+        ],
+        [
+          "70 percent",
+          [
+            "example.md"
+          ]
+        ],
+        [
+          "does not measure correctness",
+          [
+            "example.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "missing-lifetime",
+      "question": "What is the Beacon battery lifetime?",
+      "notes": {
+        "battery.md": "# Beacon battery\nBeacon battery lifetime was not measured. The device weighs 42 grams."
+      },
+      "expected": "insufficient_evidence",
+      "required": []
+    },
+    {
+      "id": "measured-zero",
+      "question": "What is the Beacon measured battery lifetime?",
+      "notes": {
+        "battery.md": "# Beacon battery\nBeacon measured battery lifetime is 0 hours."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "0 hours",
+          [
+            "battery.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "negative-result",
+      "question": "Did the Delta pilot improve throughput?",
+      "notes": {
+        "pilot.md": "# Delta pilot\nThe completed Delta pilot did not improve throughput."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "did not improve throughput",
+          [
+            "pilot.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "future-schedule",
+      "question": "When is the Delta trial planned?",
+      "notes": {
+        "trial.md": "# Delta trial\nThe Delta trial is planned for December."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "December",
+          [
+            "trial.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "future-experiment",
+      "question": "Did the Delta pilot improve throughput?",
+      "notes": {
+        "pilot.md": "# Delta pilot\nThe team plans to test throughput improvement next December. No trial has run."
+      },
+      "expected": "insufficient_evidence",
+      "required": []
+    },
+    {
+      "id": "unrelated-topic",
+      "question": "What do the notes say about marine biology?",
+      "notes": {
+        "journal.md": "# Hill journal\nNo wildlife survey or marine observation was conducted. The walk took 50 minutes."
+      },
+      "expected": "insufficient_evidence",
+      "required": []
+    },
+    {
+      "id": "different-subject-measurement",
+      "question": "What is the measured Orchid accuracy?",
+      "notes": {
+        "model.md": "# Orchid experiment\nOrchid accuracy was not measured. A separate Maple experiment recorded accuracy of 93 percent."
+      },
+      "expected": "insufficient_evidence",
+      "required": []
+    },
+    {
+      "id": "renamed-observed-value",
+      "question": "What is the measured Acacia accuracy?",
+      "notes": {
+        "model.md": "# Acacia experiment\nAcacia measured accuracy was 87 percent on the held-out test."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "87 percent",
+          [
+            "model.md"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "reversed-operator",
+      "question": "Does Birch quarantine at exactly 6 percent?",
+      "notes": {
+        "rule.md": "# Birch quality\nBirch quarantines batches at or below 6 percent. Above 6 percent remains eligible."
+      },
+      "expected": "answered",
+      "required": [
+        [
+          "at or below 6 percent",
+          [
+            "rule.md"
+          ]
+        ]
+      ]
+    }
+  ]
+}

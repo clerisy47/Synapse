@@ -9,6 +9,9 @@ pub const MAX_QUEUE_DEPTH: usize = 16;
 pub const QUEUE_WAIT: Duration = Duration::from_secs(30);
 const INTERACTIVE_BURST: usize = 4;
 pub(crate) trait QueuedTransport: Send + Sync {
+    fn budget(&self) -> synapse_core::ModelBudget {
+        synapse_core::ModelBudget::Local
+    }
     fn perform(&self, job: ModelJob, cancel: &Cancellation) -> Result<ModelResult, PublicError>;
 }
 struct State {
@@ -46,6 +49,9 @@ impl<T> Drop for Active<'_, T> {
     }
 }
 impl<T: QueuedTransport> ModelService for JobQueue<T> {
+    fn budget(&self) -> synapse_core::ModelBudget {
+        self.transport.budget()
+    }
     fn execute(
         &self,
         job: ModelJob,

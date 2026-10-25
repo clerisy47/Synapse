@@ -17,7 +17,7 @@ version=tomllib.loads((root/'Cargo.toml').read_text())['workspace']['package']['
 target=subprocess.check_output([os.environ.get('SYNAPSE_RUSTC','rustc'),'-vV'],text=True).split('host: ')[1].splitlines()[0]
 subprocess.run([cargo,'build','--locked','--release','-p','synapse-terminal'],cwd=root,check=True)
 files={'bin/synapse':(root/'target/release/synapse').read_bytes(),'LICENSE':(root/'LICENSE').read_bytes()}
-for path in ['README.md','docs/rust-review.md','docs/contracts/cli-v1.md','docs/contracts/mcp-v1.md','docs/rust-providers.md','docs/native-install.md']:
+for path in ['README.md','docs/contracts/cli-v1.md','docs/contracts/mcp-v1.md','docs/native-install.md']:
  files[path]=(root/path).read_bytes()
 # Include enabled normal/build dependencies, their declared license and all
 # root license/notice texts. No user directory names enter this document.

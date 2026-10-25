@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Opt-in synthetic quality/privacy evaluation; never starts/downloads a model."""
+import argparse
 import json
 import os
 import pathlib
@@ -9,7 +10,14 @@ import sys
 import tempfile
 import time
 import urllib.request
-binary=str(pathlib.Path(sys.argv[1]).resolve())
+from qualification_provider import add_provider_arguments, provider_options, provider_metadata
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('binary')
+parser.add_argument('report', nargs='?')
+add_provider_arguments(parser)
+args = parser.parse_args()
+options = provider_options(parser, args)
+binary = str(pathlib.Path(args.binary).resolve())
 report=[]
 notes={
  'reactor.md':('reactor','The reactor uses 42 units per cycle.'),
@@ -33,9 +41,12 @@ cases=[
  ('tag-key','What is the excluded tagged archive key?',None),
  ('control-secret','What is the research inbox secret?',None),
 ]
-with urllib.request.urlopen('http://127.0.0.1:18080/props',timeout=5) as response:
- props=json.load(response)
-runtime={'provider':'user-managed PrismML llama.cpp','model':'Bonsai 2 9B PQ2_0','context':4096,'slots':1 if props.get('total_slots')==1 else 'unverified','thinking':False,'runtime_build':props.get('build_info') if re.fullmatch(r'b[0-9]+-[0-9a-f]{7,40}',str(props.get('build_info',''))) else 'unreported','model_variant_verified': 'pq2_0' in str(props.get('model_path','')).lower()}
+if args.provider == 'local':
+ with urllib.request.urlopen('http://127.0.0.1:18080/props',timeout=5) as response:
+  props=json.load(response)
+ runtime={'provider':'user-managed PrismML llama.cpp','model':'Bonsai 2 9B PQ2_0','context':4096,'slots':1 if props.get('total_slots')==1 else 'unverified','thinking':False,'runtime_build':props.get('build_info') if re.fullmatch(r'b[0-9]+-[0-9a-f]{7,40}',str(props.get('build_info',''))) else 'unreported','model_variant_verified': 'pq2_0' in str(props.get('model_path','')).lower()}
+else:
+ runtime=provider_metadata(args)
 with tempfile.TemporaryDirectory(prefix='synapse-quality-') as base:
  base=pathlib.Path(base).resolve();workspace=base/'workspace';workspace.mkdir();home=base/'home';home.mkdir()
  for path,(topic,text) in notes.items():
@@ -48,7 +59,7 @@ with tempfile.TemporaryDirectory(prefix='synapse-quality-') as base:
  env={**os.environ,'HOME':str(home),'NO_COLOR':'1'};env.pop('XDG_STATE_HOME',None)
  for case,question,fact in cases:
   start=time.monotonic()
-  output=subprocess.run([binary,'ask','--workspace',str(workspace),'--exclude-folder','Private','--exclude-tag','secret',question,'--json'],env=env,capture_output=True,timeout=70)
+  output=subprocess.run([binary,'ask','--workspace',str(workspace),'--exclude-folder','Private','--exclude-tag','secret',question,'--json',*options],env=env,capture_output=True,timeout=260)
   result=json.loads(output.stdout) if output.stdout else {}
   combined=output.stdout+output.stderr
   privacy=not any(s in combined for s in [b'EXCLUDED_SENTINEL',b'CONTROL_SENTINEL']) and question.encode() not in output.stderr
@@ -59,5 +70,5 @@ with tempfile.TemporaryDirectory(prefix='synapse-quality-') as base:
  assert all(r['privacy_passed'] for r in report),'privacy regression'
 result={'version':1,'runtime':runtime,'passed':sum(r['passed'] for r in report),'total':len(report),'cases':report,'limits':'Synthetic extractive-answer evaluation; does not establish general model safety or remote-provider quality.'}
 print(json.dumps(result,indent=2))
-if len(sys.argv)>2:pathlib.Path(sys.argv[2]).write_text(json.dumps(result,indent=2)+'\n')
+if args.report:pathlib.Path(args.report).write_text(json.dumps(result,indent=2)+'\n')
 sys.exit(0 if result['passed']==result['total'] else 1)

@@ -1,4 +1,4 @@
-//! Journaled authority used only after full local terminal review.
+//! Journaled auto-apply for local note mutations. No interactive Apply gate.
 use crate::{CanonicalWorkspace, DiskStateStore, state_store::StateFile};
 use serde::{Deserialize, Serialize};
 use std::io::IsTerminal;
@@ -33,8 +33,7 @@ struct Journal {
     epoch: u64,
     records: Vec<JournalRecord>,
 }
-/// Deliberately nonserializable and consumed by Apply. Creation is restricted to
-/// a real terminal; the terminal controller calls it only after exact review.
+/// Retained for test compatibility; production apply no longer requires it.
 pub struct LocalApproval {
     fingerprint: ContentHash,
     epoch: u64,
@@ -62,6 +61,12 @@ fn validate(reader: &CanonicalWorkspace, plan: &ReviewPlan) -> Result<(), Public
         if snapshot(reader, &p.target.path)? != p.target {
             return Err(PublicError::Conflict);
         }
+        if let Some(dest) = &p.rename_to {
+            let current = snapshot(reader, dest)?;
+            if current.before.is_some() {
+                return Err(PublicError::Conflict);
+            }
+        }
         for source in &p.sources {
             if snapshot(reader, &source.path)? != *source {
                 return Err(PublicError::Conflict);
@@ -69,6 +74,55 @@ fn validate(reader: &CanonicalWorkspace, plan: &ReviewPlan) -> Result<(), Public
         }
     }
     Ok(())
+}
+fn outcome_of(
+    reader: &CanonicalWorkspace,
+    proposal: &Proposal,
+) -> Result<WriteOutcome, PublicError> {
+    match proposal.kind {
+        ProposalKind::Delete => match snapshot(reader, &proposal.target.path) {
+            Ok(current) if current.before.is_none() => Ok(WriteOutcome::Applied),
+            Ok(current) if current.before == proposal.target.before => Ok(WriteOutcome::Refused),
+            Ok(_) => Ok(WriteOutcome::Unknown),
+            Err(_) => Ok(WriteOutcome::Unknown),
+        },
+        ProposalKind::Rename => {
+            let Some(dest) = &proposal.rename_to else {
+                return Ok(WriteOutcome::Unknown);
+            };
+            let source = snapshot(reader, &proposal.target.path)?;
+            let destination = snapshot(reader, dest)?;
+            if source.before.is_none()
+                && destination.before.as_deref() == Some(proposal.after.as_str())
+            {
+                Ok(WriteOutcome::Applied)
+            } else if source.before == proposal.target.before && destination.before.is_none() {
+                Ok(WriteOutcome::Refused)
+            } else {
+                Ok(WriteOutcome::Unknown)
+            }
+        }
+        _ => match snapshot(reader, &proposal.target.path) {
+            Ok(current) if current.before.as_deref() == Some(proposal.after.as_str()) => {
+                Ok(WriteOutcome::Applied)
+            }
+            Ok(current) if current.before == proposal.target.before => Ok(WriteOutcome::Refused),
+            _ => Ok(WriteOutcome::Unknown),
+        },
+    }
+}
+fn apply_one(reader: &CanonicalWorkspace, proposal: &Proposal) -> Result<(), PublicError> {
+    match proposal.kind {
+        ProposalKind::Delete => reader.delete_reviewed(&proposal.target),
+        ProposalKind::Rename => {
+            let dest = proposal
+                .rename_to
+                .as_ref()
+                .ok_or(PublicError::InvalidModelOutput)?;
+            reader.rename_reviewed(&proposal.target, dest)
+        }
+        _ => reader.replace_reviewed(&proposal.target, &proposal.after, proposal.kind),
+    }
 }
 impl DiskStateStore {
     fn journal(&self, reader: &CanonicalWorkspace) -> Result<Journal, PublicError> {
@@ -115,17 +169,7 @@ impl DiskStateStore {
         let mut changed = false;
         for record in &mut journal.records {
             if matches!(record.outcome, WriteOutcome::Intent | WriteOutcome::Unknown) {
-                let outcome = match snapshot(reader, &record.proposal.target.path) {
-                    Ok(current)
-                        if current.before.as_deref() == Some(record.proposal.after.as_str()) =>
-                    {
-                        WriteOutcome::Applied
-                    }
-                    Ok(current) if current.before == record.proposal.target.before => {
-                        WriteOutcome::Refused
-                    }
-                    _ => WriteOutcome::Unknown,
-                };
+                let outcome = outcome_of(reader, &record.proposal)?;
                 changed |= record.outcome != outcome;
                 record.outcome = outcome;
             }
@@ -146,9 +190,6 @@ impl DiskStateStore {
         reader: &CanonicalWorkspace,
         plan: &ReviewPlan,
     ) -> Result<LocalApproval, PublicError> {
-        if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
-            return Err(PublicError::TtyRequired);
-        }
         let _lock = self.lock()?;
         validate(reader, plan)?;
         let mut journal = self.journal(reader)?;
@@ -165,24 +206,15 @@ impl DiskStateStore {
             epoch: journal.epoch,
         })
     }
-    pub fn apply_reviewed(
+    /// Journaled mutation without interactive Apply. Rechecks snapshots under lock.
+    pub fn apply_auto(
         &self,
         reader: &CanonicalWorkspace,
         plan: ReviewPlan,
-        approval: LocalApproval,
     ) -> Result<usize, PublicError> {
-        if !std::io::stdin().is_terminal()
-            || !std::io::stdout().is_terminal()
-            || approval.fingerprint != plan.fingerprint()
-        {
-            return Err(PublicError::ApprovalRequired);
-        }
         let _lock = self.lock()?;
         let mut journal = self.journal(reader)?;
         self.reconcile_locked(reader, &mut journal)?;
-        if approval.epoch != journal.epoch {
-            return Err(PublicError::Conflict);
-        }
         if journal
             .records
             .iter()
@@ -220,8 +252,6 @@ impl DiskStateStore {
                 outcome: WriteOutcome::Unattempted,
             });
         }
-        // Capacity/serialization is established for the entire batch before any
-        // intent or filesystem attempt. Later files stay explicitly unattempted.
         self.save_journal(&journal)?;
         let mut applied = 0;
         let mut owned: Vec<synapse_core::FileSnapshot> = Vec::new();
@@ -243,20 +273,34 @@ impl DiskStateStore {
             journal.records[start + index].proposal = proposal.clone();
             journal.records[start + index].outcome = WriteOutcome::Intent;
             self.save_journal(&journal)?;
-            let result = reader.replace_reviewed(&proposal.target, &proposal.after, proposal.kind);
-            journal.records[start + index].outcome = match snapshot(reader, &proposal.target.path) {
-                Ok(current) if current.before.as_deref() == Some(proposal.after.as_str()) => {
-                    WriteOutcome::Applied
-                }
-                Ok(current) if current.before == proposal.target.before => WriteOutcome::Refused,
-                _ => WriteOutcome::Unknown,
-            };
+            let result = apply_one(reader, &proposal);
+            journal.records[start + index].outcome = outcome_of(reader, &proposal)?;
             self.save_journal(&journal)?;
             result?;
-            owned.push(snapshot(reader, &proposal.target.path)?);
+            if proposal.kind != ProposalKind::Delete {
+                let path = proposal.rename_to.as_ref().unwrap_or(&proposal.target.path);
+                owned.push(snapshot(reader, path)?);
+            }
             applied += 1;
         }
         Ok(applied)
+    }
+    pub fn apply_reviewed(
+        &self,
+        reader: &CanonicalWorkspace,
+        plan: ReviewPlan,
+        approval: LocalApproval,
+    ) -> Result<usize, PublicError> {
+        if approval.fingerprint != plan.fingerprint() {
+            return Err(PublicError::ApprovalRequired);
+        }
+        let _lock = self.lock()?;
+        let journal = self.journal(reader)?;
+        if approval.epoch != journal.epoch {
+            return Err(PublicError::Conflict);
+        }
+        drop(_lock);
+        self.apply_auto(reader, plan)
     }
 }
 
@@ -275,31 +319,77 @@ impl DiskStateStore {
         if record.proposal.kind == ProposalKind::Setup {
             return Err(PublicError::AccessRefused);
         }
-        let target = snapshot(reader, &record.proposal.target.path)?;
-        if target.before.as_deref() != Some(record.proposal.after.as_str()) {
-            return Err(PublicError::Conflict);
-        }
         let instructions = reader.snapshot_control(ControlFile::Instructions)?;
+        let proposal = match record.proposal.kind {
+            ProposalKind::Delete => {
+                let target = snapshot(reader, &record.proposal.target.path)?;
+                if target.before.is_some() {
+                    return Err(PublicError::Conflict);
+                }
+                Proposal {
+                    kind: ProposalKind::Revert,
+                    target,
+                    after: record.proposal.target.before.clone().unwrap_or_default(),
+                    rename_to: None,
+                    sources: vec![instructions],
+                    capture: None,
+                }
+            }
+            ProposalKind::Rename => {
+                let dest = record
+                    .proposal
+                    .rename_to
+                    .as_ref()
+                    .ok_or(PublicError::StateUnavailable)?;
+                let current = snapshot(reader, dest)?;
+                if current.before.as_deref() != Some(record.proposal.after.as_str()) {
+                    return Err(PublicError::Conflict);
+                }
+                if snapshot(reader, &record.proposal.target.path)?
+                    .before
+                    .is_some()
+                {
+                    return Err(PublicError::Conflict);
+                }
+                Proposal {
+                    kind: ProposalKind::Rename,
+                    target: current,
+                    after: record.proposal.after.clone(),
+                    rename_to: Some(record.proposal.target.path.clone()),
+                    sources: vec![instructions],
+                    capture: None,
+                }
+            }
+            _ => {
+                let target = snapshot(reader, &record.proposal.target.path)?;
+                if target.before.as_deref() != Some(record.proposal.after.as_str()) {
+                    return Err(PublicError::Conflict);
+                }
+                Proposal {
+                    kind: ProposalKind::Revert,
+                    target,
+                    after: record.proposal.target.before.clone().unwrap_or_default(),
+                    rename_to: None,
+                    sources: vec![instructions],
+                    capture: None,
+                }
+            }
+        };
         Ok(ReviewPlan {
-            proposals: vec![Proposal {
-                kind: ProposalKind::Revert,
-                target,
-                after: record.proposal.target.before.clone().unwrap_or_default(),
-                sources: vec![instructions],
-                capture: None,
-            }],
+            proposals: vec![proposal],
             policy: synapse_core::policy_fingerprint(reader.access_policy()),
             provider,
         })
     }
-    /// Local history clearing revokes all outstanding approval epochs. Note files
-    /// and command-line access configuration are untouched.
+    /// Local history clearing revokes grants and index state. Note files and
+    /// command-line access configuration are untouched.
     pub fn clear_history(&self, reader: &CanonicalWorkspace) -> Result<(), PublicError> {
         if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
             return Err(PublicError::TtyRequired);
         }
         let _lock = self.lock()?;
         self.revoke_all_locked()?;
+        self.clear_index()?;
         let old = self.journal(reader)?;
         let journal = Journal {
             version: 1,
@@ -308,10 +398,27 @@ impl DiskStateStore {
                 .epoch
                 .checked_add(1)
                 .ok_or(PublicError::StateUnavailable)?,
-            records: Vec::new(),
+            records: old
+                .records
+                .into_iter()
+                .filter(|record| {
+                    matches!(record.outcome, WriteOutcome::Intent | WriteOutcome::Unknown)
+                })
+                .collect(),
         };
         self.save_journal(&journal)?;
-        self.write_state(StateFile::Captures, serde_json::to_string(&serde_json::json!({"kind":"synapse-rust-captures","version":1,"workspace":reader.workspace_id()?,"captures":[]})).map_err(|_| PublicError::StateUnavailable)?.as_bytes())
+        self.write_state(StateFile::Captures, serde_json::to_string(&serde_json::json!({"kind":"synapse-rust-captures","version":1,"workspace":reader.workspace_id()?,"captures":[]})).map_err(|_| PublicError::StateUnavailable)?.as_bytes())?;
+        self.write_state(
+            StateFile::Contradictions,
+            serde_json::to_string(&serde_json::json!({
+                "kind":"synapse-rust-contradictions",
+                "version":1,
+                "workspace":reader.workspace_id()?,
+                "reports":[]
+            }))
+            .map_err(|_| PublicError::StateUnavailable)?
+            .as_bytes(),
+        )
     }
 }
 

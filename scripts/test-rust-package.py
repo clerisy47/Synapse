@@ -17,7 +17,7 @@ with tempfile.TemporaryDirectory(prefix='synapse-package-') as base:
  with tarfile.open(artifact) as archive:
   members=archive.getmembers();roots={pathlib.PurePosixPath(m.name).parts[0] for m in members};assert len(roots)==1
   prefix=next(iter(roots))
-  allowed={'bin/synapse','LICENSE','THIRD_PARTY_LICENSES.txt','manifest.json','README.md','docs/rust-review.md','docs/contracts/cli-v1.md','docs/contracts/mcp-v1.md','docs/rust-providers.md','docs/native-install.md'}
+  allowed={'bin/synapse','LICENSE','THIRD_PARTY_LICENSES.txt','manifest.json','README.md','docs/contracts/cli-v1.md','docs/contracts/mcp-v1.md','docs/native-install.md'}
   assert {m.name.removeprefix(prefix+'/') for m in members}==allowed,'artifact allowlist mismatch'
   for member in members:
    assert member.isfile() and not member.issym() and not member.islnk(),'unexpected archive type'
@@ -35,8 +35,10 @@ with tempfile.TemporaryDirectory(prefix='synapse-package-') as base:
   assert version.stdout.decode().strip()=='synapse '+manifest['productVersion']
   subprocess.run(['synapse','--help'],cwd=base,env=env,stdout=subprocess.DEVNULL,check=True)
   subprocess.run(['synapse','doctor','--workspace',str(workspace),'--offline'],cwd=base,env=env,stdout=subprocess.DEVNULL,check=True)
-  denied=subprocess.run(['synapse','setup','--workspace',str(workspace)],cwd=base,env=env,input=b'Apply\n',capture_output=True)
-  assert denied.returncode==2,'installed binary accepted piped approval'
+  preview=subprocess.run(['synapse','setup','--workspace',str(workspace),'--preview'],cwd=base,env=env,capture_output=True)
+  assert preview.returncode==0 and (b'Preview complete' in preview.stdout or b'No changes' in preview.stdout),'installed binary preview failed'
+  applied=subprocess.run(['synapse','setup','--workspace',str(workspace)],cwd=base,env=env,capture_output=True)
+  assert applied.returncode==0 and (b'Applied files:' in applied.stdout or b'No changes' in applied.stdout),'installed binary auto-apply failed'
   if iteration==0:
    wrong=subprocess.run(['synapse','research','capture','--workspace',str(workspace),'--file','keep.md'],cwd=base,env=env,capture_output=True)
    assert wrong.returncode!=0,'capture accepted an arbitrary file'
@@ -50,4 +52,4 @@ with tempfile.TemporaryDirectory(prefix='synapse-package-') as base:
  assert state_before=={str(p.relative_to(home)):p.read_bytes() for p in home.rglob('*.json')},'uninstall changed state'
  assert not executable.exists() and (install/'keep.txt').read_text()=='unrelated'
  assert (workspace/'keep.md').read_text()=='Preserved note\n'
-print('Native archive allowlist/checksums, isolated install/same-version upgrade/uninstall and piped approval refusal passed')
+print('Native archive allowlist/checksums, isolated install/same-version upgrade/uninstall and auto-apply setup passed')

@@ -3,7 +3,7 @@ use rmcp::{ErrorData, RoleServer, ServerHandler, model::*, service::RequestConte
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::sync::Arc;
-use synapse_core::{Cancellation, ChatSession, ModelService, PublicError};
+use synapse_core::{Cancellation, ModelService, PublicError};
 #[derive(Clone)]
 pub(crate) struct Handler {
     pub reader: Arc<CanonicalWorkspace>,
@@ -61,14 +61,17 @@ impl Handler {
                 }
             });
             let result = (|| {
-                let mut chat =
-                    ChatSession::new(self.reader.as_ref(), self.reader.access_policy().clone())?;
-                let answer = chat.ask(
+                let mut chat = crate::query_session(
+                    self.reader.as_ref(),
+                    self.reader.access_policy().clone(),
+                )?;
+                let answer = chat.ask_with_profile(
                     &input.question,
                     self.reader.as_ref(),
                     self.reader.access_policy(),
                     self.model.as_ref(),
                     &cancel,
+                    synapse_core::OutputProfile::MCP,
                 )?;
                 if cancel.is_cancelled() {
                     return Err(PublicError::AccessRefused);
@@ -78,6 +81,13 @@ impl Handler {
             stop.store(true, std::sync::atomic::Ordering::Release);
             result
         })?;
+        if !answer.sufficient() {
+            return Ok(unavailable());
+        }
+        if answer.sources.len() > 12 || answer.sources.iter().any(|e| e.text.chars().count() > 600)
+        {
+            return Err(PublicError::OutputUnavailable);
+        }
         *self
             .delivery
             .lock()
@@ -87,9 +97,8 @@ impl Handler {
         let references: Vec<_> = answer
             .sources
             .iter()
-            .take(12)
             .enumerate()
-            .map(|(i, e)| json!({"id":i+1,"excerpt":e.text.chars().take(600).collect::<String>()}))
+            .map(|(i, e)| json!({"id":i+1,"excerpt":e.text}))
             .collect();
         if references.is_empty() {
             Ok(unavailable())

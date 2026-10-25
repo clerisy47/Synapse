@@ -122,7 +122,8 @@ impl NotePath {
     }
 }
 pub const MAX_NOTE_BYTES: u64 = 128 * 1024;
-pub const MAX_FILES: usize = 10_000;
+pub const MAX_FILES: usize = 200_000;
+pub const MAX_INDEXED_NOTES: usize = 10_000;
 pub const MAX_DEPTH: usize = 32;
 /// Reading remains independent of any write capability.
 pub trait NoteReadPort: WorkspaceReadPort {

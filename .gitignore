@@ -9,3 +9,6 @@ test/.mini-vault-run-*/
 dist/
 
 /target/
+
+__pycache__/
+*.py[cod]

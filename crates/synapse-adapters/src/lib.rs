@@ -6,7 +6,7 @@ mod state_location;
 pub use state_location::{reject_overlap, state_location};
 
 mod watcher;
-pub use watcher::{PollingWatcher, WATCH_INTERVAL};
+pub use watcher::{PollingWatcher, WATCH_INTERVAL, WorkspaceWatcher};
 
 mod job_queue;
 mod provider;
@@ -35,3 +35,6 @@ mod mcp_submit;
 pub use mcp_listener::McpListener;
 mod mcp_strings;
 mod strict_json;
+
+mod search_index;
+pub use search_index::{SqliteSearchIndex, query_session};

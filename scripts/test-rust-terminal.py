@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Real POSIX PTY lifecycle smoke; synthetic empty workspace, no model required."""
 import fcntl
+import argparse
 import os
 import pathlib
 import pty
@@ -13,7 +14,14 @@ import tempfile
 import termios
 import time
 
-binary = str(pathlib.Path(sys.argv[1]).resolve())
+from qualification_provider import add_provider_arguments, provider_options, provider_metadata
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('binary')
+parser.add_argument('--live', action='store_true')
+add_provider_arguments(parser)
+args = parser.parse_args()
+options = provider_options(parser, args)
+binary = str(pathlib.Path(args.binary).resolve())
 
 def until(fd, marker, timeout=5):
     output = b''
@@ -36,7 +44,7 @@ with tempfile.TemporaryDirectory(prefix='synapse-pty-') as workspace:
         master, slave = pty.openpty()
         original = termios.tcgetattr(slave)
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 24, 16, 0, 0))
-        child = subprocess.Popen([binary, '--workspace', workspace], stdin=slave, stdout=slave, stderr=slave, start_new_session=True, env={**os.environ, 'NO_COLOR': '1'})
+        child = subprocess.Popen([binary, '--workspace', workspace, *options], stdin=slave, stdout=slave, stderr=slave, start_new_session=True, env={**os.environ, 'NO_COLOR': '1'})
         try:
             startup = until(master, b'synapse> ')
             assert b'Workspace: ' in startup
@@ -73,7 +81,7 @@ with tempfile.TemporaryDirectory(prefix='synapse-pty-') as workspace:
             os.close(slave)
 print('Real PTY: Unicode, narrow resize, NO_COLOR, conversation, quit, Ctrl-C, EOF and terminal restoration passed')
 
-if '--live' in sys.argv[2:]:
+if args.live:
     with tempfile.TemporaryDirectory(prefix='synapse-pty-live-') as base:
         base = pathlib.Path(base).resolve()
         home, workspace = base / 'home', base / 'workspace'
@@ -86,11 +94,11 @@ if '--live' in sys.argv[2:]:
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 24, 80, 0, 0))
         env = {**os.environ, 'HOME': str(home), 'NO_COLOR': '1'}
         env.pop('XDG_STATE_HOME', None)
-        child = subprocess.Popen([binary, '--workspace', str(workspace)], stdin=slave, stdout=slave, stderr=slave, start_new_session=True, env=env)
+        child = subprocess.Popen([binary, '--workspace', str(workspace), *options], stdin=slave, stdout=slave, stderr=slave, start_new_session=True, env=env)
         try:
             startup = until(master, b'synapse> ')
             os.write(master, b'At what distance does the synthetic moon orbit?\n')
-            answer = until(master, b'synapse> ', timeout=80)
+            answer = until(master, b'synapse> ', timeout=250)
             assert b'42 units' in answer and b'moon.md:7-' in answer, 'live grounded answer missing'
             fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 24, 16, 0, 0))
             os.write(master, b'/source 1\n')
@@ -118,4 +126,4 @@ if '--live' in sys.argv[2:]:
             os.close(master)
             os.close(slave)
             child.wait(timeout=3)
-    print('Live PTY: Bonsai grounded answer, source inspection, resize, malicious controls and exclusion invalidation passed')
+    print('Live PTY: selected-provider grounded answer, source inspection, resize, malicious controls and exclusion invalidation passed')

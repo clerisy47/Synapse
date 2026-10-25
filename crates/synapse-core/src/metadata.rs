@@ -170,6 +170,7 @@ pub fn metadata_proposal(
         kind: ProposalKind::Metadata,
         target: input.snapshot,
         after,
+        rename_to: None,
         sources,
         capture: None,
     })

@@ -235,7 +235,7 @@ fn traversal_and_index_budgets_fail_closed() -> Result<(), Box<dyn Error>> {
     assert!(reader.list_notes().is_err());
     let flat = Temp::new()?;
     let content = format!("{NOTE}{}", "x".repeat(130_000));
-    for index in 0..130 {
+    for index in 0..2100 {
         fs::write(flat.0.join(format!("{index}.md")), &content)?;
     }
     let reader = CanonicalWorkspace::open(&flat.0).map_err(|_| "open")?;
@@ -356,5 +356,24 @@ fn hard_linked_control_aliases_cannot_enter_retrieval() -> Result<(), Box<dyn Er
         reader.list_notes().is_err(),
         "canonical control identities must be distinct"
     );
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn watcher_does_not_follow_outside_or_broken_descendant_links() -> Result<(), Box<dyn Error>> {
+    use std::{sync::Arc, time::Duration};
+    let root = Temp::new()?;
+    let outside = Temp::new()?;
+    fs::write(outside.0.join("outside.md"), NOTE)?;
+    std::os::unix::fs::symlink(&outside.0, root.0.join("outside"))?;
+    std::os::unix::fs::symlink(outside.0.join("absent"), root.0.join("broken"))?;
+    let reader = Arc::new(CanonicalWorkspace::open(&root.0).map_err(|_| "open")?);
+    let watcher = synapse_adapters::WorkspaceWatcher::start(reader).map_err(|_| "watch")?;
+    std::thread::sleep(Duration::from_millis(100));
+    let before = watcher.generation();
+    fs::write(outside.0.join("outside.md"), NOTE.replace("42", "99"))?;
+    std::thread::sleep(Duration::from_millis(200));
+    assert_eq!(watcher.generation(), before);
     Ok(())
 }

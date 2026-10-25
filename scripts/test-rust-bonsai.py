@@ -27,7 +27,7 @@ with tempfile.TemporaryDirectory(prefix='synapse-bonsai-cli-') as base:
     ]
     for case, question, expected in cases:
         start = time.monotonic()
-        output = subprocess.run([binary, 'ask', '--workspace', str(workspace), question, '--json'], env=env, capture_output=True, timeout=80)
+        output = subprocess.run([binary, 'ask', '--workspace', str(workspace), question, '--json'], env=env, capture_output=True, timeout=260)
         assert output.returncode == 0, f'{case}: unexpected exit'
         result = json.loads(output.stdout)
         assert result['version'] == 1 and result['status'] == expected, f'{case}: incorrect outcome'

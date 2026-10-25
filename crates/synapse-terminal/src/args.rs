@@ -1,5 +1,7 @@
 use std::{ffi::OsString, path::PathBuf};
 use synapse_core::{AccessPolicy, DailyDate, NotePath, PublicError};
+pub const DEFAULT_OPENROUTER_MODEL: &str = "deepseek/deepseek-v4.1-flash";
+
 #[derive(Clone)]
 pub enum ProviderChoice {
     Local,
@@ -36,6 +38,7 @@ pub enum Invocation {
         workspace: WorkspaceArgs,
         question: String,
         json: bool,
+        stats: bool,
     },
     Search {
         workspace: WorkspaceArgs,
@@ -57,6 +60,10 @@ pub enum Invocation {
         workspace: WorkspaceArgs,
         capture: Option<usize>,
         date: Option<DailyDate>,
+    },
+    Contradictions {
+        workspace: WorkspaceArgs,
+        json: bool,
     },
     MetadataReview {
         workspace: WorkspaceArgs,
@@ -93,15 +100,17 @@ pub fn parse(args: Vec<OsString>) -> Result<Invocation, PublicError> {
         "--workspace" => (0, 0),
         "research" => match args.get(1).and_then(|arg| arg.to_str()) {
             Some("capture") => (5, 2),
-            Some("review") => (6, 2),
+            Some("review" | "apply") => (6, 2),
             _ => return Err(PublicError::Usage),
         },
+        "contradictions" => (11, 1),
         "metadata" if args.get(1).is_some_and(|arg| arg == "review") => (7, 2),
         _ => return Err(PublicError::Usage),
     };
     let (mut root, mut question, mut model, mut file, mut range, mut capture, mut date) =
         (None, None, None, None, None, None, None);
     let (mut json, mut offline, mut remote, mut consent) = (false, false, false, false);
+    let mut stats = false;
     let mut policy = AccessPolicy::default();
     let mut preview = false;
     let mut revert = None;
@@ -130,7 +139,8 @@ pub fn parse(args: Vec<OsString>) -> Result<Invocation, PublicError> {
                 root = Some(PathBuf::from(args.get(index).ok_or(PublicError::Usage)?));
             }
             "--preview" if matches!(mode, 4 | 6 | 7 | 8) && !preview => preview = true,
-            "--json" if matches!(mode, 1 | 3) && !json => json = true,
+            "--json" if matches!(mode, 1 | 3 | 11) && !json => json = true,
+            "--stats" if mode == 1 && !stats => stats = true,
             "--offline" if mode == 2 && !offline => offline = true,
             "--provider" => {
                 index += 1;
@@ -194,7 +204,7 @@ pub fn parse(args: Vec<OsString>) -> Result<Invocation, PublicError> {
             return Err(PublicError::RemoteConsentRequired);
         }
         ProviderChoice::OpenRouter {
-            model: model.ok_or(PublicError::Usage)?,
+            model: model.unwrap_or_else(|| DEFAULT_OPENROUTER_MODEL.to_owned()),
             consent,
         }
     } else {
@@ -220,6 +230,7 @@ pub fn parse(args: Vec<OsString>) -> Result<Invocation, PublicError> {
             workspace,
             question: bounded_question(question)?,
             json,
+            stats,
         }),
         2 => Ok(Invocation::Doctor { workspace, offline }),
         3 => Ok(Invocation::Search {
@@ -241,6 +252,7 @@ pub fn parse(args: Vec<OsString>) -> Result<Invocation, PublicError> {
         7 => Ok(Invocation::MetadataReview { workspace, file }),
         8 => Ok(Invocation::Recovery { workspace, revert }),
         9 => Ok(Invocation::Clear { workspace }),
+        11 => Ok(Invocation::Contradictions { workspace, json }),
         _ => Ok(Invocation::Mcp {
             workspace,
             action: args[1].to_str().ok_or(PublicError::Usage)?.to_owned(),
@@ -268,6 +280,37 @@ mod tests {
             ));
         }
     }
+    #[test]
+    fn openrouter_defaults_to_deepseek_and_preserves_override_and_consent() {
+        let base = ["ask", "--workspace", ".", "q", "--provider", "openrouter"];
+        assert!(matches!(
+            parse(base.iter().map(OsString::from).collect()),
+            Err(PublicError::RemoteConsentRequired)
+        ));
+        for override_model in [None, Some("example/other")] {
+            let mut args: Vec<OsString> = base.iter().map(OsString::from).collect();
+            args.push("--remote-consent".into());
+            if let Some(model) = override_model {
+                args.extend(["--model".into(), model.into()]);
+            }
+            let Ok(Invocation::Ask { workspace, .. }) = parse(args) else {
+                panic!("expected remote question");
+            };
+            assert!(matches!(workspace.provider,
+                ProviderChoice::OpenRouter { model, consent: true }
+                if model == override_model.unwrap_or(DEFAULT_OPENROUTER_MODEL)));
+        }
+        let Ok(Invocation::Ask { workspace, .. }) = parse(
+            ["ask", "--workspace", ".", "q"]
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+        ) else {
+            panic!("expected local question");
+        };
+        assert!(matches!(workspace.provider, ProviderChoice::Local));
+    }
+
     #[test]
     fn remote_selection_requires_separate_consent() {
         let args = [

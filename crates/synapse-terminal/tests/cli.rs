@@ -38,13 +38,37 @@ fn empty_workspace_has_one_versioned_insufficient_result() -> Result<(), Box<dyn
 {
     let root = std::env::temp_dir().join(format!("synapse-json-{}", std::process::id()));
     std::fs::create_dir(&root)?;
+    let home = root.with_file_name(format!("synapse-json-home-{}", std::process::id()));
+    std::fs::create_dir(&home)?;
+    let home = home.canonicalize()?;
     let output = binary()
+        .env("HOME", &home)
+        .env_remove("XDG_STATE_HOME")
         .arg("ask")
         .arg("--workspace")
         .arg(&root)
         .args(["unknown synthetic question", "--json"])
         .output()?;
+    let profiled = binary()
+        .env("HOME", &home)
+        .env_remove("XDG_STATE_HOME")
+        .arg("ask")
+        .arg("--workspace")
+        .arg(&root)
+        .args(["unknown synthetic question", "--json", "--stats"])
+        .output()?;
+    assert!(
+        profiled.status.success(),
+        "stdout={:?}; stderr={:?}",
+        String::from_utf8_lossy(&profiled.stdout),
+        String::from_utf8_lossy(&profiled.stderr)
+    );
+    assert_eq!(profiled.stdout, output.stdout, "stats changed JSON v1");
+    assert!(
+        String::from_utf8_lossy(&profiled.stderr).contains("Query stats: calls=0 prompt_tokens=0")
+    );
     std::fs::remove_dir(root)?;
+    std::fs::remove_dir_all(home)?;
     assert!(output.status.success());
     let value: serde_json::Value = serde_json::from_slice(&output.stdout)?;
     assert_eq!(value["version"], 1);
@@ -86,27 +110,57 @@ fn missing_metadata_explains_eligibility_without_disclosing_or_mutating_notes()
     let root =
         std::env::temp_dir().join(format!("synapse-metadata-guidance-{}", std::process::id()));
     std::fs::create_dir(&root)?;
+    let home = root.with_file_name(format!("synapse-guidance-home-{}", std::process::id()));
+    std::fs::create_dir(&home)?;
+    let home = home.canonicalize()?;
     let body = "# Private sentinel\nprivate-note-body-sentinel\n";
     std::fs::write(root.join("private-name-sentinel.md"), body)?;
     std::fs::write(root.join("Research.md"), "protected-control-sentinel")?;
+    std::fs::write(
+        root.join("malformed.md"),
+        "---\ntags: [\n---\nmalformed-body-sentinel",
+    )?;
+    std::fs::write(
+        root.join("invalid.md"),
+        "---\ndescription: 17\n---\ninvalid-body-sentinel",
+    )?;
+    std::fs::write(
+        root.join("ignored.md"),
+        "---\nvault-synapse: ignore\n---\nignored-body-sentinel",
+    )?;
+    std::fs::create_dir(root.join("excluded"))?;
+    std::fs::write(root.join("excluded/secret.md"), "excluded-body-sentinel")?;
     for command in ["search", "ask"] {
         let output = binary()
+            .env("HOME", &home)
+            .env_remove("XDG_STATE_HOME")
             .arg(command)
             .arg("--workspace")
             .arg(&root)
-            .args(["unmatched", "--json"])
+            .args(["unmatched", "--json", "--exclude-folder", "excluded"])
             .output()?;
-        assert!(output.status.success());
+        assert!(
+            output.status.success(),
+            "stdout={:?}; stderr={:?}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
         let value: serde_json::Value = serde_json::from_slice(&output.stdout)?;
         assert_eq!(value["version"], 1);
         assert_eq!(value["status"], "insufficient_evidence");
         let diagnostics = String::from_utf8_lossy(&output.stderr);
-        assert!(diagnostics.contains("metadata attention count: 1"));
+        assert!(diagnostics.contains("metadata attention count: 3"));
         assert!(diagnostics.contains("metadata review"));
+        assert!(diagnostics.contains("manual repair"));
+        assert!(diagnostics.contains("Excluded notes and control files"));
         for forbidden in [
             "private-name-sentinel",
             "private-note-body-sentinel",
             "protected-control-sentinel",
+            "malformed-body-sentinel",
+            "invalid-body-sentinel",
+            "ignored-body-sentinel",
+            "excluded-body-sentinel",
         ] {
             assert!(!diagnostics.contains(forbidden));
         }
@@ -116,5 +170,6 @@ fn missing_metadata_explains_eligibility_without_disclosing_or_mutating_notes()
         );
     }
     std::fs::remove_dir_all(root)?;
+    std::fs::remove_dir_all(home)?;
     Ok(())
 }
