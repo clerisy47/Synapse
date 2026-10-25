@@ -1,0 +1,2 @@
+pub const INSTRUCTIONS_STARTER: &str = "---\nsynapse-instructions: 1\ntimezone: UTC\ndestinations:\n  - id: notes\n    path: Notes.md\ndaily:\n  id: daily\n  folder: Daily\n  name: '{date}.md'\n  heading: Research\n---\nKeep reviewed additions concise. Preserve existing note content. Research remains unverified; include its capture provenance.\n";
+pub const RESEARCH_STARTER: &str = "# Research inbox\n\nPaste unverified research here, with inert source URLs and dates when available. Capture an explicit saved selection; Synapse never consumes or deletes inbox text.\n";

@@ -1,0 +1,37 @@
+{
+  "version": "semantic-v2",
+  "cases": {
+    "cedar-boundary": {
+      "required": [
+        ["exactly 2 percent", ["Data Engineering/Cedar Quality Checks.md"]],
+        ["warning", ["Data Engineering/Cedar Quality Checks.md"]]
+      ]
+    },
+    "harbor-mitigation": {
+      "required": [
+        ["24 minutes", ["Operations/Harbor Incident Timeline.md"]],
+        ["20 to 4", ["Operations/Harbor Mitigation.md"]]
+      ]
+    },
+    "orchard-comparison": {
+      "required": [
+        ["20 degrees", ["Kitchen Lab/Orchard Trial A.md"]],
+        ["six hours", ["Kitchen Lab/Orchard Trial A.md"]],
+        ["24 degrees", ["Kitchen Lab/Orchard Trial B.md"]],
+        ["four hours", ["Kitchen Lab/Orchard Trial B.md"]],
+        ["cannot isolate either effect", ["Kitchen Lab/Orchard Trial B.md"]]
+      ]
+    },
+    "unsupported-lantern-battery": {"expected": "insufficient_evidence"},
+    "unsupported-atlas-results": {"expected": "insufficient_evidence"},
+    "unsupported-marine-biology": {"expected": "insufficient_evidence"},
+    "compass-completion": {
+      "required": [["does not measure correctness", ["Learning Notes/Compass Worked Example.md"]]],
+      "illustrative": [
+        ["18", ["Learning Notes/Compass Worked Example.md"]],
+        ["24", ["Learning Notes/Compass Worked Example.md"]],
+        ["75 percent", ["Learning Notes/Compass Worked Example.md"]]
+      ]
+    }
+  }
+}
